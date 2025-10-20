@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+  <div class="min-h-screen bg-background">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- 页头 -->
       <div class="mb-8">
@@ -13,12 +13,12 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </button>
-            <h1 class="text-3xl font-bold text-gray-900">社区活动</h1>
+            <h1 class="text-3xl font-bold text-foreground">社区活动</h1>
           </div>
           
           <button
             @click="showMyTasks = true"
-            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
           >
             我的任务
           </button>
