@@ -45,7 +45,25 @@ module.exports = {
         info: {
           DEFAULT: '#3b82f6',
           foreground: '#ffffff'
-        }
+        },
+        'mario-red': '#ff3844',
+        'mario-green': '#00cc00',
+        'mario-yellow': '#ffcc00',
+        'mario-blue': '#3562ff',
+        'mario-sky': '#6b8cff',
+        'mario-ground': '#945e28',
+        'mario-brick': '#c85050',
+        'mario-brown': '#945e28',
+        'mario-coin': '#ffcc00'
+      },
+      fontFamily: {
+        pixel: ['Press Start 2P', 'cursive'],
+        vt323: ['VT323', 'monospace']
+      },
+      boxShadow: {
+        'pixel': '4px 4px 0px 0px #000000',
+        'pixel-sm': '2px 2px 0px 0px #000000',
+        'pixel-lg': '6px 6px 0px 0px #000000'
       }
     }
   },

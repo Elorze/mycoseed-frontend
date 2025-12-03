@@ -318,12 +318,12 @@ const claimTask = async () => {
 
 // 提交任务
 const submitTask = () => {
-  navigateTo('/tasks/detail/' + taskId + '/submit')
+  navigateTo('/tasks/detail/submit')
 }
 
 // 审核任务
 const reviewTask = () => {
-  navigateTo('/tasks/detail/' + taskId + '/review')
+  navigateTo('/tasks/detail/review')
 }
 
 // 导航到成员页面

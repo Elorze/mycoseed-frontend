@@ -1,45 +1,57 @@
 <template>
-  <div class="flex flex-col container-size rounded-xl bg-[var(--ui-bg)] shadow-lg p-4">
-    <UButton
-      icon="i-heroicons-arrow-left"
-      variant="ghost"
-      class="self-start mb-4"
-      @click="router.push('/')"
-    >
-      返回
-    </UButton>
-    <div class="flex flex-col items-center justify-center h-full gap-4 py-8 w-[80%] mx-auto">
-      <h1 class="text-2xl font-bold">登录</h1>
-      <div>输入登录手机号</div>
-      <UForm :state="formState" @submit="onSubmit" class="w-full">
-        <UFormField name="phone">
-          <UInput
-            size="xl"
-            class="w-full"
+  <div class="w-full max-w-md">
+    <PixelCard>
+      <template #header>
+        <div class="text-center font-pixel text-xl text-mario-red">INSERT COIN</div>
+      </template>
+
+      <div class="flex flex-col gap-6 py-4">
+        <div class="text-center font-vt323 text-2xl">START GAME</div>
+        
+        <div class="space-y-4">
+          <label class="block font-pixel text-xs uppercase text-gray-600">Phone Number</label>
+          <input 
             v-model="formState.phone"
-            placeholder="请输入手机号"
-            :ui="{ base: 'w-full' }"
+            type="tel"
+            placeholder="13800000000"
+            class="w-full h-12 px-4 bg-gray-50 border-2 border-black font-vt323 text-xl focus:outline-none focus:shadow-pixel-sm"
             :disabled="loading"
           />
-        </UFormField>
-        <UButton
-          type="submit"
-          color="primary"
-          class="w-full mt-4 flex justify-center items-center"
-          size="xl"
-          :loading="loading"
+        </div>
+
+        <PixelButton 
+          variant="primary" 
+          block 
+          size="lg"
           :disabled="loading || !formState.phone"
+          @click="onSubmit"
         >
-          发送验证码
-        </UButton>
-      </UForm>
-    </div>
+          {{ loading ? 'LOADING...' : 'SEND CODE' }}
+        </PixelButton>
+
+        <PixelButton 
+          variant="secondary" 
+          block 
+          @click="router.push('/')"
+        >
+          BACK TO MAP
+        </PixelButton>
+      </div>
+
+      <template #footer>
+        <div class="w-full text-center text-xs text-gray-400 font-pixel uppercase">
+          Web3 Login Powered by AA
+        </div>
+      </template>
+    </PixelCard>
   </div>
 </template>
 
 <script setup lang="ts">
-// import { sendSMS } from '../../../semi/semi-app-main/utils/semi_api' // 已注释，使用本地mock API
+import { ref, reactive } from 'vue'
 import { sendSMS } from '~/utils/api'
+import PixelCard from '~/components/pixel/PixelCard.vue'
+import PixelButton from '~/components/pixel/PixelButton.vue'
 
 definePageMeta({
   layout: 'unauth'
@@ -54,8 +66,8 @@ const formState = reactive({
 })
 
 const validatePhone = (value: string) => {
-  if (!value) return '请输入手机号'
-  if (!/^\d{11}$/.test(value)) return '请输入11位数字手机号'
+  if (!value) return 'Please enter phone number'
+  if (!/^\d{11}$/.test(value)) return 'Must be 11 digits'
   return true
 }
 
@@ -66,21 +78,21 @@ const onSubmit = async () => {
     if (validation === true) {
       await sendSMS(formState.phone)
       toast.add({
-        title: '验证码已发送',
-        description: '请查收短信验证码'
+        title: 'CODE SENT',
+        description: 'Check your SMS'
       })
       await router.push(`/verifyphone?phone=${formState.phone}`)
     } else {
       toast.add({
-        title: '手机号格式错误',
+        title: 'ERROR',
         description: validation
       })
     }
   } catch (error) {
-    console.error('发送验证码失败:', error)
+    console.error('Send failed:', error)
     toast.add({
-      title: '发送失败',
-      description: '请稍后重试'
+      title: 'FAILED',
+      description: 'Try again later'
     })
   } finally {
     loading.value = false

@@ -1,38 +1,48 @@
 <template>
-  <header class="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
+  <header class="h-16 md:h-20 border-b-4 border-black bg-white sticky top-0 z-50 shadow-pixel">
+    <div class="w-full md:max-w-7xl md:mx-auto px-2 md:px-4 h-full flex items-center justify-between">
       <!-- Logo -->
       <div 
-        class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+        class="flex items-center gap-3 cursor-pointer group"
         @click="navigateTo('hub')"
       >
-        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary via-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-primary/20">
-          <img src="/images/icons/myco-seed-logo.svg" alt="MycoSeed" class="w-6 h-6" />
+        <div class="w-12 h-12 bg-mario-red border-4 border-black flex items-center justify-center shadow-pixel group-hover:-translate-y-1 transition-transform">
+          <img src="/images/icons/myco-seed-logo.svg" alt="MycoSeed" class="w-8 h-8" style="image-rendering: pixelated;" />
         </div>
-        <div>
-          <h1 class="text-foreground font-bold text-lg">MycoSeed</h1>
-          <p class="text-xs text-muted-foreground">decentralized autonomous community</p>
+        <div class="hidden md:block">
+          <h1 class="font-pixel text-black text-sm md:text-base leading-tight">菌丝计划</h1>
+          <p class="font-vt323 text-gray-600 text-sm">WORLD 1-1</p>
         </div>
       </div>
 
       <!-- Navigation -->
-      <nav class="flex items-center gap-2">
-        <UButton
-          :variant="currentPage === 'wallet' ? 'solid' : 'ghost'"
-          :color="currentPage === 'wallet' ? 'primary' : 'gray'"
-          @click="navigateTo('wallet')"
-          class="flex items-center gap-2"
+      <nav class="flex items-center gap-4">
+        
+        <!-- Marketplace (Replacing Level Bar) -->
+        <PixelButton
+           variant="warning"
+           size="sm"
+           @click="navigateTo('market')"
         >
-          <UIcon name="i-heroicons-wallet" class="h-4 w-4" />
-          钱包
-        </UButton>
+           🛒 商城
+        </PixelButton>
 
-        <!-- Wallet Address -->
-        <div class="ml-4 px-4 py-2 rounded-lg bg-muted border border-border">
-          <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-            <span class="text-sm text-foreground font-mono">0x742d...3f4a</span>
-          </div>
+        <!-- Wallet -->
+        <PixelButton
+          :variant="currentPage === 'wallet' ? 'primary' : 'secondary'"
+          size="sm"
+          @click="navigateTo('wallet')"
+        >
+          👛 钱包
+        </PixelButton>
+
+        <!-- User Avatar (Replacing Address) -->
+        <div 
+          class="cursor-pointer hover:scale-110 transition-transform"
+          @click="navigateTo('profile')"
+          title="个人主页"
+        >
+           <PixelAvatar seed="Alice" size="md" />
         </div>
       </nav>
     </div>
@@ -40,6 +50,9 @@
 </template>
 
 <script setup lang="ts">
+import PixelButton from '~/components/pixel/PixelButton.vue'
+import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
+
 interface Props {
   currentPage?: string
 }
@@ -51,6 +64,11 @@ const emit = defineEmits<{
 }>()
 
 const navigateTo = (page: string) => {
-  emit('navigate', page)
+  if (page === 'profile') {
+    // Mock ID 1 for current user
+    emit('navigate', 'member/1')
+  } else {
+    emit('navigate', page)
+  }
 }
 </script>

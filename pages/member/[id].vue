@@ -1,120 +1,193 @@
 <template>
-  <div class="min-h-screen bg-background">
-    <div class="container mx-auto px-6 py-8">
-      <!-- 返回按钮 -->
-      <div class="mb-8">
-        <button
-          @click="navigateTo('/')"
-          class="mb-4 flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group cursor-pointer"
+  <div class="min-h-screen pb-24">
+    <!-- 顶部个人信息区域 -->
+    <div class="bg-white border-b-4 border-black p-6 pb-8 relative">
+      <div class="flex flex-col items-center gap-4">
+        <!-- 编辑按钮 -->
+        <div class="absolute top-4 right-4">
+          <button
+            @click="isEditing = !isEditing"
+            class="w-10 h-10 bg-gray-100 border-2 border-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+          >
+            <span v-if="!isEditing" class="text-xl">✏️</span>
+            <span v-else class="text-xl">❌</span>
+          </button>
+        </div>
+
+        <!-- 头像与等级 -->
+        <div class="relative">
+          <div v-if="!isEditing" class="relative">
+            <PixelAvatar :seed="member?.name || 'user'" size="xl" />
+            <div class="absolute -bottom-2 -right-2 bg-black text-white text-xs font-pixel px-2 py-1 border-2 border-white">
+              LV. {{ memberLevel }}
+            </div>
+          </div>
+          <div v-else class="relative">
+            <PixelAvatar :seed="editingForm.name || 'user'" size="xl" />
+            <button
+              @click="changeAvatar"
+              class="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs font-pixel hover:bg-black/70 transition-colors"
+            >
+              更换头像
+            </button>
+          </div>
+        </div>
+
+        <!-- 姓名与头衔 -->
+        <div class="text-center w-full max-w-xs">
+          <div v-if="!isEditing">
+            <h1 class="font-pixel text-2xl mb-1">{{ member?.name }}</h1>
+            <div class="text-sm text-gray-500 font-vt323 uppercase tracking-wider">{{ member?.title }}</div>
+          </div>
+          <div v-else class="space-y-3">
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">名字</label>
+              <input
+                v-model="editingForm.name"
+                type="text"
+                class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                placeholder="输入名字"
+              />
+            </div>
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">头衔</label>
+              <input
+                v-model="editingForm.title"
+                type="text"
+                class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                placeholder="输入头衔"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- 技能标签 -->
+        <div class="w-full max-w-xs">
+          <div v-if="!isEditing" class="flex flex-wrap gap-2 justify-center">
+            <span 
+              v-for="skill in member?.skills" 
+              :key="skill" 
+              class="bg-gray-100 border border-gray-300 px-3 py-1 text-xs font-pixel rounded-full"
+            >
+              {{ skill }}
+            </span>
+          </div>
+          <div v-else class="space-y-2">
+            <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">技能标签</label>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <span
+                v-for="(skill, index) in editingForm.skills"
+                :key="index"
+                class="bg-mario-green text-white border-2 border-black px-3 py-1 text-xs font-pixel flex items-center gap-1"
+              >
+                {{ skill }}
+                <button
+                  @click="removeSkill(index)"
+                  class="hover:text-red-300"
+                >
+                  ×
+                </button>
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <input
+                v-model="newSkill"
+                type="text"
+                @keyup.enter="addSkill"
+                class="flex-1 h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                placeholder="输入新标签"
+              />
+              <PixelButton
+                @click="addSkill"
+                variant="secondary"
+                size="sm"
+              >
+                添加
+              </PixelButton>
+            </div>
+          </div>
+        </div>
+
+        <!-- 编辑模式下的保存/取消按钮 -->
+        <div v-if="isEditing" class="flex gap-4 mt-2 w-full max-w-xs">
+          <PixelButton block variant="success" @click="saveProfile">保存</PixelButton>
+          <PixelButton block variant="secondary" @click="cancelEdit">取消</PixelButton>
+        </div>
+
+        <!-- 非编辑模式下的操作按钮 -->
+        <div v-else class="flex gap-4 mt-2 w-full max-w-xs">
+          <PixelButton block variant="primary" @click="navigateTo('/wallet')">钱包</PixelButton>
+          <PixelButton block variant="secondary" @click="navigateTo('/tasks/create')">发布任务</PixelButton>
+        </div>
+      </div>
+    </div>
+
+    <!-- 下方 Tab 区域 -->
+    <div class="mt-4 px-4">
+      <!-- Tab 导航 -->
+      <div class="flex border-b-2 border-black mb-4 overflow-x-auto scrollbar-hide">
+        <button 
+          v-for="tab in tabs" 
+          :key="tab.id"
+          @click="activeTab = tab.id"
+          :class="[
+            'px-4 py-2 font-pixel text-sm whitespace-nowrap transition-colors',
+            activeTab === tab.id ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'
+          ]"
         >
-          <UIcon name="i-heroicons-arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span class="font-medium"></span>
+          {{ tab.label }}
         </button>
       </div>
 
-      <!-- 成员信息卡片 -->
-      <div class="mb-8">
-        <div class="bg-card border border-border rounded-xl p-6">
-          <div class="flex items-center gap-6 mb-6">
-            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-bold text-white">
-              {{ member.name.charAt(0) }}
-            </div>
-            <div>
-              <h1 class="text-3xl font-bold text-foreground">{{ member.name }}</h1>
-              <p class="text-muted-foreground">{{ member.title }}</p>
-              <div class="flex items-center gap-2 mt-2">
-                <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                <span class="text-sm text-muted-foreground">在线</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="text-center">
-              <div class="text-2xl font-bold text-primary">{{ member.totalContributions }}</div>
-              <div class="text-sm text-muted-foreground">总贡献</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-accent">{{ member.completedTasks }}</div>
-              <div class="text-sm text-muted-foreground">完成任务</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-warning">{{ member.totalReward }} ETH</div>
-              <div class="text-sm text-muted-foreground">总奖励</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-success">{{ member.reputation }}</div>
-              <div class="text-sm text-muted-foreground">声誉值</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 参与的社区 -->
-      <div class="bg-card border border-border rounded-xl p-6 mb-8">
-        <h2 class="text-2xl font-bold text-foreground mb-6">参与的社区</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div
-            v-for="community in member.communities"
-            :key="community.id"
-            @click="navigateToDashboard(community.id)"
-            class="group cursor-pointer border border-border rounded-lg p-4 hover:border-primary/50 transition-colors"
-          >
-            <div class="flex items-center gap-3 mb-2">
-              <div class="w-8 h-8 rounded-full" :style="{ backgroundColor: community.color }"></div>
-              <h3 class="font-semibold text-foreground group-hover:text-primary transition-colors">
-                {{ community.name }}
-              </h3>
-            </div>
-            <p class="text-sm text-muted-foreground mb-2">{{ community.description }}</p>
-            <div class="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>{{ community.contributionCount }} 贡献</span>
-              <span>{{ community.reward }} ETH</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 最近活动 -->
-      <div class="bg-card border border-border rounded-xl p-6">
-        <h2 class="text-2xl font-bold text-foreground mb-6">最近活动</h2>
-        
-        <div v-if="recentActivities.length === 0" class="text-center py-12 text-muted-foreground">
-          暂无活动记录
-        </div>
-        
-        <div v-else class="space-y-4">
-          <div
-            v-for="activity in recentActivities"
-            :key="activity.id"
-            @click="viewActivityDetail(activity.id)"
-            class="border border-border rounded-lg p-4 hover:border-primary/50 transition-colors cursor-pointer"
-          >
-            <div class="flex items-start justify-between">
+      <!-- Tab 内容 -->
+      <div class="min-h-[300px]">
+        <!-- HISTORY TAB -->
+        <div v-if="activeTab === 'HISTORY'" class="space-y-4">
+          <div v-for="action in history" :key="action.id" class="bg-white border-2 border-black p-4 shadow-pixel-sm">
+            <div class="flex items-start gap-3">
+              <div class="text-2xl">{{ action.icon }}</div>
               <div class="flex-1">
-                <div class="flex items-center gap-3 mb-2">
-                  <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: activity.color }"></div>
-                  <h3 class="text-lg font-semibold text-foreground">{{ activity.title }}</h3>
-                  <span class="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                    {{ activity.reward }} ETH
-                  </span>
+                <div class="flex justify-between items-start">
+                  <div class="font-bold font-vt323 text-lg leading-tight">{{ action.title }}</div>
+                  <div class="font-pixel text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">+{{ action.points }} CP</div>
                 </div>
-                <p class="text-muted-foreground mb-2">{{ activity.description }}</p>
-                <div class="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span>社区: {{ activity.community }}</span>
-                  <span>时间: {{ formatDate(activity.timestamp) }}</span>
-                  <span>状态: {{ getStatusText(activity.status) }}</span>
-                </div>
+                <div class="text-xs text-gray-500 mt-1">{{ action.date }} • {{ action.community }}</div>
               </div>
-              <UButton
-                @click.stop="viewActivityDetail(activity.id)"
-                size="sm"
-                color="gray"
-                variant="ghost"
-              >
-                查看详情
-              </UButton>
             </div>
+          </div>
+        </div>
+
+        <!-- COMMUNITIES TAB -->
+        <div v-else-if="activeTab === 'COMMUNITIES'" class="space-y-3">
+          <div v-for="comm in communities" :key="comm.id" class="bg-white border-2 border-black p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" @click="navigateTo('/community/' + comm.id)">
+            <div class="w-12 h-12 bg-mario-red border-2 border-black flex-shrink-0"></div>
+            <div class="flex-1">
+              <div class="font-pixel text-sm">{{ comm.name }}</div>
+              <div class="font-vt323 text-gray-500 text-sm mt-1">积分: {{ comm.points }}</div>
+            </div>
+            <div class="text-gray-400">›</div>
+          </div>
+        </div>
+
+        <!-- BADGES TAB -->
+        <div v-else-if="activeTab === 'BADGES'" class="grid grid-cols-3 gap-3">
+          <div v-for="i in 8" :key="i" class="aspect-square bg-white border-2 border-black flex flex-col items-center justify-center p-2 hover:-translate-y-1 transition-transform">
+            <span v-if="i <= 3" class="text-3xl mb-2">🌟</span>
+            <span v-else class="text-3xl mb-2 grayscale opacity-30">🔒</span>
+            <span class="font-pixel text-[10px] text-center text-gray-600">{{ i <= 3 ? '已解锁' : '未解锁' }}</span>
+          </div>
+        </div>
+
+        <!-- TASKS TAB -->
+        <div v-else-if="activeTab === 'TASKS'" class="space-y-3">
+          <div v-for="task in memberTasks" :key="task.id" class="bg-white border-2 border-black p-4">
+            <div class="flex justify-between items-center mb-2">
+              <span :class="['font-pixel text-[10px] px-2 py-0.5 rounded border border-current', task.type === 'OFFER' ? 'text-blue-600 bg-blue-50' : 'text-red-600 bg-red-50']">
+                {{ task.type === 'OFFER' ? '提供' : '需求' }}
+              </span>
+              <span class="font-vt323 text-xs text-gray-500">{{ task.statusLabel }}</span>
+            </div>
+            <div class="font-bold text-base">{{ task.title }}</div>
           </div>
         </div>
       </div>
@@ -122,103 +195,185 @@
   </div>
 </template>
 
-<script setup>
-// 获取路由参数
-const route = useRoute()
-const memberId = route.params.id
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
+import PixelButton from '~/components/pixel/PixelButton.vue'
+import { getMemberById, getCommunities } from '~/utils/api'
 
-// 成员数据
-const member = ref({
-  id: memberId,
-  name: 'Alice',
-  title: '区块链开发者',
-  totalContributions: 15,
-  completedTasks: 12,
-  totalReward: 2.5,
-  reputation: 850,
-  communities: [
-    {
-      id: 1,
-      name: 'ETH 上海社区',
-      description: '专注于以太坊生态发展的技术社区',
-      color: '#10b981',
-      contributionCount: 8,
-      reward: 1.2
-    },
-    {
-      id: 2,
-      name: 'Web3 开发者联盟',
-      description: '汇聚全球优秀Web3开发者的技术社区',
-      color: '#14b8a6',
-      contributionCount: 7,
-      reward: 1.3
-    }
-  ]
+definePageMeta({
+  layout: 'default'
 })
 
-// 最近活动数据
-const recentActivities = ref([
-  {
-    id: 1,
-    title: '完成智能合约开发',
-    description: '为DeFi项目开发了新的流动性挖矿合约',
-    reward: 0.5,
-    community: 'ETH 上海社区',
-    color: '#10b981',
-    status: 'completed',
-    timestamp: '2025-01-15T10:30:00Z'
-  },
-  {
-    id: 2,
-    title: '参与代码审查',
-    description: '审查了3个开源项目的代码质量',
-    reward: 0.2,
-    community: 'Web3 开发者联盟',
-    color: '#14b8a6',
-    status: 'completed',
-    timestamp: '2025-01-14T15:45:00Z'
-  },
-  {
-    id: 3,
-    title: '撰写技术文档',
-    description: '为Layer2扩容技术编写了详细的技术文档',
-    reward: 0.3,
-    community: 'ETH 上海社区',
-    color: '#10b981',
-    status: 'in_progress',
-    timestamp: '2025-01-13T09:20:00Z'
-  }
-])
+const route = useRoute()
+const router = useRouter()
+const memberId = parseInt(route.params.id as string)
+const activeTab = ref('HISTORY')
+const isEditing = ref(false)
+const newSkill = ref('')
 
-// 状态文本
-const getStatusText = (status) => {
-  const statusMap = {
-    'completed': '已完成',
-    'in_progress': '进行中',
-    'pending': '待处理',
-    'under_review': '审核中'
-  }
-  return statusMap[status] || '未知'
+const tabs = [
+  { id: 'HISTORY', label: '动态' },
+  { id: 'COMMUNITIES', label: '社区' },
+  { id: 'BADGES', label: '徽章' },
+  { id: 'TASKS', label: '任务' }
+]
+
+// Mock Data
+const member = ref<any>(null)
+const history = ref<any[]>([])
+const communities = ref<any[]>([])
+const memberTasks = ref<any[]>([])
+
+// 编辑表单数据
+const editingForm = ref({
+  name: '',
+  title: '',
+  skills: [] as string[],
+  avatarSeed: ''
+})
+
+const memberLevel = computed(() => {
+  if (!member.value) return 1
+  return Math.floor(member.value.reputation / 100) + 1
+})
+
+const navigateTo = (path: string) => {
+  router.push(path)
 }
 
-// 格式化日期
-const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+// 进入编辑模式
+const startEdit = () => {
+  if (member.value) {
+    editingForm.value = {
+      name: member.value.name || '',
+      title: member.value.title || '',
+      skills: [...(member.value.skills || [])],
+      avatarSeed: member.value.name || 'user'
+    }
+  }
+  isEditing.value = true
+}
+
+// 取消编辑
+const cancelEdit = () => {
+  isEditing.value = false
+  newSkill.value = ''
+}
+
+// 保存编辑
+const saveProfile = () => {
+  if (!member.value) return
+  
+  // 更新成员信息
+  member.value.name = editingForm.value.name
+  member.value.title = editingForm.value.title
+  member.value.skills = [...editingForm.value.skills]
+  
+  // 显示成功提示
+  const toast = useToast()
+  toast.add({
+    title: '保存成功',
+    description: '个人信息已更新',
+    color: 'green'
   })
+  
+  isEditing.value = false
+  newSkill.value = ''
+  
+  // TODO: 这里应该调用 API 保存到服务器
+  // await updateMemberProfile(memberId, editingForm.value)
 }
 
-// 导航到社区面板
-const navigateToDashboard = (communityId) => {
-  navigateTo('/dashboard?community=' + communityId)
+// 添加技能标签
+const addSkill = () => {
+  if (newSkill.value.trim() && !editingForm.value.skills.includes(newSkill.value.trim())) {
+    editingForm.value.skills.push(newSkill.value.trim())
+    newSkill.value = ''
+  }
 }
 
-// 查看活动详情
-const viewActivityDetail = (activityId) => {
-  navigateTo('/activities/' + activityId)
+// 移除技能标签
+const removeSkill = (index: number) => {
+  editingForm.value.skills.splice(index, 1)
 }
+
+// 更换头像
+const changeAvatar = () => {
+  // 由于 PixelAvatar 是基于 seed 生成的，我们可以通过改变 seed 来改变头像
+  // 这里可以弹出一个头像选择器，或者让用户输入一个 seed 字符串
+  const newSeed = prompt('输入头像种子（可以是任意文字）:', editingForm.value.avatarSeed || editingForm.value.name)
+  if (newSeed) {
+    editingForm.value.avatarSeed = newSeed
+    // 更新 member 的 name 也会更新头像（因为 PixelAvatar 使用 name 作为 seed）
+    editingForm.value.name = newSeed
+  }
+}
+
+// 监听编辑按钮点击
+watch(() => isEditing.value, (newVal) => {
+  if (newVal) {
+    startEdit()
+  } else {
+    cancelEdit()
+  }
+})
+
+onMounted(async () => {
+  // 从 API 获取成员数据
+  try {
+    member.value = await getMemberById(memberId)
+    
+    if (member.value) {
+      // 获取成员所属的社群信息
+      const allCommunities = await getCommunities()
+      communities.value = allCommunities
+        .filter(c => member.value.communities.includes(c.id))
+        .map(c => ({
+          id: c.id,
+          name: c.name,
+          points: member.value.reputation // 使用成员的声誉值作为在该社群的积分
+        }))
+      
+      // 生成历史记录（基于成员的贡献）
+      history.value = [
+        { 
+          id: 1, 
+          title: `完成了 ${member.value.completedTasks} 个任务`, 
+          date: '最近', 
+          community: communities.value[0]?.name || '社群', 
+          points: member.value.totalReward * 100, 
+          icon: '✅' 
+        },
+        { 
+          id: 2, 
+          title: `贡献了 ${member.value.totalContributions} 次`, 
+          date: '最近', 
+          community: communities.value[0]?.name || '社群', 
+          points: member.value.totalContributions * 10, 
+          icon: '🌟' 
+        },
+      ]
+      
+      // 生成任务列表（可以后续从 API 获取）
+      memberTasks.value = [
+        { id: 1, type: 'OFFER', title: '提供帮助', status: 'COMPLETED', statusLabel: '已完成' },
+        { id: 2, type: 'NEED', title: '寻求协助', status: 'IN_PROGRESS', statusLabel: '进行中' },
+      ]
+    }
+  } catch (error) {
+    console.error('Failed to load member data:', error)
+  }
+})
 </script>
+
+<style scoped>
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+</style>

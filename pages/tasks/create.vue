@@ -1,278 +1,233 @@
 <template>
-  <div class="min-h-screen bg-background">
-    <div class="container mx-auto px-6 py-8">
+  <div class="min-h-screen bg-mario-sky py-4 md:py-8">
+    <div class="container mx-auto px-4 md:px-6 max-w-4xl pb-24">
       <!-- 页面标题 -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-foreground mb-2">创建任务</h1>
-        <p class="text-muted-foreground"></p>
+      <div class="mb-6 md:mb-8 text-center">
+        <h1 class="font-pixel text-2xl md:text-4xl text-white text-shadow-pixel mb-2 md:mb-4">创建任务</h1>
+        <div class="w-24 md:w-32 h-1 bg-white mx-auto border-2 border-black"></div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- 主要内容区域 -->
-        <div class="lg:col-span-2">
-          <!-- 任务创建表单 -->
-          <UCard class="card">
-            <template #header>
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
-                  1
-                </div>
-                <h2 class="text-xl font-bold text-foreground">任务创建</h2>
+      <!-- 任务创建表单 -->
+      <PixelCard>
+        <div class="space-y-4 md:space-y-6">
+          <!-- 基本信息 -->
+          <div class="space-y-4">
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务标题 *</label>
+              <input 
+                v-model="taskForm.title" 
+                type="text"
+                placeholder="输入任务标题..."
+                class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+              />
+            </div>
+
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务目标 *</label>
+              <textarea 
+                v-model="taskForm.objective" 
+                placeholder="描述任务的具体目标..."
+                rows="4"
+                class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
+              ></textarea>
+            </div>
+
+            <!-- 移动端单列，桌面端双列 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block font-pixel text-xs uppercase mb-2 text-black">奖励积分 *</label>
+                <input 
+                  v-model="taskForm.reward" 
+                  type="number"
+                  step="1"
+                  min="1"
+                  placeholder="100"
+                  class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                />
               </div>
-            </template>
 
-            <div class="space-y-6">
-              <!-- 基本信息 -->
-              <div class="space-y-4">
-                <UFormGroup label="任务标题" required>
-                  <UInput 
-                    v-model="taskForm.title" 
-                    placeholder="输入任务标题..."
-                    size="lg"
-                  />
-                </UFormGroup>
+              <div>
+                <label class="block font-pixel text-xs uppercase mb-2 text-black">开始日期 *</label>
+                <input 
+                  v-model="taskForm.startDate" 
+                  type="datetime-local"
+                  class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                />
+              </div>
+            </div>
 
-                <UFormGroup label="任务目标" required>
-                  <UTextarea 
-                    v-model="taskForm.objective" 
-                    placeholder="描述任务的具体目标..."
-                    :rows="3"
-                  />
-                </UFormGroup>
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">截止日期 *</label>
+              <input 
+                v-model="taskForm.deadline" 
+                type="datetime-local"
+                class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+              />
+            </div>
+          </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <UFormGroup label="奖励金额 (ETH)" required>
-                    <UInput 
-                      v-model="taskForm.reward" 
-                      type="number"
-                      step="0.01"
-                      placeholder="0.1"
+          <!-- 证明要求配置 -->
+          <div class="border-t-2 border-black pt-4 md:pt-6">
+            <h3 class="font-pixel text-sm uppercase mb-4 text-black">证明要求配置</h3>
+            <div class="space-y-3 md:space-y-4">
+              <!-- 照片证据 -->
+              <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <span class="text-xl md:text-2xl">📷</span>
+                    <h4 class="font-pixel text-xs uppercase text-black">照片证据</h4>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      v-model="proofConfig.photo.enabled"
+                      class="sr-only peer"
                     />
-                  </UFormGroup>
-
-                  <UFormGroup label="截止日期" required>
-                    <UInput 
-                      v-model="taskForm.deadline" 
-                      type="datetime-local"
-                    />
-                  </UFormGroup>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
+                  </label>
                 </div>
-              </div>
-
-              <!-- 证明要求配置 -->
-              <div class="border-t border-border pt-6">
-                <h3 class="text-lg font-semibold text-foreground mb-4">证明要求配置</h3>
-                <div class="space-y-4">
-                  <!-- 照片证据 -->
-                  <div class="p-4 border border-border rounded-lg">
-                    <div class="flex items-center justify-between mb-3">
-                      <div class="flex items-center gap-3">
-                        <UIcon name="i-heroicons-camera" class="h-5 w-5 text-foreground" />
-                        <h4 class="font-semibold text-foreground">照片证据</h4>
-                      </div>
-                      <UToggle v-model="proofConfig.photo.enabled" />
-                    </div>
-                    
-                    <div v-if="proofConfig.photo.enabled" class="space-y-3">
-                      <UFormGroup label="照片数量">
-                        <USelect 
-                          v-model="proofConfig.photo.count"
-                          :options="photoCountOptions"
-                        />
-                      </UFormGroup>
-                      <UFormGroup label="要求说明">
-                        <UTextarea 
-                          v-model="proofConfig.photo.requirements"
-                          placeholder="描述照片的具体要求..."
-                          :rows="2"
-                        />
-                      </UFormGroup>
-                    </div>
-                  </div>
-
-                  <!-- GPS定位 -->
-                  <div class="p-4 border border-border rounded-lg">
-                    <div class="flex items-center justify-between mb-3">
-                      <div class="flex items-center gap-3">
-                        <UIcon name="i-heroicons-map-pin" class="h-5 w-5 text-foreground" />
-                        <h4 class="font-semibold text-foreground">GPS 定位</h4>
-                      </div>
-                      <UToggle v-model="proofConfig.gps.enabled" />
-                    </div>
-                    
-                    <div v-if="proofConfig.gps.enabled" class="space-y-3">
-                      <UFormGroup label="定位精度">
-                        <USelect 
-                          v-model="proofConfig.gps.accuracy"
-                          :options="gpsAccuracyOptions"
-                        />
-                      </UFormGroup>
-                    </div>
-                  </div>
-
-                  <!-- 文字描述 -->
-                  <div class="p-4 border border-border rounded-lg">
-                    <div class="flex items-center justify-between mb-3">
-                      <div class="flex items-center gap-3">
-                        <UIcon name="i-heroicons-document-text" class="h-5 w-5 text-foreground" />
-                        <h4 class="font-semibold text-foreground">文字描述</h4>
-                      </div>
-                      <UToggle v-model="proofConfig.description.enabled" />
-                    </div>
-                    
-                    <div v-if="proofConfig.description.enabled" class="space-y-3">
-                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <UFormGroup label="最少字数">
-                          <UInput 
-                            v-model="proofConfig.description.minWords"
-                            type="number"
-                            placeholder="50"
-                          />
-                        </UFormGroup>
-                        <UFormGroup label="提示语">
-                          <UInput 
-                            v-model="proofConfig.description.prompt"
-                            placeholder="请描述..."
-                          />
-                        </UFormGroup>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 操作按钮 -->
-              <div class="flex gap-4 pt-6 border-t border-border">
-                <UButton 
-                  @click="generateOKR"
-                  :loading="isGeneratingOKR"
-                  color="primary"
-                  size="lg"
-                  class="flex items-center gap-2"
-                >
-                  <UIcon name="i-heroicons-sparkles" class="h-5 w-5" />
-                  启动 AI 分析
-                </UButton>
                 
-                <UButton 
-                  @click="publishTask"
-                  :loading="isPublishing"
-                  :disabled="!canPublish"
-                  color="green"
-                  size="lg"
-                  class="flex items-center gap-2"
-                >
-                  <UIcon name="i-heroicons-wallet" class="h-5 w-5" />
-                  发布任务（钱包签名）
-                </UButton>
-              </div>
-            </div>
-          </UCard>
-        </div>
-
-        <!-- 侧边栏 -->
-        <div class="space-y-6">
-          <!-- 任务摘要 -->
-          <UCard class="card">
-            <template #header>
-              <h3 class="text-lg font-bold text-foreground">任务摘要</h3>
-            </template>
-
-            <div class="space-y-4">
-              <div v-if="taskForm.title" class="p-3 bg-muted/50 rounded-lg">
-                <div class="text-sm text-muted-foreground mb-1">任务标题</div>
-                <div class="text-foreground font-medium">{{ taskForm.title }}</div>
-              </div>
-
-              <div v-if="taskForm.reward" class="p-3 bg-muted/50 rounded-lg">
-                <div class="text-sm text-muted-foreground mb-1">奖励金额</div>
-                <div class="text-foreground font-medium">{{ taskForm.reward }} ETH</div>
-              </div>
-
-              <div v-if="taskForm.deadline" class="p-3 bg-muted/50 rounded-lg">
-                <div class="text-sm text-muted-foreground mb-1">截止日期</div>
-                <div class="text-foreground font-medium">{{ formatDate(taskForm.deadline) }}</div>
-              </div>
-
-              <!-- 完成进度 -->
-              <div class="space-y-2">
-                <div class="flex justify-between text-sm">
-                  <span class="text-muted-foreground">完成进度</span>
-                  <span class="text-foreground">{{ completionProgress }}%</span>
-                </div>
-                <UProgress :value="completionProgress" color="primary" />
-              </div>
-            </div>
-          </UCard>
-
-          <!-- AI 分析结果 -->
-          <UCard v-if="okrData" class="card">
-            <template #header>
-              <div class="flex items-center gap-3">
-                <h3 class="text-lg font-bold text-foreground">AI 分析结果</h3>
-                <UBadge color="green" variant="soft">AI 分析完成</UBadge>
-              </div>
-            </template>
-
-            <div class="space-y-4">
-              <!-- 目标 -->
-              <div>
-                <h4 class="text-sm font-semibold text-foreground mb-2">目标 (Objective)</h4>
-                <div class="p-3 bg-muted/50 rounded-lg border border-border">
-                  <p class="text-sm text-foreground">{{ okrData.objective }}</p>
+                <div v-if="proofConfig.photo.enabled" class="space-y-3 mt-3">
+                  <div>
+                    <label class="block font-pixel text-[10px] uppercase mb-1 text-black">照片数量</label>
+                    <select 
+                      v-model="proofConfig.photo.count"
+                      class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                    >
+                      <option v-for="opt in photoCountOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block font-pixel text-[10px] uppercase mb-1 text-black">要求说明</label>
+                    <textarea 
+                      v-model="proofConfig.photo.requirements"
+                      placeholder="描述照片的具体要求..."
+                      rows="2"
+                      class="w-full px-3 py-2 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
+                    ></textarea>
+                  </div>
                 </div>
               </div>
 
-              <!-- 关键结果 -->
-              <div>
-                <h4 class="text-sm font-semibold text-foreground mb-2">关键结果 (Key Results)</h4>
-                <div class="space-y-2">
-                  <div 
-                    v-for="(kr, index) in okrData.keyResults" 
-                    :key="index"
-                    class="p-3 bg-card border border-border rounded-lg"
+              <!-- GPS定位 -->
+              <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <span class="text-xl md:text-2xl">📍</span>
+                    <h4 class="font-pixel text-xs uppercase text-black">GPS 定位</h4>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      v-model="proofConfig.gps.enabled"
+                      class="sr-only peer"
+                    />
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
+                  </label>
+                </div>
+                
+                <div v-if="proofConfig.gps.enabled" class="mt-3">
+                  <label class="block font-pixel text-[10px] uppercase mb-1 text-black">定位精度</label>
+                  <select 
+                    v-model="proofConfig.gps.accuracy"
+                    class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                   >
-                    <div class="flex items-start gap-2">
-                      <div class="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
-                        {{ index + 1 }}
-                      </div>
-                      <div class="flex-1">
-                        <h5 class="text-sm font-medium text-foreground mb-1">{{ kr.kr }}</h5>
-                        <div class="text-xs text-muted-foreground">
-                          <div>衡量指标: {{ kr.metric }}</div>
-                          <div>目标值: {{ kr.target }}</div>
-                        </div>
-                      </div>
+                    <option v-for="opt in gpsAccuracyOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- 文字描述 -->
+              <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <span class="text-xl md:text-2xl">📝</span>
+                    <h4 class="font-pixel text-xs uppercase text-black">文字描述</h4>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      v-model="proofConfig.description.enabled"
+                      class="sr-only peer"
+                    />
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
+                  </label>
+                </div>
+                
+                <div v-if="proofConfig.description.enabled" class="space-y-3 mt-3">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block font-pixel text-[10px] uppercase mb-1 text-black">最少字数</label>
+                      <input 
+                        v-model="proofConfig.description.minWords"
+                        type="number"
+                        placeholder="50"
+                        class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label class="block font-pixel text-[10px] uppercase mb-1 text-black">提示语</label>
+                      <input 
+                        v-model="proofConfig.description.prompt"
+                        type="text"
+                        placeholder="请描述..."
+                        class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                      />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </UCard>
+          </div>
+
+          <!-- 底部固定操作栏占位符，防止内容被遮挡 -->
+          <div class="h-16"></div>
         </div>
-      </div>
+      </PixelCard>
+    </div>
+
+    <!-- 底部固定操作栏 -->
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-2 border-black z-50 flex gap-3 shadow-[0_-4px_0_rgba(0,0,0,0.05)]">
+      <PixelButton 
+        @click="navigateTo('/tasks')"
+        variant="secondary"
+        size="lg"
+        class="w-24"
+      >
+        取消
+      </PixelButton>
+      <PixelButton 
+        @click="publishTask"
+        :disabled="!canPublish || isPublishing"
+        variant="success"
+        size="lg"
+        class="flex-1 flex items-center justify-center gap-2"
+      >
+        <span v-if="isPublishing" class="animate-spin">⚙️</span>
+        <span v-else>💼</span>
+        {{ isPublishing ? '发布中...' : '发布任务' }}
+      </PixelButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import PixelCard from '~/components/pixel/PixelCard.vue'
+import PixelButton from '~/components/pixel/PixelButton.vue'
+import { createTask } from '~/utils/api'
+
+definePageMeta({
+  layout: 'default'
+})
+
 // 任务表单数据
 const taskForm = ref({
   title: '',
   objective: '',
   reward: '',
+  startDate: '',
   deadline: ''
 })
-
-// OKR数据
-const okrData = ref<{
-  objective: string
-  keyResults: Array<{
-    kr: string
-    metric: string
-    target: string
-  }>
-} | null>(null)
 
 // 证明配置
 const proofConfig = ref({
@@ -293,7 +248,6 @@ const proofConfig = ref({
 })
 
 // 加载状态
-const isGeneratingOKR = ref(false)
 const isPublishing = ref(false)
 
 // 选项数据
@@ -312,77 +266,68 @@ const gpsAccuracyOptions = [
 ]
 
 // 计算属性
-const completionProgress = computed(() => {
-  let progress = 0
-  if (taskForm.value.title) progress += 20
-  if (taskForm.value.objective) progress += 20
-  if (taskForm.value.reward) progress += 20
-  if (taskForm.value.deadline) progress += 20
-  if (okrData.value) progress += 20
-  return progress
-})
-
 const canPublish = computed(() => {
   return taskForm.value.title && 
          taskForm.value.objective && 
          taskForm.value.reward && 
-         taskForm.value.deadline && 
-         okrData.value
+         taskForm.value.startDate && 
+         taskForm.value.deadline
 })
 
-// 方法
-const generateOKR = async () => {
-  isGeneratingOKR.value = true
-  
-  // 模拟AI分析延迟
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  
-  // 模拟AI生成的OKR
-  okrData.value = {
-    objective: `通过${taskForm.value.title}，实现${taskForm.value.objective}的目标`,
-    keyResults: [
-      {
-        kr: '完成核心功能开发',
-        metric: '功能完成度',
-        target: '100%'
-      },
-      {
-        kr: '通过质量测试',
-        metric: '测试通过率',
-        target: '95%以上'
-      },
-      {
-        kr: '按时交付',
-        metric: '交付时间',
-        target: '在截止日期前完成'
-      }
-    ]
-  }
-  
-  isGeneratingOKR.value = false
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleString('zh-CN')
-}
-
+// 发布任务
 const publishTask = async () => {
+  if (!canPublish.value) {
+    const toast = useToast()
+    toast.add({
+      title: '请填写完整信息',
+      description: '请确保所有必填项都已填写',
+      color: 'red'
+    })
+    return
+  }
+
   isPublishing.value = true
   
-  // 模拟钱包签名和发布
-  await new Promise(resolve => setTimeout(resolve, 3000))
-  
-  // 显示成功消息
-  const toast = useToast()
-  toast.add({
-    title: '任务发布成功！',
-    description: '任务已成功发布到区块链网络',
-    color: 'green'
-  })
-  
-  isPublishing.value = false
-  
-  // 跳转到任务列表
-  await navigateTo('/tasks')
+  try {
+    // 模拟钱包签名和发布
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // 创建任务
+    const newTask = await createTask({
+      title: taskForm.value.title,
+      description: taskForm.value.objective,
+      reward: parseFloat(taskForm.value.reward),
+      startDate: taskForm.value.startDate,
+      deadline: taskForm.value.deadline,
+      proofConfig: proofConfig.value
+    })
+    
+    // 显示成功消息
+    const toast = useToast()
+    toast.add({
+      title: '任务发布成功！',
+      description: '任务已成功发布到区块链网络',
+      color: 'green'
+    })
+    
+    // 跳转到任务列表
+    await navigateTo('/tasks')
+  } catch (error) {
+    console.error('发布任务失败:', error)
+    const toast = useToast()
+    toast.add({
+      title: '发布失败',
+      description: error instanceof Error ? error.message : '请稍后重试',
+      color: 'red'
+    })
+  } finally {
+    isPublishing.value = false
+  }
 }
 </script>
+
+<style scoped>
+.text-shadow-pixel {
+  text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.3);
+}
+</style>

@@ -1,73 +1,48 @@
-# MycoSeed 页面结构说明
+# MycoSeed Pixel World Structure
 
-## 更新内容
+## 🍄 Design Philosophy
+- **Style**: 8-bit Retro Game (Super Mario inspired).
+- **Concept**: "Mutual Aid as Gameplay".
+- **Core**: Network Graph (Mycelium) + Village Metaphor.
 
-### 1. 导航栏更新
-- **标题**: 已更新为 "MycoSeed"
-- **副标题**: "decentralized autonomous community"
-- **图标**: 使用新的SVG图标 `/images/icons/myco-seed-logo.svg`
+## 🗺 Page Map
 
-### 2. 首页可视化界面
-- **位置**: `/pages/index.vue`
-- **功能**: 动态显示菌丝网络
-  - 种子（成员）: 小圆圈，点击进入个人中心
-  - 菌丝（社区）: 大圆圈，点击进入社区面板
-  - 连接线: 显示成员与社区的关系和贡献
-  - 动画效果: 实时动态显示网络关系
+### 1. Home: The Network (`/`)
+- **Visual**: Dynamic Force-Directed Graph (D3.js).
+- **Nodes**: Users (Mushrooms) & Communities (Houses).
+- **Interactions**: Click to travel to Village or User House.
+- **UI**: Pixel Search Bar + Stats Overlay.
 
-### 3. 成员个人中心
-- **路径**: `/pages/member/[id].vue`
-- **功能**: 
-  - 显示成员基本信息
-  - 显示参与的社区
-  - 显示最近活动记录
-  - 统计贡献和奖励
+### 2. Community: The Village (`/community/[id]`)
+- **Metaphor**: A pixel art village view.
+- **Features**:
+  - **Quest Board**: List of Offers & Needs.
+  - **Town Hall**: Governance & Membership.
+  - **Stats**: Population & Level.
 
-### 4. 社区面板
-- **路径**: `/pages/dashboard.vue`
-- **功能**: 
-  - 社区概览统计
-  - 最近任务列表
-  - 右下角创建任务按钮
+### 3. User: The Pixel House (`/member/[id]`)
+- **Metaphor**: A personal pixel house.
+- **Features**:
+  - **Avatar**: Generated pixel art.
+  - **Stats Card**: XP, Level, Contributions (STR/INT/LUCK).
+  - **Inventory**: NFT Badges & Items.
 
-### 5. 创建任务面板
-- **路径**: `/pages/tasks/create.vue`
-- **访问方式**: 
-  - 首页右下角按钮
-  - 社区面板右下角按钮
-  - 成员个人中心快速操作
+### 4. Quest Board (`/dashboard` or embedded)
+- **Style**: Notice Board / Bounty Hunter Board.
+- **Action**: Post Offer / Need.
 
-### 6. 任务提交页面
-- **路径**: `/pages/tasks/[id].submit.vue`
-- **访问URL**: `/tasks/1/submit`
-- **功能**: 上传文件、填写提交说明、提交任务完成证明
+### 5. Auth: Start Game (`/login`)
+- **Style**: "Insert Coin" / "Start Game" screen.
+- **Method**: Phone + Web3 AA Wallet (Auto-generated).
 
-### 7. 任务审核页面
-- **路径**: `/pages/tasks/[id].review.vue`
-- **访问URL**: `/tasks/1/review`
-- **功能**: 审核任务、评分、给出审核意见、触发智能合约
+## 🎨 Component Library (`components/pixel/`)
+- `PixelButton.vue`: Retro buttons with pressed states.
+- `PixelCard.vue`: Containers with black borders and shadows.
+- `PixelAvatar.vue`: Deterministic pixel art generator.
+- `NetworkCanvas.vue`: D3.js graph implementation.
 
-## 图标资源位置
-
-新的图标文件应存放在：
+## 🛠 Setup
+Requires D3.js:
+```bash
+yarn add d3 @types/d3
 ```
-/public/images/icons/
-```
-
-当前已创建：
-- `myco-seed-logo.svg` - MycoSeed主logo
-
-## 页面导航流程
-
-1. **首页** (`/`) → 动态菌丝网络可视化
-2. **点击种子** → 成员个人中心 (`/member/[id]`)
-3. **点击菌丝** → 社区面板 (`/dashboard?community=[id]`)
-4. **创建任务** → 任务创建页面 (`/tasks/create`)
-
-## 技术特性
-
-- 使用SVG进行动态网络可视化
-- 响应式设计，支持移动端
-- 暗色主题配色
-- 动画效果和交互反馈
-- 模块化组件结构
