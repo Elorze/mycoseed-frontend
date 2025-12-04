@@ -8,7 +8,9 @@
 //   getCookie,
 //   clearAuthToken 
 // } from '../../../semi/semi-app-main/utils/semi_api'
-
+// API 基础配置
+const config = useRuntimeConfig()
+export const API_BASE_URL = config.public.apiUrl || 'http://localhost:3001'
 // ==================== 数据类型定义 ====================
 
 /**
@@ -44,6 +46,7 @@ export interface Task {
   rejectReason?: string          // 驳回理由
   discount?: number              // 打折百分数
   discountReason?: string        // 打折理由
+  allowRepeatClaim?: boolean     // 是否允许重复领取
 }
 
 // ==================== Mock 数据 ====================
@@ -225,31 +228,30 @@ export const getTasks = async (activityId: number): Promise<Task[]> => {
 /**
  * 获取所有任务列表
  */
+// 替换 getAllTasks 函数
 export const getAllTasks = async (): Promise<Task[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  // 尝试从 localStorage 恢复任务
-  if (typeof window !== 'undefined') {
-    try {
-      const savedTasks = localStorage.getItem('tasks')
-      if (savedTasks) {
-        const parsed = JSON.parse(savedTasks)
-        // 合并保存的任务到 mockTasks（避免重复）
-        parsed.forEach((savedTask: Task) => {
-          if (!mockTasks.find(t => t.id === savedTask.id)) {
-            mockTasks.push(savedTask)
-          }
-        })
-      }
-    } catch (e) {
-      console.warn('Failed to load tasks from localStorage:', e)
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tasks`)
+    if (!response.ok) {
+      throw new Error('获取任务列表失败')
     }
+    const tasks = await response.json()
+    return tasks.map((task: any) => ({
+      id: task.id,
+      activityId: task.activityId || 0,
+      title: task.title,
+      description: task.description,
+      reward: task.reward,
+      deadline: task.deadline,
+      status: task.status,
+      isClaimed: task.isClaimed || false,
+      objective: task.description,
+      creator: '系统'
+    }))
+  } catch (error) {
+    console.error('加载任务失败:', error)
+    return []
   }
-  
-  return mockTasks.map(task => ({
-    ...task,
-    isClaimed: claimedTaskIds.includes(task.id)
-  }))
 }
 
 /**
@@ -262,59 +264,66 @@ export interface CreateTaskParams {
   startDate: string
   deadline: string
   proofConfig?: any
+  allowRepeatClaim?: boolean  // 是否允许重复领取
 }
 
+// 替换 createTask 函数
 export const createTask = async (params: CreateTaskParams): Promise<Task> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  // 生成新任务ID（使用当前最大ID + 1）
-  const newId = mockTasks.length > 0 
-    ? Math.max(...mockTasks.map(t => t.id)) + 1 
-    : 1
-  
-  const newTask: Task = {
-    id: newId,
-    activityId: 0, // 独立任务，不关联活动
-    title: params.title,
-    description: params.description,
-    reward: params.reward,
-    isClaimed: false,
-    status: 'unclaimed'
-  }
-  
-  mockTasks.push(newTask)
-  
-  // 保存到 localStorage 以便跨页面同步
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('tasks', JSON.stringify(mockTasks))
-    } catch (e) {
-      console.warn('Failed to save tasks to localStorage:', e)
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(params)
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || '创建任务失败')
     }
+
+    const task = await response.json()
+    return {
+      id: task.id,
+      activityId: task.activityId || 0,
+      title: task.title,
+      description: task.description,
+      reward: task.reward,
+      isClaimed: false,
+      status: 'unclaimed',
+      allowRepeatClaim: task.allowRepeatClaim || false
+    }
+  } catch (error) {
+    console.error('创建任务失败:', error)
+    throw error
   }
-  
-  return newTask
 }
 
 /**
  * 领取任务
  * @param taskId 任务 ID
  */
+// 替换 claimTask 函数
 export const claimTask = async (taskId: number): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  const task = mockTasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/claim`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      return { success: false, message: error.message || '领取任务失败' }
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('领取任务失败:', error)
+    return { success: false, message: '网络错误，请稍后重试' }
   }
-  
-  if (claimedTaskIds.includes(taskId)) {
-    return { success: false, message: '您已经领取过这个任务' }
-  }
-  
-  claimedTaskIds.push(taskId)
-  task.status = 'in_progress'
-  return { success: true, message: '任务领取成功！' }
 }
 
 /**
@@ -332,20 +341,25 @@ export const getMyTasks = async (): Promise<Task[]> => {
  * @param proof 凭证内容
  */
 export const submitProof = async (taskId: number, proof: string): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  const task = mockTasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/submit`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ proof })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      return { success: false, message: error.message || '提交凭证失败' }
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('提交凭证失败:', error)
+    return { success: false, message: '网络错误，请稍后重试' }
   }
-  
-  if (!claimedTaskIds.includes(taskId)) {
-    return { success: false, message: '您还没有领取这个任务' }
-  }
-  
-  task.proof = proof
-  task.status = 'under_review'
-  return { success: true, message: '凭证提交成功！' }
 }
 
 /**

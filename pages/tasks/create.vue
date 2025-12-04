@@ -66,6 +66,30 @@
             </div>
           </div>
 
+          <!-- 任务设置 -->
+          <div class="border-t-2 border-black pt-4 md:pt-6">
+            <h3 class="font-pixel text-sm uppercase mb-4 text-black">任务设置</h3>
+            <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl md:text-2xl">🔄</span>
+                  <div>
+                    <h4 class="font-pixel text-xs uppercase text-black">允许重复领取</h4>
+                    <p class="font-vt323 text-[10px] text-gray-600 mt-1">开启后，同一用户可以多次领取此任务</p>
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    v-model="taskForm.allowRepeatClaim"
+                    class="sr-only peer"
+                  />
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <!-- 证明要求配置 -->
           <div class="border-t-2 border-black pt-4 md:pt-6">
             <h3 class="font-pixel text-sm uppercase mb-4 text-black">证明要求配置</h3>
@@ -226,7 +250,8 @@ const taskForm = ref({
   objective: '',
   reward: '',
   startDate: '',
-  deadline: ''
+  deadline: '',
+  allowRepeatClaim: false  // 是否允许重复领取
 })
 
 // 证明配置
@@ -299,7 +324,8 @@ const publishTask = async () => {
       reward: parseFloat(taskForm.value.reward),
       startDate: taskForm.value.startDate,
       deadline: taskForm.value.deadline,
-      proofConfig: proofConfig.value
+      proofConfig: proofConfig.value,
+      allowRepeatClaim: taskForm.value.allowRepeatClaim
     })
     
     // 显示成功消息
