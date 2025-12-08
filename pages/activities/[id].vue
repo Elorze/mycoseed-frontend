@@ -4,7 +4,7 @@
       <!-- 返回按钮 -->
       <div class="mb-8">
         <button
-          @click="navigateTo('/member/' + activity.memberId)"
+          @click="navigateTo(`/member/${activity.memberId}`)"
           class="mb-4 flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group cursor-pointer"
         >
           <UIcon name="i-heroicons-arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform" />

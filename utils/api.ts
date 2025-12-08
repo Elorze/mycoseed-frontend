@@ -44,6 +44,15 @@ export interface Task {
   rejectReason?: string          // 驳回理由
   discount?: number              // 打折百分数
   discountReason?: string        // 打折理由
+  creatorId: number              // 创建者ID
+  creatorName?: string           // 创建者名称
+  claimerId?: number             // 接单者ID
+  claimerName?: string           // 接单者名称
+  createdAt: string              // 创建时间
+  updatedAt: string              // 更新时间
+  claimedAt?: string             // 领取时间
+  submittedAt?: string           // 提交时间
+  completedAt?: string           // 完成时间
 }
 
 // ==================== Mock 数据 ====================
@@ -122,17 +131,18 @@ const mockActivities: Activity[] = [
 ]
 
 // Mock 任务数据
+const now = new Date().toISOString()
 const mockTasks: Task[] = [
   // 活动1的任务
-  { id: 1, activityId: 1, title: '完成项目提案', description: '提交一份完整的项目提案文档', reward: 0.5, isClaimed: false, status: 'unclaimed' },
-  { id: 2, activityId: 1, title: '组建团队', description: '招募3-5名团队成员', reward: 0.3, isClaimed: false, status: 'unclaimed' },
-  { id: 3, activityId: 1, title: '开发 MVP', description: '完成最小可行产品开发', reward: 1.0, isClaimed: false, status: 'unclaimed' },
+  { id: 1, activityId: 1, title: '完成项目提案', description: '提交一份完整的项目提案文档', reward: 0.5, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
+  { id: 2, activityId: 1, title: '组建团队', description: '招募3-5名团队成员', reward: 0.3, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
+  { id: 3, activityId: 1, title: '开发 MVP', description: '完成最小可行产品开发', reward: 1.0, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
   // 活动2的任务
-  { id: 4, activityId: 2, title: '学习区块链基础', description: '完成区块链基础知识学习', reward: 0.2, isClaimed: false, status: 'unclaimed' },
-  { id: 5, activityId: 2, title: '参与技术讨论', description: '在讨论会上提出问题或分享见解', reward: 0.15, isClaimed: false, status: 'unclaimed' },
+  { id: 4, activityId: 2, title: '学习区块链基础', description: '完成区块链基础知识学习', reward: 0.2, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
+  { id: 5, activityId: 2, title: '参与技术讨论', description: '在讨论会上提出问题或分享见解', reward: 0.15, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
   // 活动3的任务
-  { id: 6, activityId: 3, title: '编写智能合约', description: '使用 Solidity 编写一个简单的智能合约', reward: 0.8, isClaimed: false, status: 'unclaimed' },
-  { id: 7, activityId: 3, title: '部署合约', description: '将合约部署到测试网', reward: 0.4, isClaimed: false, status: 'unclaimed' },
+  { id: 6, activityId: 3, title: '编写智能合约', description: '使用 Solidity 编写一个简单的智能合约', reward: 0.8, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
+  { id: 7, activityId: 3, title: '部署合约', description: '将合约部署到测试网', reward: 0.4, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
 ]
 
 // 用户已领取的任务ID列表
@@ -223,6 +233,24 @@ export const getTasks = async (activityId: number): Promise<Task[]> => {
 }
 
 /**
+ * 根据 ID 获取单个任务详情
+ * @param id 任务 ID
+ */
+export const getTaskById = async (id: number): Promise<Task | null> => {
+  await new Promise(resolve => setTimeout(resolve, 200))
+  
+  const task = mockTasks.find(t => t.id === id)
+  if (!task) {
+    return null
+  }
+  
+  return {
+    ...task,
+    isClaimed: claimedTaskIds.includes(task.id)
+  }
+}
+
+/**
  * 获取所有任务列表
  */
 export const getAllTasks = async (): Promise<Task[]> => {
@@ -272,6 +300,7 @@ export const createTask = async (params: CreateTaskParams): Promise<Task> => {
     ? Math.max(...mockTasks.map(t => t.id)) + 1 
     : 1
   
+  const now = new Date().toISOString()
   const newTask: Task = {
     id: newId,
     activityId: 0, // 独立任务，不关联活动
@@ -279,7 +308,11 @@ export const createTask = async (params: CreateTaskParams): Promise<Task> => {
     description: params.description,
     reward: params.reward,
     isClaimed: false,
-    status: 'unclaimed'
+    status: 'unclaimed',
+    creatorId: 1, // Mock: 当前用户ID，实际应从认证系统获取
+    creatorName: '当前用户', // Mock: 当前用户名称
+    createdAt: now,
+    updatedAt: now
   }
   
   mockTasks.push(newTask)
@@ -308,12 +341,24 @@ export const claimTask = async (taskId: number): Promise<{ success: boolean; mes
     return { success: false, message: '任务不存在' }
   }
   
+  if (task.status !== 'unclaimed') {
+    return { success: false, message: '任务已被领取或已完成' }
+  }
+  
   if (claimedTaskIds.includes(taskId)) {
     return { success: false, message: '您已经领取过这个任务' }
   }
   
-  claimedTaskIds.push(taskId)
+  // 更新任务状态和接单者信息
+  const now = new Date().toISOString()
   task.status = 'in_progress'
+  task.isClaimed = true
+  task.claimerId = 1 // Mock: 当前用户ID，实际应从认证系统获取
+  task.claimerName = '当前用户' // Mock: 当前用户名称
+  task.claimedAt = now
+  task.updatedAt = now
+  
+  claimedTaskIds.push(taskId)
   return { success: true, message: '任务领取成功！' }
 }
 
@@ -339,12 +384,19 @@ export const submitProof = async (taskId: number, proof: string): Promise<{ succ
     return { success: false, message: '任务不存在' }
   }
   
+  if (task.status !== 'in_progress') {
+    return { success: false, message: '任务状态不正确，无法提交凭证' }
+  }
+  
   if (!claimedTaskIds.includes(taskId)) {
     return { success: false, message: '您还没有领取这个任务' }
   }
   
+  const now = new Date().toISOString()
   task.proof = proof
   task.status = 'under_review'
+  task.submittedAt = now
+  task.updatedAt = now
   return { success: true, message: '凭证提交成功！' }
 }
 
@@ -369,7 +421,14 @@ export const approveTask = async (taskId: number): Promise<{ success: boolean; m
     return { success: false, message: '任务不存在' }
   }
   
+  if (task.status !== 'under_review') {
+    return { success: false, message: '任务状态不正确，无法审核' }
+  }
+  
+  const now = new Date().toISOString()
   task.status = 'completed'
+  task.completedAt = now
+  task.updatedAt = now
   return { success: true, message: '任务审核通过！' }
 }
 
@@ -386,9 +445,25 @@ export const rejectTask = async (taskId: number, reason: string): Promise<{ succ
     return { success: false, message: '任务不存在' }
   }
   
+  if (task.status !== 'under_review') {
+    return { success: false, message: '任务状态不正确，无法驳回' }
+  }
+  
+  const now = new Date().toISOString()
   task.status = 'rejected'
   task.rejectReason = reason
   task.proof = undefined
+  task.updatedAt = now
+  // 重置任务状态，允许重新领取
+  const taskIndex = claimedTaskIds.indexOf(taskId)
+  if (taskIndex > -1) {
+    claimedTaskIds.splice(taskIndex, 1)
+  }
+  task.isClaimed = false
+  task.claimerId = undefined
+  task.claimerName = undefined
+  task.claimedAt = undefined
+  task.submittedAt = undefined
   return { success: true, message: '任务已驳回！' }
 }
 
@@ -413,31 +488,122 @@ export const discountTask = async (taskId: number, discount: number, reason: str
 }
 
 // ==================== 用户相关 API ====================
+// 钱包地址映射表（硬编码，基于手机号）
+const phoneToWalletMap: Record<string, string> = {
+  '13800138000': '0x4fc3a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8',
+  '13800138001': '0x5fd4b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f9',
+  '13800138002': '0x6fe5c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7fa',
+  '13900139000': '0x7af6d4e5f6a7b8c9d0e1f2a3b4c5d6e7fb',
+  '13900139001': '0x8bf7e5f6a7b8c9d0e1f2a3b4c5d6e7fc',
+}
+
+// 邮箱到钱包地址映射表
+const emailToWalletMap: Record<string, string> = {
+  'test@example.com': '0x9cf8f6a7b8c9d0e1f2a3b4c5d6e7fd',
+  'admin@example.com': '0xad09g7b8c9d0e1f2a3b4c5d6e7fe',
+  'user@example.com': '0xbe1ah8c9d0e1f2a3b4c5d6e7ff',
+}
+
+// 存储用户数据（模拟数据库）
+const userDatabase: Record<string, any> = {}
+const communityDatabase: Record<string, any> = {}
+
+// 根据手机号或邮箱获取钱包地址
+const getWalletAddress = (identifier: string): string => {
+  // 判断是手机号还是邮箱
+  if (/^\d{11}$/.test(identifier)) {
+    // 手机号
+    return phoneToWalletMap[identifier] || `0x${identifier.slice(-8).padStart(40, '0')}`
+  } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+    // 邮箱
+    return emailToWalletMap[identifier] || `0x${identifier.slice(0, 8).padStart(40, '0')}`
+  }
+  return '0x0000000000000000000000000000000000000000'
+}
+
 // Mock 用户数据
 const mockUser = {
   id: 1,
   phone: '13800138000',
-  evm_chain_address: '0x4fc3...b0d1',
+  email: null,
+  evm_chain_address: '0x4fc3a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8',
   encrypted_keys: null,
+  userType: 'member' as 'member' | 'community',
+  isProfileSetup: false,
   created_at: '2025-01-01T00:00:00Z'
 }
 
 // Mock API 函数
 export const sendSMS = async (phone: string): Promise<{ result: string }> => {
   await new Promise(resolve => setTimeout(resolve, 1000))
-  console.log(`[Mock] 发送验证码到: ${phone}`)
+  console.log(`[Mock] 发送验证码到手机: ${phone}`)
   return { result: 'ok' }
 }
 
-export const signIn = async (phone: string, code: string): Promise<{ result: string }> => {
+export const sendEmailCode = async (email: string): Promise<{ result: string }> => {
   await new Promise(resolve => setTimeout(resolve, 1000))
-  console.log(`[Mock] 登录: ${phone}, 验证码: ${code}`)
+  console.log(`[Mock] 发送验证码到邮箱: ${email}`)
   return { result: 'ok' }
+}
+
+export const signIn = async (identifier: string, code: string, userType?: 'member' | 'community'): Promise<{ result: string; isNewUser?: boolean }> => {
+  await new Promise(resolve => setTimeout(resolve, 1000))
+  console.log(`[Mock] 登录: ${identifier}, 验证码: ${code}, 用户类型: ${userType || '未指定'}`)
+  
+  // 检查是否是新用户（检查两个数据库）
+  const existingUser = userDatabase[identifier] || communityDatabase[identifier]
+  const isNewUser = !existingUser
+  
+  if (isNewUser && userType) {
+    // 创建新用户
+    const walletAddress = getWalletAddress(identifier)
+    const isPhone = /^\d{11}$/.test(identifier)
+    
+    if (userType === 'community') {
+      communityDatabase[identifier] = {
+        id: Object.keys(communityDatabase).length + 1,
+        identifier: identifier,
+        identifierType: isPhone ? 'phone' : 'email',
+        evm_chain_address: walletAddress,
+        userType: 'community',
+        isProfileSetup: false,
+        created_at: new Date().toISOString()
+      }
+    } else {
+      userDatabase[identifier] = {
+        id: Object.keys(userDatabase).length + 1,
+        identifier: identifier,
+        identifierType: isPhone ? 'phone' : 'email',
+        evm_chain_address: walletAddress,
+        userType: 'member',
+        isProfileSetup: false,
+        created_at: new Date().toISOString()
+      }
+    }
+  }
+  
+  return { result: 'ok', isNewUser }
+}
+
+export const signInWithEmail = async (email: string, code: string, userType?: 'member' | 'community'): Promise<{ result: string; isNewUser?: boolean }> => {
+  return signIn(email, code, userType)
 }
 
 export const getMe = async (): Promise<any> => {
   await new Promise(resolve => setTimeout(resolve, 500))
   console.log('[Mock] 获取用户信息')
+  
+  // 从localStorage获取当前登录的标识符
+  if (typeof window !== 'undefined') {
+    const currentIdentifier = localStorage.getItem('current_identifier')
+    if (currentIdentifier) {
+      const user = userDatabase[currentIdentifier] || communityDatabase[currentIdentifier]
+      if (user) {
+        return user
+      }
+    }
+  }
+  
   return mockUser
 }
 
@@ -456,6 +622,82 @@ export const getCookie = (key: string): string | null => {
 
 export const clearAuthToken = (): void => {
   console.log('[Mock] 清除认证token')
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('current_identifier')
+  }
+}
+
+// 保存当前登录标识符
+export const setCurrentIdentifier = (identifier: string): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('current_identifier', identifier)
+  }
+}
+
+// 头像上传API
+export const uploadAvatar = async (file: File): Promise<{ url: string }> => {
+  await new Promise(resolve => setTimeout(resolve, 1000))
+  console.log('[Mock] 上传头像:', file.name)
+  
+  // 模拟上传，返回本地预览URL
+  const url = URL.createObjectURL(file)
+  return { url }
+}
+
+// 更新用户信息
+export interface UserProfile {
+  name: string
+  bio?: string
+  avatar?: string
+}
+
+export const updateUserProfile = async (userId: number, profile: UserProfile): Promise<{ success: boolean; message: string }> => {
+  await new Promise(resolve => setTimeout(resolve, 500))
+  console.log('[Mock] 更新用户信息:', userId, profile)
+  
+  // 更新用户数据库
+  if (typeof window !== 'undefined') {
+    const currentIdentifier = localStorage.getItem('current_identifier')
+    if (currentIdentifier && userDatabase[currentIdentifier]) {
+      userDatabase[currentIdentifier] = {
+        ...userDatabase[currentIdentifier],
+        name: profile.name,
+        bio: profile.bio,
+        avatar: profile.avatar,
+        isProfileSetup: true
+      }
+    }
+  }
+  
+  return { success: true, message: '用户信息更新成功' }
+}
+
+// 更新社区信息
+export interface CommunityProfile {
+  name: string
+  description?: string
+  avatar?: string
+}
+
+export const updateCommunityProfile = async (communityId: number, profile: CommunityProfile): Promise<{ success: boolean; message: string }> => {
+  await new Promise(resolve => setTimeout(resolve, 500))
+  console.log('[Mock] 更新社区信息:', communityId, profile)
+  
+  // 更新社区数据库
+  if (typeof window !== 'undefined') {
+    const currentIdentifier = localStorage.getItem('current_identifier')
+    if (currentIdentifier && communityDatabase[currentIdentifier]) {
+      communityDatabase[currentIdentifier] = {
+        ...communityDatabase[currentIdentifier],
+        name: profile.name,
+        description: profile.description,
+        avatar: profile.avatar,
+        isProfileSetup: true
+      }
+    }
+  }
+  
+  return { success: true, message: '社区信息更新成功' }
 }
 
 // ==================== 社群相关 API ====================
@@ -515,42 +757,18 @@ export interface NetworkLink {
   weight: number                 // 连接权重（基于参与度和活跃度）
 }
 
-// Mock 社群数据
+// Mock 社群数据（仅保留一个「高新华社区小菜园」）
 const mockCommunities: Community[] = [
   {
     id: 1,
-    name: '高雅的即兴厨房',
-    description: '分享美食创意，探索即兴烹饪的乐趣。在这里，每一道菜都是艺术品。',
-    memberCount: 45,
-    activityCount: 12,
-    totalPoints: 12500,
-    category: '美食',
-    createdAt: '2024-01-15T00:00:00Z',
-    markdownIntro: `# 高雅的即兴厨房
-
-欢迎来到高雅的即兴厨房！我们是一个热爱美食和创意的社群。
-
-## 我们的理念
-- 即兴烹饪，发挥创意
-- 分享美食，传递快乐
-- 优雅生活，品味人生
-
-## 活动类型
-- 周末烹饪聚会
-- 食谱分享会
-- 食材交换活动
-    `
-  },
-  {
-    id: 2,
-    name: '新华社区小菜园',
+    name: '高新华社区小菜园',
     description: '社区共享菜园，一起种植、收获、分享绿色生活。',
     memberCount: 68,
     activityCount: 18,
     totalPoints: 18900,
     category: '园艺',
     createdAt: '2024-02-01T00:00:00Z',
-    markdownIntro: `# 新华社区小菜园
+    markdownIntro: `# 高新华社区小菜园
 
 欢迎加入我们的社区菜园！一起体验种植的乐趣。
 
@@ -564,151 +782,16 @@ const mockCommunities: Community[] = [
 - 每月一次：收获分享会
 - 不定期：种植技术讲座
     `
-  },
-  {
-    id: 3,
-    name: '大鱼小鱼群',
-    description: '水族爱好者聚集地，分享养鱼经验，交流水族知识。',
-    memberCount: 32,
-    activityCount: 8,
-    totalPoints: 8900,
-    category: '宠物',
-    createdAt: '2024-03-10T00:00:00Z',
-    markdownIntro: `# 大鱼小鱼群
-
-欢迎所有水族爱好者！
-
-## 社群特色
-- 专业的水族知识分享
-- 鱼友互助交流
-- 定期线下聚会
-
-## 活动内容
-- 水族箱设计分享
-- 鱼类疾病防治讲座
-- 鱼友见面会
-    `
-  },
-  {
-    id: 4,
-    name: 'Stopshop社群',
-    description: '倡导理性消费，分享购物心得，一起做聪明的消费者。',
-    memberCount: 156,
-    activityCount: 25,
-    totalPoints: 34200,
-    category: '消费',
-    createdAt: '2024-01-20T00:00:00Z',
-    markdownIntro: `# Stopshop社群
-
-理性消费，智慧生活！
-
-## 我们的使命
-- 帮助大家理性消费
-- 分享优质购物信息
-- 建立消费互助网络
-
-## 主要活动
-- 购物心得分享
-- 团购组织
-- 消费避坑指南
-    `
-  },
-  {
-    id: 5,
-    name: '野路子OFF运动社群',
-    description: '户外运动爱好者，探索自然，挑战自我，享受运动的快乐。',
-    memberCount: 89,
-    activityCount: 22,
-    totalPoints: 25600,
-    category: '运动',
-    createdAt: '2024-02-15T00:00:00Z',
-    markdownIntro: `# 野路子OFF运动社群
-
-走出舒适圈，探索户外世界！
-
-## 运动类型
-- 徒步登山
-- 骑行活动
-- 露营野餐
-- 极限运动
-
-## 活动频率
-- 每周：城市周边徒步
-- 每月：远足活动
-- 每季度：大型户外挑战
-    `
-  },
-  {
-    id: 6,
-    name: '玩具交换屋',
-    description: '让闲置玩具重新找到主人，传递快乐，减少浪费。',
-    memberCount: 124,
-    activityCount: 15,
-    totalPoints: 17800,
-    category: '交换',
-    createdAt: '2024-03-01T00:00:00Z',
-    markdownIntro: `# 玩具交换屋
-
-让每一件玩具都找到新主人！
-
-## 交换规则
-- 玩具需完好无损
-- 交换前需拍照确认
-- 支持以物易物或积分兑换
-
-## 活动形式
-- 定期玩具交换市集
-- 线上交换平台
-- 玩具捐赠活动
-    `
   }
 ]
 
-// Mock 成员数据（为每个社群创建成员）
+// Mock 成员数据（仅保留与高新华社区小菜园相关的成员）
 const mockMembers: Member[] = [
-  // 高雅的即兴厨房成员
-  { id: 1, name: '张厨师', title: '主厨', reputation: 850, totalContributions: 25, completedTasks: 18, totalReward: 3.2, skills: ['烹饪', '创意料理', '美食摄影'], communities: [1], participationScore: 95, activityScore: 88, avatarSeed: 'chef1' },
-  { id: 2, name: '李美食家', title: '美食评论家', reputation: 720, totalContributions: 18, completedTasks: 15, totalReward: 2.5, skills: ['美食评论', '品鉴'], communities: [1], participationScore: 85, activityScore: 82, avatarSeed: 'foodie1' },
-  { id: 3, name: '王烘焙师', title: '烘焙达人', reputation: 680, totalContributions: 15, completedTasks: 12, totalReward: 2.0, skills: ['烘焙', '甜品制作'], communities: [1], participationScore: 78, activityScore: 75, avatarSeed: 'baker1' },
-  { id: 4, name: '陈料理', title: '料理爱好者', reputation: 520, totalContributions: 10, completedTasks: 8, totalReward: 1.2, skills: ['家常菜', '营养搭配'], communities: [1], participationScore: 65, activityScore: 60, avatarSeed: 'cook1' },
-  { id: 5, name: '刘小厨', title: '新手厨师', reputation: 380, totalContributions: 6, completedTasks: 5, totalReward: 0.8, skills: ['基础烹饪'], communities: [1], participationScore: 55, activityScore: 50, avatarSeed: 'chef2' },
-  
-  // 新华社区小菜园成员
-  { id: 6, name: '赵园丁', title: '资深园丁', reputation: 920, totalContributions: 30, completedTasks: 22, totalReward: 4.0, skills: ['有机种植', '土壤管理', '病虫害防治'], communities: [2], participationScore: 98, activityScore: 95, avatarSeed: 'gardener1' },
-  { id: 7, name: '钱农夫', title: '种植专家', reputation: 780, totalContributions: 22, completedTasks: 18, totalReward: 3.0, skills: ['蔬菜种植', '堆肥制作'], communities: [2], participationScore: 88, activityScore: 85, avatarSeed: 'farmer1' },
-  { id: 8, name: '孙绿手指', title: '园艺爱好者', reputation: 650, totalContributions: 16, completedTasks: 13, totalReward: 2.2, skills: ['花卉种植', '园艺设计'], communities: [2], participationScore: 75, activityScore: 72, avatarSeed: 'green1' },
-  { id: 9, name: '周菜农', title: '菜园管理员', reputation: 580, totalContributions: 12, completedTasks: 10, totalReward: 1.8, skills: ['菜园管理', '收获分享'], communities: [2], participationScore: 68, activityScore: 65, avatarSeed: 'veggie1' },
-  { id: 10, name: '吴新手', title: '种植新手', reputation: 420, totalContributions: 8, completedTasks: 6, totalReward: 1.0, skills: ['基础种植'], communities: [2], participationScore: 58, activityScore: 55, avatarSeed: 'newbie1' },
-  
-  // 大鱼小鱼群成员
-  { id: 11, name: '郑鱼友', title: '水族专家', reputation: 880, totalContributions: 28, completedTasks: 20, totalReward: 3.5, skills: ['水族箱设计', '鱼类繁殖', '水质管理'], communities: [3], participationScore: 92, activityScore: 90, avatarSeed: 'fish1' },
-  { id: 12, name: '王水族', title: '资深鱼友', reputation: 720, totalContributions: 20, completedTasks: 16, totalReward: 2.8, skills: ['热带鱼养殖', '水草种植'], communities: [3], participationScore: 82, activityScore: 80, avatarSeed: 'aqua1' },
-  { id: 13, name: '冯小鱼', title: '鱼友', reputation: 560, totalContributions: 14, completedTasks: 11, totalReward: 1.9, skills: ['基础养鱼', '鱼病防治'], communities: [3], participationScore: 70, activityScore: 68, avatarSeed: 'fish2' },
-  { id: 14, name: '陈水族', title: '新手鱼友', reputation: 450, totalContributions: 9, completedTasks: 7, totalReward: 1.3, skills: ['入门养鱼'], communities: [3], participationScore: 60, activityScore: 58, avatarSeed: 'newfish1' },
-  
-  // Stopshop社群成员
-  { id: 15, name: '韩购物', title: '购物达人', reputation: 950, totalContributions: 35, completedTasks: 28, totalReward: 5.0, skills: ['比价', '优惠信息', '团购组织'], communities: [4], participationScore: 100, activityScore: 98, avatarSeed: 'shop1' },
-  { id: 16, name: '杨省钱', title: '省钱专家', reputation: 820, totalContributions: 26, completedTasks: 21, totalReward: 3.8, skills: ['优惠券', '折扣信息'], communities: [4], participationScore: 90, activityScore: 88, avatarSeed: 'save1' },
-  { id: 17, name: '朱理性', title: '理性消费者', reputation: 680, totalContributions: 19, completedTasks: 15, totalReward: 2.6, skills: ['消费分析', '产品评测'], communities: [4], participationScore: 78, activityScore: 75, avatarSeed: 'rational1' },
-  { id: 18, name: '秦购物', title: '购物爱好者', reputation: 580, totalContributions: 14, completedTasks: 11, totalReward: 2.0, skills: ['购物分享'], communities: [4], participationScore: 68, activityScore: 65, avatarSeed: 'shop2' },
-  { id: 19, name: '尤新手', title: '新手买家', reputation: 420, totalContributions: 9, completedTasks: 7, totalReward: 1.2, skills: ['基础购物'], communities: [4], participationScore: 58, activityScore: 55, avatarSeed: 'buyer1' },
-  
-  // 野路子OFF运动社群成员
-  { id: 20, name: '许登山', title: '登山领队', reputation: 980, totalContributions: 38, completedTasks: 30, totalReward: 5.5, skills: ['登山', '户外生存', '路线规划'], communities: [5], participationScore: 100, activityScore: 100, avatarSeed: 'hike1' },
-  { id: 21, name: '何骑行', title: '骑行达人', reputation: 850, totalContributions: 28, completedTasks: 22, totalReward: 4.2, skills: ['长途骑行', '自行车维修'], communities: [5], participationScore: 95, activityScore: 92, avatarSeed: 'bike1' },
-  { id: 22, name: '吕户外', title: '户外爱好者', reputation: 720, totalContributions: 22, completedTasks: 18, totalReward: 3.2, skills: ['露营', '徒步'], communities: [5], participationScore: 85, activityScore: 82, avatarSeed: 'outdoor1' },
-  { id: 23, name: '施运动', title: '运动新手', reputation: 520, totalContributions: 12, completedTasks: 9, totalReward: 1.8, skills: ['基础运动'], communities: [5], participationScore: 65, activityScore: 62, avatarSeed: 'sport1' },
-  
-  // 玩具交换屋成员
-  { id: 24, name: '张玩具', title: '玩具收藏家', reputation: 880, totalContributions: 32, completedTasks: 25, totalReward: 4.5, skills: ['玩具收藏', '玩具修复', '交换组织'], communities: [6], participationScore: 96, activityScore: 94, avatarSeed: 'toy1' },
-  { id: 25, name: '孔交换', title: '交换达人', reputation: 750, totalContributions: 24, completedTasks: 19, totalReward: 3.5, skills: ['物品交换', '价值评估'], communities: [6], participationScore: 86, activityScore: 83, avatarSeed: 'swap1' },
-  { id: 26, name: '曹玩具', title: '玩具爱好者', reputation: 620, totalContributions: 17, completedTasks: 13, totalReward: 2.3, skills: ['玩具分享', '交换'], communities: [6], participationScore: 72, activityScore: 70, avatarSeed: 'toy2' },
-  { id: 27, name: '严新手', title: '交换新手', reputation: 480, totalContributions: 11, completedTasks: 8, totalReward: 1.5, skills: ['基础交换'], communities: [6], participationScore: 62, activityScore: 60, avatarSeed: 'newswap1' },
-  
-  // 跨社群成员（参与多个社群）
-  { id: 28, name: '林多面手', title: '活跃成员', reputation: 1100, totalContributions: 45, completedTasks: 35, totalReward: 6.5, skills: ['多领域', '组织能力'], communities: [1, 2, 4], participationScore: 100, activityScore: 100, avatarSeed: 'multi1' },
-  { id: 29, name: '黄社交', title: '社交达人', reputation: 920, totalContributions: 35, completedTasks: 28, totalReward: 5.0, skills: ['社交', '活动组织'], communities: [3, 5, 6], participationScore: 95, activityScore: 93, avatarSeed: 'social1' },
-  { id: 30, name: '罗新手', title: '新成员', reputation: 350, totalContributions: 5, completedTasks: 4, totalReward: 0.6, skills: ['学习'], communities: [1, 6], participationScore: 50, activityScore: 48, avatarSeed: 'new1' }
+  { id: 1, name: '赵园丁', title: '资深园丁', reputation: 920, totalContributions: 30, completedTasks: 22, totalReward: 4.0, skills: ['有机种植', '土壤管理', '病虫害防治'], communities: [1], participationScore: 98, activityScore: 95, avatarSeed: 'gardener1' },
+  { id: 2, name: '钱农夫', title: '种植专家', reputation: 780, totalContributions: 22, completedTasks: 18, totalReward: 3.0, skills: ['蔬菜种植', '堆肥制作'], communities: [1], participationScore: 88, activityScore: 85, avatarSeed: 'farmer1' },
+  { id: 3, name: '孙绿手指', title: '园艺爱好者', reputation: 650, totalContributions: 16, completedTasks: 13, totalReward: 2.2, skills: ['花卉种植', '园艺设计'], communities: [1], participationScore: 75, activityScore: 72, avatarSeed: 'green1' },
+  { id: 4, name: '周菜农', title: '菜园管理员', reputation: 580, totalContributions: 12, completedTasks: 10, totalReward: 1.8, skills: ['菜园管理', '收获分享'], communities: [1], participationScore: 68, activityScore: 65, avatarSeed: 'veggie1' },
+  { id: 5, name: '吴新手', title: '种植新手', reputation: 420, totalContributions: 8, completedTasks: 6, totalReward: 1.0, skills: ['基础种植'], communities: [1], participationScore: 58, activityScore: 55, avatarSeed: 'newbie1' }
 ]
 
 /**

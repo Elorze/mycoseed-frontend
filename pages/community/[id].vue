@@ -7,7 +7,7 @@
       <div class="absolute bottom-16 left-10 w-20 h-20 bg-red-500 pixel-house"></div>
       <div class="absolute bottom-16 right-20 w-24 h-24 bg-blue-500 pixel-castle"></div>
       <div class="absolute top-4 left-1/2 -translate-x-1/2 font-pixel text-white text-shadow-pixel text-2xl md:text-4xl uppercase text-center">
-        {{ community?.name || '正在加载村庄...' }}
+        {{ community?.name || '正在加载...' }}
       </div>
       
       <!-- Stats Bar -->
@@ -18,10 +18,10 @@
     </div>
 
     <!-- Village Content Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <div class="space-y-6">
       
-      <!-- Left Col: Main Content (Tabs) -->
-      <div class="md:col-span-2 space-y-6">
+      <!-- Main Content (Tabs) -->
+      <div class="space-y-6">
         
         <!-- Tab Navigation -->
         <div class="flex border-b-4 border-black">
@@ -42,7 +42,6 @@
         <div v-if="activeTab === 'QUESTS'" class="space-y-6">
           <div class="flex items-center justify-between bg-white border-2 border-black p-2">
             <div class="font-pixel text-sm">当前任务: {{ tasks.length }}</div>
-            <PixelButton size="sm" variant="primary">发布新任务</PixelButton>
           </div>
 
           <div class="grid gap-4">
@@ -103,58 +102,57 @@
         </div>
 
         <!-- INTRO TAB -->
-        <div v-else-if="activeTab === 'INTRO'">
+        <div v-else-if="activeTab === 'INTRO'" class="space-y-6">
           <PixelCard>
             <div class="prose font-vt323 text-lg max-w-none p-4">
               <h3 class="font-pixel text-sm uppercase border-b-2 border-black pb-2 mb-4">欢迎来到 {{ community?.name }}</h3>
               <div class="whitespace-pre-wrap">{{ community?.markdownIntro }}</div>
             </div>
           </PixelCard>
+
+          <!-- Town Hall (Governance & Members) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <PixelCard>
+              <template #header>市政厅 (TOWN HALL)</template>
+              <div class="space-y-4 text-center">
+                <div class="w-full h-24 bg-gray-100 flex items-center justify-center border-2 border-dashed border-black/20 relative overflow-hidden">
+                  <!-- Castle IMG Placeholder -->
+                  <div class="absolute inset-0 flex items-center justify-center text-6xl opacity-20">🏰</div>
+                </div>
+                
+                <!-- Community Stats -->
+                <div class="grid grid-cols-2 gap-2 text-left font-vt323 text-lg bg-gray-50 p-2 border border-black/10">
+                   <div>总积分:</div>
+                   <div class="text-right text-mario-coin font-bold">{{ community?.totalPoints || 0 }}</div>
+                   <div>成员:</div>
+                   <div class="text-right font-bold">{{ community?.memberCount || 0 }}</div>
+                </div>
+
+                <p class="text-sm text-gray-600 text-left">
+                  {{ community?.description || '菌丝网络中的一个和平村庄。' }}
+                </p>
+              </div>
+            </PixelCard>
+
+            <PixelCard>
+              <template #header>村民 (VILLAGERS)</template>
+              <div class="grid grid-cols-4 gap-2">
+                 <PixelAvatar 
+                   v-for="member in members.slice(0, 12)" 
+                   :key="member.id" 
+                   :seed="member.avatarSeed || member.name" 
+                   size="sm"
+                   class="cursor-pointer hover:scale-110 transition-transform"
+                   @click="navigateTo(`/member/${member.id}`)"
+                 />
+              </div>
+              <div v-if="members.length > 12" class="text-xs text-gray-500 mt-2 text-center">
+                还有 {{ members.length - 12 }} 位成员...
+              </div>
+            </PixelCard>
+          </div>
         </div>
 
-      </div>
-
-      <!-- Right Col: Town Hall (Governance & Members) -->
-      <div class="space-y-6">
-        <PixelCard>
-          <template #header>市政厅 (TOWN HALL)</template>
-          <div class="space-y-4 text-center">
-            <div class="w-full h-24 bg-gray-100 flex items-center justify-center border-2 border-dashed border-black/20 relative overflow-hidden">
-              <!-- Castle IMG Placeholder -->
-              <div class="absolute inset-0 flex items-center justify-center text-6xl opacity-20">🏰</div>
-            </div>
-            
-            <!-- Community Stats -->
-            <div class="grid grid-cols-2 gap-2 text-left font-vt323 text-lg bg-gray-50 p-2 border border-black/10">
-               <div>总积分:</div>
-               <div class="text-right text-mario-coin font-bold">{{ community?.totalPoints || 0 }}</div>
-               <div>成员:</div>
-               <div class="text-right font-bold">{{ community?.memberCount || 0 }}</div>
-            </div>
-
-            <p class="text-sm text-gray-600 text-left">
-              {{ community?.description || '菌丝网络中的一个和平村庄。' }}
-            </p>
-            <PixelButton block variant="success">加入村庄</PixelButton>
-          </div>
-        </PixelCard>
-
-        <PixelCard>
-          <template #header>村民 (VILLAGERS)</template>
-          <div class="grid grid-cols-4 gap-2">
-             <PixelAvatar 
-               v-for="member in members.slice(0, 12)" 
-               :key="member.id" 
-               :seed="member.avatarSeed || member.name" 
-               size="sm"
-               class="cursor-pointer hover:scale-110 transition-transform"
-               @click="navigateTo('/member/' + member.id)"
-             />
-          </div>
-          <div v-if="members.length > 12" class="text-xs text-gray-500 mt-2 text-center">
-            还有 {{ members.length - 12 }} 位成员...
-          </div>
-        </PixelCard>
       </div>
 
     </div>
@@ -172,12 +170,12 @@ import { getCommunityById, getCommunityMembers } from '~/utils/api'
 const route = useRoute()
 const router = useRouter()
 const communityId = parseInt(route.params.id as string)
-const activeTab = ref('QUESTS')
+const activeTab = ref('INTRO')
 
 const tabs = [
-  { id: 'QUESTS', label: '任务看板' },
+  { id: 'INTRO', label: '简介' },
   { id: 'EVENTS', label: '社区活动' },
-  { id: 'INTRO', label: '简介' }
+  { id: 'QUESTS', label: '任务看板' }
 ]
 
 // Data

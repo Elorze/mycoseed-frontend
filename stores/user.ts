@@ -3,10 +3,31 @@ import { defineStore } from 'pinia'
 // import { AUTH_TOKEN_KEY, getCookie, clearAuthToken, getMe } from '../../../semi/semi-app-main/utils/semi_api'
 import { AUTH_TOKEN_KEY, getCookie, clearAuthToken, getMe } from '~/utils/api'
 
+export interface User {
+    id: number
+    identifier: string
+    identifierType: 'phone' | 'email'
+    evm_chain_address: string
+    encrypted_keys?: string | null
+    userType: 'member' | 'community'
+    isProfileSetup: boolean
+    name?: string
+    bio?: string
+    avatar?: string
+    description?: string
+    created_at: string
+}
+
 export const useUserStore = defineStore('user', {
     state: () => ({
-        user: null as any,
+        user: null as User | null,
     }),
+    getters: {
+        isAuthenticated: (state) => !!state.user,
+        isMember: (state) => state.user?.userType === 'member',
+        isCommunity: (state) => state.user?.userType === 'community',
+        needsProfileSetup: (state) => state.user && !state.user.isProfileSetup,
+    },
     actions: {
         async getUser(force = false) {
             if (this.user && !force) {
@@ -16,6 +37,7 @@ export const useUserStore = defineStore('user', {
             if (getCookie(AUTH_TOKEN_KEY)) {
               const user = await getMe()
               this.user = user
+              return user
             }
 
             return null
@@ -24,7 +46,7 @@ export const useUserStore = defineStore('user', {
             clearAuthToken()
             this.user = null
         },
-        setUser(user: any) {
+        setUser(user: User | null) {
             this.user = user
         }
     }

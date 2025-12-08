@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-mario-sky py-4 md:py-8">
-    <div class="container mx-auto px-4 md:px-6 max-w-4xl pb-24">
+    <div class="container mx-auto px-4 md:px-6 max-w-4xl pb-32 md:pb-24">
       <!-- 页面标题 -->
       <div class="mb-6 md:mb-8 text-center">
         <h1 class="font-pixel text-2xl md:text-4xl text-white text-shadow-pixel mb-2 md:mb-4">创建任务</h1>
@@ -181,13 +181,14 @@
           </div>
 
           <!-- 底部固定操作栏占位符，防止内容被遮挡 -->
-          <div class="h-16"></div>
+          <div class="h-20 md:h-16"></div>
         </div>
       </PixelCard>
     </div>
 
     <!-- 底部固定操作栏 -->
-    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-2 border-black z-50 flex gap-3 shadow-[0_-4px_0_rgba(0,0,0,0.05)]">
+    <!-- 移动端：放在底部导航栏上方（bottom-16），桌面端：放在底部（bottom-0） -->
+    <div class="fixed bottom-16 left-0 right-0 p-4 bg-white border-t-2 border-black z-[60] flex gap-3 shadow-[0_-4px_0_rgba(0,0,0,0.05)] md:bottom-0 md:border-t-2" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
       <PixelButton 
         @click="navigateTo('/tasks')"
         variant="secondary"

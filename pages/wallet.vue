@@ -509,12 +509,8 @@ const sendForm = ref({
 
 const scannedAddress = ref('')
 
-const transactions = ref([
-  { id: 1, type: 'in', title: '帮助 Mario 修水管', date: '2023-10-24 14:30', amount: 50, currency: 'CP' },
-  { id: 2, type: 'out', title: '购买体力药水', date: '2023-10-23 09:15', amount: 0.05, currency: 'ETH' },
-  { id: 3, type: 'in', title: '任务奖励', date: '2023-10-22 18:00', amount: 100, currency: 'CP' },
-  { id: 4, type: 'in', title: 'Luigi 转账', date: '2023-10-20 11:20', amount: 0.5, currency: 'ETH' },
-])
+// 数据将从后端 API 获取
+const transactions = ref([])
 
 const savedContacts = ref([
   { id: 1, name: 'Mario', address: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', icon: '🍄' },

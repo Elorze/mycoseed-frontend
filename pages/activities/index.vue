@@ -147,38 +147,96 @@
           <div
             v-for="task in myTasks"
             :key="task.id"
-            class="border border-gray-200 rounded-lg p-4"
+            class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
           >
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <div class="flex items-center gap-3 mb-2">
                   <h3 class="text-lg font-semibold text-gray-900">{{ task.title }}</h3>
                   <span 
+                    class="px-3 py-1 rounded-full text-sm font-medium"
+                    :class="{
+                      'bg-yellow-50 text-yellow-700': task.status === 'unclaimed',
+                      'bg-blue-50 text-blue-700': task.status === 'in_progress',
+                      'bg-orange-50 text-orange-700': task.status === 'under_review',
+                      'bg-green-50 text-green-700': task.status === 'completed',
+                      'bg-red-50 text-red-700': task.status === 'rejected'
+                    }"
+                  >
+                    {{ getTaskStatusText(task.status) }}
+                  </span>
+                  <span 
                     v-if="task.discount"
                     class="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-sm font-medium"
                   >
-                    <span class="line-through opacity-60">{{ task.reward }} ETH</span>
-                    → {{ getFinalReward(task) }} ETH ({{ task.discount }}%)
+                    <span class="line-through opacity-60">{{ task.reward }} 积分</span>
+                    → {{ getFinalReward(task) }} 积分 ({{ task.discount }}%)
                   </span>
                   <span v-else class="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                    {{ task.reward }} ETH
+                    {{ task.reward }} 积分
                   </span>
                 </div>
-                <p class="text-gray-600 mb-2">{{ task.description }}</p>
-                <div v-if="task.proof" class="text-sm text-green-600 mt-2">
-                  ✓ 已提交凭证
+                <p class="text-gray-600 mb-3">{{ task.description }}</p>
+                
+                <!-- 任务进度条 -->
+                <div class="mb-3">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm text-gray-600">任务进度</span>
+                    <span class="text-sm font-medium text-gray-900">{{ getTaskProgress(task) }}%</span>
+                  </div>
+                  <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      class="h-2 rounded-full transition-all duration-300"
+                      :class="{
+                        'bg-yellow-500': task.status === 'unclaimed',
+                        'bg-blue-500': task.status === 'in_progress',
+                        'bg-orange-500': task.status === 'under_review',
+                        'bg-green-500': task.status === 'completed',
+                        'bg-red-500': task.status === 'rejected'
+                      }"
+                      :style="{ width: `${getTaskProgress(task)}%` }"
+                    ></div>
+                  </div>
                 </div>
-                <div v-if="task.discountReason" class="text-sm text-orange-600 mt-2">
-                  打折理由：{{ task.discountReason }}
+                
+                <!-- 任务信息 -->
+                <div class="text-sm text-gray-500 space-y-1">
+                  <div v-if="task.creatorId === 1" class="text-blue-600">
+                    📌 我发布的任务
+                  </div>
+                  <div v-if="task.claimerId === 1" class="text-green-600">
+                    ✅ 我领取的任务
+                  </div>
+                  <div v-if="task.proof" class="text-green-600">
+                    ✓ 已提交凭证
+                  </div>
+                  <div v-if="task.discountReason" class="text-orange-600">
+                    打折理由：{{ task.discountReason }}
+                  </div>
                 </div>
               </div>
-              <button
-                v-if="!task.proof"
-                @click="openProofModal(task)"
-                class="ml-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors whitespace-nowrap text-sm"
-              >
-                任务已完成，上传完成凭证
-              </button>
+              <div class="ml-4 flex flex-col gap-2">
+                <button
+                  v-if="task.status === 'in_progress' && task.claimerId === 1"
+                  @click="openProofModal(task)"
+                  class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors whitespace-nowrap text-sm"
+                >
+                  提交凭证
+                </button>
+                <button
+                  v-if="task.status === 'under_review' && task.creatorId === 1"
+                  @click="goToReview(task.id)"
+                  class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors whitespace-nowrap text-sm"
+                >
+                  审核任务
+                </button>
+                <button
+                  @click="goToTaskDetail(task.id)"
+                  class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors whitespace-nowrap text-sm"
+                >
+                  查看详情
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -225,9 +283,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import ActivityCard from '~/components/ActivityCard.vue'
-import { getActivities, getMyTasks, submitProof, getFinalReward, type Activity, type Task } from '~/utils/api'
+import { getActivities, getMyTasks, getAllTasks, submitProof, getFinalReward, type Activity, type Task } from '~/utils/api'
 
 // 响应式数据
 const loading = ref(true)
@@ -316,6 +374,30 @@ const openProofModal = (task: Task) => {
   showProofModal.value = true
 }
 
+// 任务状态文本
+const getTaskStatusText = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    'unclaimed': '未领取',
+    'in_progress': '进行中',
+    'under_review': '审核中',
+    'completed': '已完成',
+    'rejected': '已驳回'
+  }
+  return statusMap[status] || '未知'
+}
+
+// 跳转到任务详情
+const goToTaskDetail = (taskId: number) => {
+  const router = useRouter()
+  router.push(`/tasks/${taskId}`)
+}
+
+// 跳转到审核页面
+const goToReview = (taskId: number) => {
+  const router = useRouter()
+  router.push(`/tasks/detail/review?id=${taskId}`)
+}
+
 // 提交凭证
 const handleSubmitProof = async () => {
   if (!selectedTask.value || !proofText.value.trim()) return
@@ -325,7 +407,7 @@ const handleSubmitProof = async () => {
     alert(result.message)
     showProofModal.value = false
     // 重新加载我的任务
-    myTasks.value = await getMyTasks()
+    await loadMyAllTasks()
   } else {
     alert(result.message)
   }
@@ -337,11 +419,69 @@ onMounted(() => {
   loadActivities()
 })
 
+// 计算任务进度
+const getTaskProgress = (task: Task): number => {
+  const progressMap: Record<string, number> = {
+    'unclaimed': 0,
+    'in_progress': 33,
+    'under_review': 66,
+    'completed': 100,
+    'rejected': 0
+  }
+  return progressMap[task.status] || 0
+}
+
+// 获取我的所有任务（包括发布的和领取的）
+const loadMyAllTasks = async () => {
+  try {
+    const allTasks = await getAllTasks()
+    const currentUserId = 1 // Mock: 当前用户ID，实际应从认证系统获取
+    
+    // 筛选我发布的任务和我领取的任务
+    myTasks.value = allTasks.filter(task => 
+      task.creatorId === currentUserId || task.claimerId === currentUserId
+    )
+  } catch (error) {
+    console.error('加载我的任务失败:', error)
+  }
+}
+
+// 任务状态轮询更新
+let taskPollingInterval: ReturnType<typeof setInterval> | null = null
+
+const startTaskPolling = () => {
+  if (taskPollingInterval) {
+    clearInterval(taskPollingInterval)
+  }
+  
+  // 每5秒轮询一次任务状态
+  taskPollingInterval = setInterval(async () => {
+    if (showMyTasks.value) {
+      await loadMyAllTasks()
+    }
+  }, 5000)
+}
+
+const stopTaskPolling = () => {
+  if (taskPollingInterval) {
+    clearInterval(taskPollingInterval)
+    taskPollingInterval = null
+  }
+}
+
 // 监听弹窗打开，重新加载我的任务
 watch(showMyTasks, async (newValue) => {
   if (newValue) {
-    myTasks.value = await getMyTasks()
+    await loadMyAllTasks()
+    startTaskPolling()
+  } else {
+    stopTaskPolling()
   }
+})
+
+// 组件卸载时清理轮询
+onUnmounted(() => {
+  stopTaskPolling()
 })
 </script>
 

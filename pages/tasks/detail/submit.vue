@@ -1,63 +1,71 @@
 <template>
-  <div class="min-h-screen bg-background">
-    <div class="container mx-auto px-6 py-8">
+  <div class="min-h-screen bg-mario-sky py-4 md:py-8">
+    <div class="container mx-auto px-4 md:px-6 max-w-4xl">
       <!-- 返回按钮 -->
-      <div class="mb-8">
-        <button
-          @click="navigateTo('/tasks/' + taskId)"
-          class="mb-4 flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group cursor-pointer"
+      <div class="mb-6">
+        <PixelButton
+          @click="navigateTo(`/tasks/${taskId}`)"
+          variant="secondary"
+          size="sm"
         >
-          <UIcon name="i-heroicons-arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span class="font-medium">返回任务详情</span>
-        </button>
+          ← 返回任务详情
+        </PixelButton>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="text-center py-12">
+        <div class="font-pixel text-lg text-white text-shadow-pixel animate-pulse">加载中...</div>
       </div>
 
       <!-- 提交表单 -->
-      <div class="max-w-4xl mx-auto">
-        <div class="bg-card border border-border rounded-xl p-6">
-          <h1 class="text-3xl font-bold text-foreground mb-2">提交任务</h1>
-          <p class="text-muted-foreground mb-8">请上传您的任务完成证明和相关文件</p>
+      <div v-else>
+        <PixelCard>
+          <template #header>
+            提交任务
+          </template>
+          
+          <p class="font-vt323 text-lg text-black mb-6">请上传您的任务完成证明和相关文件</p>
           
           <form @submit.prevent="submitForm" class="space-y-6">
             <!-- 任务信息 -->
-            <div class="bg-muted/50 rounded-lg p-4">
-              <h3 class="text-lg font-semibold text-foreground mb-2">{{ task.title }}</h3>
-              <p class="text-muted-foreground">{{ task.description }}</p>
-              <div class="flex items-center gap-4 mt-2">
-                <span class="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+            <div class="bg-white border-2 border-black shadow-pixel-sm p-4">
+              <h3 class="font-pixel text-xs uppercase text-black mb-2">{{ task.title }}</h3>
+              <p class="font-vt323 text-base text-black mb-3">{{ task.description }}</p>
+              <div class="flex items-center gap-3 flex-wrap">
+                <span class="px-3 py-1.5 bg-mario-coin text-white border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase">
                   {{ task.reward }} ETH
                 </span>
-                <span class="text-sm text-muted-foreground">截止: {{ formatDate(task.deadline) }}</span>
+                <span class="font-vt323 text-sm text-black">截止: {{ formatDate(task.deadline) }}</span>
               </div>
             </div>
 
             <!-- 提交说明 -->
-            <div>
-              <h3 class="text-lg font-semibold text-foreground mb-2">提交说明</h3>
-              <p class="text-muted-foreground">{{ task.submissionInstructions }}</p>
+            <div class="pt-4 border-t-2 border-black/20">
+              <h3 class="font-pixel text-xs uppercase text-black mb-2">提交说明</h3>
+              <p class="font-vt323 text-base text-black">{{ task.submissionInstructions || '请按照任务要求完成并提交相关凭证。' }}</p>
             </div>
 
             <!-- 文件上传 -->
-            <div>
-              <h3 class="text-lg font-semibold text-foreground mb-4">上传文件</h3>
+            <div class="pt-4 border-t-2 border-black/20">
+              <h3 class="font-pixel text-xs uppercase text-black mb-4">上传文件</h3>
               <div class="space-y-4">
                 <!-- 主要证明文件 -->
                 <div>
-                  <label class="block text-sm font-medium text-foreground mb-2">
-                    主要证明文件 <span class="text-destructive">*</span>
+                  <label class="block font-pixel text-[10px] uppercase text-black mb-2">
+                    主要证明文件 <span class="text-mario-red">*</span>
                   </label>
                   <div 
                     @click="triggerFileInput('main')"
-                    class="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    :class="{ 'border-primary': dragOver }"
+                    class="border-2 border-dashed border-black bg-white p-6 md:p-8 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-pixel transition-all"
+                    :class="{ 'border-mario-red shadow-pixel': dragOver }"
                     @dragover.prevent="dragOver = true"
                     @dragleave="dragOver = false"
                     @drop.prevent="handleFileDrop($event, 'main')"
                   >
-                    <UIcon name="i-heroicons-cloud-arrow-up" class="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p class="text-foreground font-medium">点击上传或拖拽文件到此处</p>
-                    <p class="text-sm text-muted-foreground mt-1">支持 PDF, DOC, DOCX, PNG, JPG 格式</p>
-                    <p class="text-xs text-muted-foreground mt-1">最大 10MB</p>
+                    <div class="text-4xl mb-3">☁️</div>
+                    <p class="font-vt323 text-base text-black font-medium mb-1">点击上传或拖拽文件到此处</p>
+                    <p class="font-vt323 text-sm text-black/70">支持 PDF, DOC, DOCX, PNG, JPG 格式</p>
+                    <p class="font-vt323 text-xs text-black/60 mt-1">最大 10MB</p>
                   </div>
                   <input
                     ref="mainFileInput"
@@ -68,35 +76,35 @@
                   />
                   
                   <!-- 已选择的文件 -->
-                  <div v-if="selectedFiles.main" class="mt-3 p-3 bg-muted/50 rounded-lg">
+                  <div v-if="selectedFiles.main" class="mt-3 p-3 bg-white border-2 border-black shadow-pixel-sm">
                     <div class="flex items-center gap-3">
-                      <UIcon name="i-heroicons-document" class="h-5 w-5 text-primary" />
-                      <span class="text-sm text-foreground">{{ selectedFiles.main.name }}</span>
-                      <span class="text-xs text-muted-foreground">({{ formatFileSize(selectedFiles.main.size) }})</span>
-                      <UButton
+                      <span class="text-2xl">📄</span>
+                      <div class="flex-1">
+                        <div class="font-vt323 text-sm text-black font-medium">{{ selectedFiles.main.name }}</div>
+                        <div class="font-vt323 text-xs text-black/60">({{ formatFileSize(selectedFiles.main.size) }})</div>
+                      </div>
+                      <PixelButton
                         @click="removeFile('main')"
+                        variant="danger"
                         size="sm"
-                        color="gray"
-                        variant="ghost"
-                        class="ml-auto"
                       >
                         移除
-                      </UButton>
+                      </PixelButton>
                     </div>
                   </div>
                 </div>
 
                 <!-- 附加文件 -->
                 <div>
-                  <label class="block text-sm font-medium text-foreground mb-2">
+                  <label class="block font-pixel text-[10px] uppercase text-black mb-2">
                     附加文件 (可选)
                   </label>
                   <div 
                     @click="triggerFileInput('additional')"
-                    class="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    class="border-2 border-dashed border-black bg-white p-4 md:p-6 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-pixel transition-all"
                   >
-                    <UIcon name="i-heroicons-plus" class="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p class="text-sm text-foreground">添加更多文件</p>
+                    <div class="text-2xl mb-2">➕</div>
+                    <p class="font-vt323 text-sm text-black">添加更多文件</p>
                   </div>
                   <input
                     ref="additionalFileInput"
@@ -112,21 +120,21 @@
                     <div
                       v-for="(file, index) in selectedFiles.additional"
                       :key="index"
-                      class="p-3 bg-muted/50 rounded-lg"
+                      class="p-3 bg-white border-2 border-black shadow-pixel-sm"
                     >
                       <div class="flex items-center gap-3">
-                        <UIcon name="i-heroicons-document" class="h-5 w-5 text-primary" />
-                        <span class="text-sm text-foreground">{{ file.name }}</span>
-                        <span class="text-xs text-muted-foreground">({{ formatFileSize(file.size) }})</span>
-                        <UButton
+                        <span class="text-2xl">📄</span>
+                        <div class="flex-1">
+                          <div class="font-vt323 text-sm text-black font-medium">{{ file.name }}</div>
+                          <div class="font-vt323 text-xs text-black/60">({{ formatFileSize(file.size) }})</div>
+                        </div>
+                        <PixelButton
                           @click="removeFile('additional', index)"
+                          variant="danger"
                           size="sm"
-                          color="gray"
-                          variant="ghost"
-                          class="ml-auto"
                         >
                           移除
-                        </UButton>
+                        </PixelButton>
                       </div>
                     </div>
                   </div>
@@ -134,53 +142,65 @@
               </div>
             </div>
 
-            <!-- 提交说明 -->
-            <div>
-              <label class="block text-sm font-medium text-foreground mb-2">
-                提交说明 <span class="text-destructive">*</span>
+            <!-- 提交说明输入 -->
+            <div class="pt-4 border-t-2 border-black/20">
+              <label class="block font-pixel text-xs uppercase text-black mb-2">
+                提交说明 <span class="text-mario-red">*</span>
               </label>
-              <UTextarea
+              <textarea
                 v-model="submissionDescription"
                 placeholder="请详细描述您完成的任务内容，包括主要工作、技术实现、遇到的问题和解决方案等..."
                 rows="6"
-                class="w-full"
+                class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
               />
             </div>
 
             <!-- 提交按钮 -->
-            <div class="flex gap-4 pt-6 border-t border-border">
-              <UButton
-                @click="navigateTo('/tasks/' + taskId)"
-                color="gray"
-                variant="ghost"
+            <div class="flex gap-4 pt-6 border-t-2 border-black/20">
+              <PixelButton
+                @click="navigateTo(`/tasks/${taskId}`)"
+                variant="secondary"
                 size="lg"
+                :block="false"
               >
                 取消
-              </UButton>
-              <UButton
+              </PixelButton>
+              <PixelButton
                 type="submit"
-                color="primary"
+                variant="primary"
                 size="lg"
-                :disabled="!canSubmit"
-                :loading="isSubmitting"
+                :block="false"
+                :disabled="!canSubmit || isSubmitting"
               >
                 {{ isSubmitting ? '提交中...' : '提交任务' }}
-              </UButton>
+              </PixelButton>
             </div>
           </form>
-        </div>
+        </PixelCard>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { getTaskById } from '~/utils/api'
+import { useToast } from '~/composables/useToast'
+import PixelCard from '~/components/pixel/PixelCard.vue'
+import PixelButton from '~/components/pixel/PixelButton.vue'
+import type { Task } from '~/utils/api'
+
 // 获取路由参数
 const route = useRoute()
-const taskId = route.params.id
+const router = useRouter()
+const taskId = parseInt((route.query.id || route.params.id) as string)
+const toast = useToast()
+const loading = ref(true)
 
 // 响应式数据
-const selectedFiles = ref({
+const selectedFiles = ref<{
+  main: File | null
+  additional: File[]
+}>({
   main: null,
   additional: []
 })
@@ -189,18 +209,61 @@ const isSubmitting = ref(false)
 const dragOver = ref(false)
 
 // 文件输入引用
-const mainFileInput = ref(null)
-const additionalFileInput = ref(null)
+const mainFileInput = ref<HTMLInputElement | null>(null)
+const additionalFileInput = ref<HTMLInputElement | null>(null)
 
 // 任务数据
-const task = ref({
+const task = ref<{
+  id: number
+  title: string
+  description: string
+  reward: number
+  deadline: string
+  submissionInstructions: string
+}>({
   id: taskId,
-  title: '完成项目提案',
-  description: '提交一份完整的项目提案文档，包括技术方案、商业模式、团队介绍等',
-  reward: 0.5,
-  deadline: '2025-10-25',
-  submissionInstructions: '请将完整的项目提案文档以PDF格式提交，文件大小不超过10MB。'
+  title: '',
+  description: '',
+  reward: 0,
+  deadline: '',
+  submissionInstructions: '请按照任务要求完成并提交相关凭证。'
 })
+
+// 加载任务详情
+const loadTask = async () => {
+  loading.value = true
+  try {
+    const taskData = await getTaskById(taskId)
+    if (!taskData) {
+      toast.add({
+        title: '任务不存在',
+        description: '无法找到该任务',
+        color: 'red'
+      })
+      router.push('/tasks')
+      return
+    }
+    
+    // 转换API数据为页面需要的格式
+    task.value = {
+      id: taskData.id,
+      title: taskData.title,
+      description: taskData.description,
+      reward: taskData.reward,
+      deadline: taskData.createdAt, // 使用创建时间作为截止时间（实际应从任务数据获取）
+      submissionInstructions: taskData.description || '请按照任务要求完成并提交相关凭证。'
+    }
+  } catch (error) {
+    console.error('加载任务失败:', error)
+    toast.add({
+      title: '加载失败',
+      description: '无法加载任务详情，请稍后重试',
+      color: 'red'
+    })
+  } finally {
+    loading.value = false
+  }
+}
 
 // 计算属性
 const canSubmit = computed(() => {
@@ -208,7 +271,7 @@ const canSubmit = computed(() => {
 })
 
 // 触发文件输入
-const triggerFileInput = (type) => {
+const triggerFileInput = (type: 'main' | 'additional') => {
   if (type === 'main') {
     mainFileInput.value?.click()
   } else {
@@ -217,37 +280,38 @@ const triggerFileInput = (type) => {
 }
 
 // 处理文件选择
-const handleFileSelect = (event, type) => {
-  const files = Array.from(event.target.files)
+const handleFileSelect = (event: Event, type: 'main' | 'additional') => {
+  const target = event.target as HTMLInputElement
+  const files = Array.from(target.files || [])
   if (type === 'main') {
-    selectedFiles.value.main = files[0]
+    selectedFiles.value.main = files[0] || null
   } else {
     selectedFiles.value.additional = [...selectedFiles.value.additional, ...files]
   }
 }
 
 // 处理文件拖拽
-const handleFileDrop = (event, type) => {
+const handleFileDrop = (event: DragEvent, type: 'main' | 'additional') => {
   dragOver.value = false
-  const files = Array.from(event.dataTransfer.files)
+  const files = Array.from(event.dataTransfer?.files || [])
   if (type === 'main') {
-    selectedFiles.value.main = files[0]
+    selectedFiles.value.main = files[0] || null
   } else {
     selectedFiles.value.additional = [...selectedFiles.value.additional, ...files]
   }
 }
 
 // 移除文件
-const removeFile = (type, index) => {
+const removeFile = (type: 'main' | 'additional', index?: number) => {
   if (type === 'main') {
     selectedFiles.value.main = null
-  } else {
+  } else if (index !== undefined) {
     selectedFiles.value.additional.splice(index, 1)
   }
 }
 
 // 格式化文件大小
-const formatFileSize = (bytes) => {
+const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes'
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
@@ -256,7 +320,7 @@ const formatFileSize = (bytes) => {
 }
 
 // 格式化日期
-const formatDate = (dateString) => {
+const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'short',
@@ -298,13 +362,45 @@ const submitForm = async () => {
       }
     })
     
-    // 提交成功后跳转到任务详情页，并更新任务状态
-    await navigateTo('/tasks/' + taskId + '?submitted=true')
+    // 调用API提交凭证
+    const { submitProof } = await import('~/utils/api')
+    const result = await submitProof(taskId, submissionDescription.value)
+    
+    if (result.success) {
+      toast.add({
+        title: '提交成功',
+        description: result.message || '任务提交成功，等待审核',
+        color: 'green'
+      })
+      // 提交成功后跳转到任务详情页，并更新任务状态
+      router.push(`/tasks/${taskId}?submitted=true`)
+    } else {
+      toast.add({
+        title: '提交失败',
+        description: result.message || '任务提交失败，请稍后重试',
+        color: 'red'
+      })
+    }
     
   } catch (error) {
     console.error('提交失败:', error)
+    toast.add({
+      title: '提交失败',
+      description: '网络错误，请稍后重试',
+      color: 'red'
+    })
   } finally {
     isSubmitting.value = false
   }
 }
+
+// 导航函数
+const navigateTo = (path: string) => {
+  router.push(path)
+}
+
+// 组件挂载时加载任务
+onMounted(() => {
+  loadTask()
+})
 </script>

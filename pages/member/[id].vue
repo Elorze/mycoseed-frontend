@@ -143,23 +143,60 @@
       <div class="min-h-[300px]">
         <!-- HISTORY TAB -->
         <div v-if="activeTab === 'HISTORY'" class="space-y-4">
-          <div v-for="action in history" :key="action.id" class="bg-white border-2 border-black p-4 shadow-pixel-sm">
-            <div class="flex items-start gap-3">
-              <div class="text-2xl">{{ action.icon }}</div>
-              <div class="flex-1">
-                <div class="flex justify-between items-start">
-                  <div class="font-bold font-vt323 text-lg leading-tight">{{ action.title }}</div>
-                  <div class="font-pixel text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">+{{ action.points }} CP</div>
+          <!-- 加载状态 -->
+          <div v-if="loadingTasks" class="text-center py-8 text-gray-500 font-vt323">
+            加载中...
+          </div>
+          
+          <!-- 任务列表 -->
+          <div v-else-if="claimedTasks.length > 0">
+            <div v-for="task in claimedTasks" :key="task.id" class="bg-white border-2 border-black p-4 shadow-pixel-sm hover:shadow-pixel transition-shadow cursor-pointer" @click="navigateTo(`/tasks/${task.id}`)">
+              <div class="flex items-start gap-3">
+                <div class="text-2xl">{{ getTaskIcon(task.status) }}</div>
+                <div class="flex-1">
+                  <div class="flex justify-between items-start mb-1">
+                    <div class="font-bold font-vt323 text-lg leading-tight">{{ task.title }}</div>
+                    <div v-if="task.status === 'completed'" class="font-pixel text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                      +{{ task.reward }} ETH
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <span :class="getStatusBadgeClass(task.status)">
+                      {{ getStatusText(task.status) }}
+                    </span>
+                    <span v-if="task.status === 'in_progress'" class="font-pixel text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                      进行中
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    {{ formatTaskDate(task) }}
+                  </div>
+                  <div v-if="task.description" class="text-xs text-gray-600 mt-1 line-clamp-2">
+                    {{ task.description }}
+                  </div>
                 </div>
-                <div class="text-xs text-gray-500 mt-1">{{ action.date }} • {{ action.community }}</div>
               </div>
             </div>
+          </div>
+          
+          <!-- 空状态 -->
+          <div v-else class="text-center py-12">
+            <div class="text-4xl mb-4">📋</div>
+            <div class="font-vt323 text-gray-500">还没有领取任何任务</div>
+            <PixelButton 
+              variant="primary" 
+              size="sm" 
+              class="mt-4"
+              @click="navigateTo('/tasks')"
+            >
+              去领取任务
+            </PixelButton>
           </div>
         </div>
 
         <!-- COMMUNITIES TAB -->
         <div v-else-if="activeTab === 'COMMUNITIES'" class="space-y-3">
-          <div v-for="comm in communities" :key="comm.id" class="bg-white border-2 border-black p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" @click="navigateTo('/community/' + comm.id)">
+          <div v-for="comm in communities" :key="comm.id" class="bg-white border-2 border-black p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" @click="navigateTo(`/community/${comm.id}`)">
             <div class="w-12 h-12 bg-mario-red border-2 border-black flex-shrink-0"></div>
             <div class="flex-1">
               <div class="font-pixel text-sm">{{ comm.name }}</div>
@@ -178,29 +215,17 @@
           </div>
         </div>
 
-        <!-- TASKS TAB -->
-        <div v-else-if="activeTab === 'TASKS'" class="space-y-3">
-          <div v-for="task in memberTasks" :key="task.id" class="bg-white border-2 border-black p-4">
-            <div class="flex justify-between items-center mb-2">
-              <span :class="['font-pixel text-[10px] px-2 py-0.5 rounded border border-current', task.type === 'OFFER' ? 'text-blue-600 bg-blue-50' : 'text-red-600 bg-red-50']">
-                {{ task.type === 'OFFER' ? '提供' : '需求' }}
-              </span>
-              <span class="font-vt323 text-xs text-gray-500">{{ task.statusLabel }}</span>
-            </div>
-            <div class="font-bold text-base">{{ task.title }}</div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
-import { getMemberById, getCommunities } from '~/utils/api'
+import { getMemberById, getCommunities, getMyTasks, type Task } from '~/utils/api'
 
 definePageMeta({
   layout: 'default'
@@ -216,15 +241,16 @@ const newSkill = ref('')
 const tabs = [
   { id: 'HISTORY', label: '动态' },
   { id: 'COMMUNITIES', label: '社区' },
-  { id: 'BADGES', label: '徽章' },
-  { id: 'TASKS', label: '任务' }
+  { id: 'BADGES', label: '徽章' }
 ]
 
 // Mock Data
 const member = ref<any>(null)
 const history = ref<any[]>([])
 const communities = ref<any[]>([])
-const memberTasks = ref<any[]>([])
+const claimedTasks = ref<Task[]>([])
+const loadingTasks = ref(false)
+let refreshInterval: ReturnType<typeof setInterval> | null = null
 
 // 编辑表单数据
 const editingForm = ref({
@@ -320,6 +346,107 @@ watch(() => isEditing.value, (newVal) => {
   }
 })
 
+// 加载领取的任务列表
+const loadClaimedTasks = async () => {
+  loadingTasks.value = true
+  try {
+    const tasks = await getMyTasks()
+    // 按更新时间倒序排列，最新的在前
+    claimedTasks.value = tasks.sort((a, b) => {
+      const timeA = new Date(b.updatedAt || b.claimedAt || b.createdAt).getTime()
+      const timeB = new Date(a.updatedAt || a.claimedAt || a.createdAt).getTime()
+      return timeA - timeB
+    })
+  } catch (error) {
+    console.error('Failed to load claimed tasks:', error)
+  } finally {
+    loadingTasks.value = false
+  }
+}
+
+// 获取任务状态文本
+const getStatusText = (status: Task['status']): string => {
+  const statusMap: Record<string, string> = {
+    'unclaimed': '未领取',
+    'in_progress': '进行中',
+    'under_review': '审核中',
+    'completed': '已完成',
+    'rejected': '已驳回'
+  }
+  return statusMap[status] || '未知'
+}
+
+// 获取任务状态图标
+const getTaskIcon = (status: Task['status']): string => {
+  const iconMap: Record<string, string> = {
+    'unclaimed': '📋',
+    'in_progress': '🔄',
+    'under_review': '⏳',
+    'completed': '✅',
+    'rejected': '❌'
+  }
+  return iconMap[status] || '📋'
+}
+
+// 获取状态徽章样式
+const getStatusBadgeClass = (status: Task['status']): string => {
+  const classMap: Record<string, string> = {
+    'unclaimed': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-yellow-600 text-yellow-600 bg-yellow-50',
+    'in_progress': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-blue-600 text-blue-600 bg-blue-50',
+    'under_review': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-orange-600 text-orange-600 bg-orange-50',
+    'completed': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-green-600 text-green-600 bg-green-50',
+    'rejected': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-red-600 text-red-600 bg-red-50'
+  }
+  return classMap[status] || 'font-pixel text-[10px] px-2 py-0.5 rounded border border-gray-600 text-gray-600 bg-gray-50'
+}
+
+// 格式化任务日期
+const formatTaskDate = (task: Task): string => {
+  let dateStr = ''
+  let action = ''
+  
+  if (task.completedAt) {
+    dateStr = task.completedAt
+    action = '完成于'
+  } else if (task.submittedAt) {
+    dateStr = task.submittedAt
+    action = '提交于'
+  } else if (task.claimedAt) {
+    dateStr = task.claimedAt
+    action = '领取于'
+  } else {
+    dateStr = task.createdAt
+    action = '创建于'
+  }
+  
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const minutes = Math.floor(diff / (1000 * 60))
+  
+  let timeStr = ''
+  if (days > 0) {
+    timeStr = `${days}天前`
+  } else if (hours > 0) {
+    timeStr = `${hours}小时前`
+  } else if (minutes > 0) {
+    timeStr = `${minutes}分钟前`
+  } else {
+    timeStr = '刚刚'
+  }
+  
+  return `${action} ${timeStr}`
+}
+
+// 监听 activeTab，当切换到动态tab时刷新任务列表
+watch(() => activeTab.value, (newTab) => {
+  if (newTab === 'HISTORY') {
+    loadClaimedTasks()
+  }
+})
+
 onMounted(async () => {
   // 从 API 获取成员数据
   try {
@@ -356,14 +483,28 @@ onMounted(async () => {
         },
       ]
       
-      // 生成任务列表（可以后续从 API 获取）
-      memberTasks.value = [
-        { id: 1, type: 'OFFER', title: '提供帮助', status: 'COMPLETED', statusLabel: '已完成' },
-        { id: 2, type: 'NEED', title: '寻求协助', status: 'IN_PROGRESS', statusLabel: '进行中' },
-      ]
+      // 如果当前是动态tab，加载任务列表
+      if (activeTab.value === 'HISTORY') {
+        loadClaimedTasks()
+      }
+      
+      // 设置定时刷新任务列表（每30秒刷新一次）
+      refreshInterval = setInterval(() => {
+        if (activeTab.value === 'HISTORY') {
+          loadClaimedTasks()
+        }
+      }, 30000)
     }
   } catch (error) {
     console.error('Failed to load member data:', error)
+  }
+})
+
+// 组件卸载时清除定时器
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
   }
 })
 </script>
