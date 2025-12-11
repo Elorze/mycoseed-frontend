@@ -10,6 +10,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       // 这里放一些公共配置
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_URL || 'https://mycoseed-backend.fly.dev/api'
     }
   },
   // 配置UI主题

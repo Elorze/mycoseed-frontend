@@ -6,7 +6,7 @@ const getApiBaseUrl = (): string => {
     return config.public.apiBaseUrl || 'https://mycoseed-backend.fly.dev/api'
   } else {
     // 服务端：从环境变量获取
-    return process.env.NUXT_PUBLIC_API_BASE_URL || 'https://mycoseed-backend.fly.dev/api'
+    return process.env.NUXT_PUBLIC_API_URL || 'https://mycoseed-backend.fly.dev/api'
   }
 }
 /**
@@ -262,7 +262,8 @@ export const getTaskById = async (id:number|string):Promise<Task|null>=>
   try
   {
     const taskId = String(id)
-    const response = await fetch('${API_BASE_URL}/tasks/${taskId}')
+    const apiUrl = getApiBaseUrl()
+    const response = await fetch(`${apiUrl}/tasks/${taskId}`)
 
     if(!response.ok)
     {
@@ -270,7 +271,7 @@ export const getTaskById = async (id:number|string):Promise<Task|null>=>
       {
         return null
       }
-      throw new Error('获取任务失败：${response.statusText}')
+      throw new Error(`获取任务失败：${response.statusText}`)
     }
     const data= await response.json()
     return mapDbTaskToTask(data)
@@ -288,11 +289,12 @@ export const getAllTasks = async (): Promise<Task[]>=>
 {
   try
   {
-    const response = await fetch('${API_BASE_URL}/tasks')
+    const apiUrl = getApiBaseUrl()
+    const response = await fetch(`${apiUrl}/tasks`)
 
     if(!response.ok)
     {
-      throw new Error('获取任务列表失败：${response.statusText}')
+      throw new Error(`获取任务列表失败：${response.statusText}`)
     }
 
     const data = await response.json()
@@ -320,7 +322,8 @@ export interface CreateTaskParams {
 
 export const createTask = async (params: CreateTaskParams): Promise<Task> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/tasks`, {
+    const apiUrl = getApiBaseUrl()
+    const response = await fetch(`${apiUrl}/tasks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -356,7 +359,8 @@ export const createTask = async (params: CreateTaskParams): Promise<Task> => {
 export const claimTask = async (taskId: number | string): Promise<{ success: boolean; message: string }> => {
   try {
     const id = String(taskId) // 确保ID是字符串
-    const response = await fetch(`${API_BASE_URL}/tasks/${id}/claim`, {
+    const apiUrl = getApiBaseUrl()
+    const response = await fetch(`${apiUrl}/tasks/${id}/claim`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -405,7 +409,8 @@ export const getMyTasks = async (): Promise<Task[]> => {
 export const submitProof = async (taskId: number | string, proof: string): Promise<{ success: boolean; message: string }> => {
   try {
     const id = String(taskId) // 确保ID是字符串
-    const response = await fetch(`${API_BASE_URL}/tasks/${id}/submit`, {
+    const apiUrl = getApiBaseUrl()
+    const response = await fetch(`${apiUrl}/tasks/${id}/submit`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
