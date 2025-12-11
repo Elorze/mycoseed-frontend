@@ -1,13 +1,21 @@
 const getApiBaseUrl = (): string => {
   // 优先使用环境变量，否则使用默认值
+  let baseUrl: string
   if (import.meta.client) {
-    // 客户端：从 window 或 runtimeConfig 获取
+    // 客户端：从 runtimeConfig 获取
     const config = useRuntimeConfig()
-    return config.public.apiBaseUrl || 'https://mycoseed-backend.fly.dev/api'
+    baseUrl = config.public.apiBaseUrl || 'https://mycoseed-backend.fly.dev/api'
   } else {
     // 服务端：从环境变量获取
-    return process.env.NUXT_PUBLIC_API_URL || 'https://mycoseed-backend.fly.dev/api'
+    baseUrl = process.env.NUXT_PUBLIC_API_URL || 'https://mycoseed-backend.fly.dev/api'
   }
+  
+  // 如果 URL 没有以 /api 结尾，自动添加
+  if (!baseUrl.endsWith('/api')) {
+    baseUrl = baseUrl.replace(/\/$/, '') + '/api'
+  }
+  
+  return baseUrl
 }
 /**
  * 活动数据结构
