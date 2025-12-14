@@ -9,7 +9,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      // 这里放一些公共配置
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3001'
     }
   },
   // 配置UI主题

@@ -1,3 +1,4 @@
+const API_BASE_URL = process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3001'
 // 导入 semi 的 API 功能 - 已注释，使用mock数据
 // export { 
 //   sendSMS, 
@@ -535,9 +536,23 @@ const mockUser = {
 
 // Mock API 函数
 export const sendSMS = async (phone: string): Promise<{ result: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  console.log(`[Mock] 发送验证码到手机: ${phone}`)
-  return { result: 'ok' }
+  const response = await fetch('${API_BASE_URL}/api/auth/send-sms',
+    {
+      method:'POST',
+      headers:
+      {
+        'Content-Type':'application/json',
+      },
+      body:JSON.stringify({phone}),
+    }
+  )
+
+  if(!response.ok)
+  {
+    const error= await response.json()
+    throw new Error(error.message||'Failed to send SMS')
+  }
+  return response.json()
 }
 
 export const sendEmailCode = async (email: string): Promise<{ result: string }> => {
@@ -546,43 +561,33 @@ export const sendEmailCode = async (email: string): Promise<{ result: string }> 
   return { result: 'ok' }
 }
 
-export const signIn = async (identifier: string, code: string, userType?: 'member' | 'community'): Promise<{ result: string; isNewUser?: boolean }> => {
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  console.log(`[Mock] 登录: ${identifier}, 验证码: ${code}, 用户类型: ${userType || '未指定'}`)
-  
-  // 检查是否是新用户（检查两个数据库）
-  const existingUser = userDatabase[identifier] || communityDatabase[identifier]
-  const isNewUser = !existingUser
-  
-  if (isNewUser && userType) {
-    // 创建新用户
-    const walletAddress = getWalletAddress(identifier)
-    const isPhone = /^\d{11}$/.test(identifier)
-    
-    if (userType === 'community') {
-      communityDatabase[identifier] = {
-        id: Object.keys(communityDatabase).length + 1,
-        identifier: identifier,
-        identifierType: isPhone ? 'phone' : 'email',
-        evm_chain_address: walletAddress,
-        userType: 'community',
-        isProfileSetup: false,
-        created_at: new Date().toISOString()
-      }
-    } else {
-      userDatabase[identifier] = {
-        id: Object.keys(userDatabase).length + 1,
-        identifier: identifier,
-        identifierType: isPhone ? 'phone' : 'email',
-        evm_chain_address: walletAddress,
-        userType: 'member',
-        isProfileSetup: false,
-        created_at: new Date().toISOString()
-      }
+export const signIn = async (identifier: string, code: string): Promise<{ result: string; auth_token?:string }> => {
+  const response = await fetch('${API_BASE_URL}/api/auth/signin',
+    {
+      method:'POST',
+      headers:
+      {
+        'Content-Type':'application/json',
+      },
+      body:JSON.stringify({phone,code}),
     }
+  )
+
+  if(!response.ok)
+  {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to sign in')
   }
-  
-  return { result: 'ok', isNewUser }
+
+  const data = await response.json()
+
+  // 保存token到cookie
+  if (data.auth_token)
+  {
+    setCookie(AUTH_TOKEN_KEY,data.auth_token)
+  }
+
+  return data
 }
 
 export const signInWithEmail = async (email: string, code: string, userType?: 'member' | 'community'): Promise<{ result: string; isNewUser?: boolean }> => {
@@ -590,41 +595,88 @@ export const signInWithEmail = async (email: string, code: string, userType?: 'm
 }
 
 export const getMe = async (): Promise<any> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  console.log('[Mock] 获取用户信息')
-  
-  // 从localStorage获取当前登录的标识符
-  if (typeof window !== 'undefined') {
-    const currentIdentifier = localStorage.getItem('current_identifier')
-    if (currentIdentifier) {
-      const user = userDatabase[currentIdentifier] || communityDatabase[currentIdentifier]
-      if (user) {
-        return user
-      }
+  const response = await fetch('${API+BASE_URL}/api/auth/me',
+    {
+      method:'GET',
+      headers: getAuthHeaders(),
     }
+  )
+
+  if(!response.ok)
+  {
+    if(response.status===401)
+    {
+      clearAuthToken()
+    }
+    throw new Error('Failed to get user info')
   }
-  
-  return mockUser
+  return response.json()
 }
 
 export const setEncryptedKeys = async (keys: string): Promise<{ result: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  console.log('[Mock] 设置加密密钥')
-  return { result: 'ok' }
+  const response = await fetch('${API_BASE_URL}/api/auth/set-encrypted-keys',
+  {
+    method:'PSOT',
+    headers: getAuthHeaders(),
+    body:JSON.stringify({keys}),
+  })
+
+  if(!response.ok)
+  {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to set encrypted keys')
+  }
+  return response.json()
 }
 
 export const AUTH_TOKEN_KEY = 'auth_token'
 
 export const getCookie = (key: string): string | null => {
-  // Mock: 总是返回一个token
-  return 'mock_auth_token'
+  if(typeof document === 'undefined') return null
+  const cookies = document.cookie.split(';')
+  for (let cookie of cookies)
+  {
+    const [name,value]= cookie.trim().split('=')
+    if(name===key)
+    {
+      return decodeURIComponent(value)
+    }
+  }
+  return null
 }
 
-export const clearAuthToken = (): void => {
-  console.log('[Mock] 清除认证token')
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('current_identifier')
+export const setCookie = (key:string,value:string,days:number=365)=>
+{
+  if (typeof document ==='undefined') return
+  const expires=new Date?()
+  expires.setTime(expires.getTime()+days*24*60*60*1000)
+  document.cookie='${key}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/'
+}
+
+export const deleteCookie = (key:string)=>
+{
+  if(typeof document ==='undefined') return
+  document.cookie='${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/'
+}
+
+export const clearAuthToken =(): void=>
+{
+  deleteCookie(AUTH_TOKEN_KEY)
+}
+
+// 获取认证头
+function getAuthHeaders():HeadersInit
+{
+  const headers: HeadersInit=
+  {
+    'Content-Type':'application/json',
   }
+  const authToken=getCookie(AUTH_TOKEN_KEY)
+  if(authToken)
+  {
+    headers['Authorization']='Bearer ${authToken}'
+  }
+  return headers
 }
 
 // 保存当前登录标识符
