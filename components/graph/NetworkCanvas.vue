@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { onMounted, ref, onUnmounted, watch } from 'vue'
 import * as d3 from 'd3'
-import { getNetworkData } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 
 const container = ref<HTMLElement | null>(null)
 const svgRef = ref<SVGElement | null>(null)
@@ -44,6 +44,7 @@ const tooltipX = ref(0)
 const tooltipY = ref(0)
 
 const emit = defineEmits(['nodeClick'])
+const { getNetworkData } = useApi()
 
 // 从 API 获取网络数据
 const initialData = ref({

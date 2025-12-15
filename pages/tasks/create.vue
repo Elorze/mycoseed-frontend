@@ -215,12 +215,14 @@
 <script setup lang="ts">
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
-import { createTask } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 
 definePageMeta({
   layout: 'default',
   middleware: 'auth'
 })
+
+const { createTask } = useApi()
 
 // 任务表单数据
 const taskForm = ref({

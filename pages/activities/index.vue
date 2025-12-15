@@ -285,7 +285,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import ActivityCard from '~/components/ActivityCard.vue'
-import { getActivities, getMyTasks, getAllTasks, submitProof, getFinalReward, type Activity, type Task } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
+import type { Activity, Task } from '~/utils/api'
+
+const { getActivities, getMyTasks, getAllTasks, submitProof, getFinalReward } = useApi()
 
 // 响应式数据
 const loading = ref(true)

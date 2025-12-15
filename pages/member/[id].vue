@@ -225,11 +225,14 @@ import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
-import { getMemberById, getCommunities, getMyTasks, type Task } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
+import type { Task } from '~/utils/api'
 
 definePageMeta({
   layout: 'default'
 })
+
+const { getMemberById, getCommunities, getMyTasks } = useApi()
 
 const route = useRoute()
 const router = useRouter()

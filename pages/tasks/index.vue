@@ -99,12 +99,14 @@
 <script setup lang="ts">
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
-import { getAllTasks } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 
 definePageMeta({
   layout: 'default',
   middleware: 'auth'
 })
+
+const { getAllTasks } = useApi()
 
 // 标签页
 const activeTab = ref('all')

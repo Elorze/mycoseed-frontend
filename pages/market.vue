@@ -84,7 +84,7 @@ import { ref, computed, onMounted } from 'vue'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
-import { getAllTasks, claimTask } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 import { useToast } from '~/composables/useToast'
 
 definePageMeta({
@@ -95,6 +95,7 @@ definePageMeta({
 const router = useRouter()
 const toast = useToast()
 const loading = ref(false)
+const { getAllTasks, claimTask } = useApi()
 
 const navigateTo = (path: string) => {
   router.push(path)

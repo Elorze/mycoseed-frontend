@@ -35,7 +35,10 @@ export const useUserStore = defineStore('user', {
             }
             
             if (getCookie(AUTH_TOKEN_KEY)) {
-              const user = await getMe()
+              // 在 store 中获取运行时配置
+              const config = useRuntimeConfig()
+              const apiBaseUrl = config.public.apiUrl || 'http://localhost:3001'
+              const user = await getMe(apiBaseUrl)
               this.user = user
               return user
             }

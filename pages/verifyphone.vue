@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 // import { sendSMS, signIn, getMe } from '../../../semi/semi-app-main/utils/semi_api' // 已注释，使用本地mock API
-import { sendSMS, signIn, getMe } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 import { useUserStore } from '~/stores/user'
 
 definePageMeta({
@@ -55,6 +55,7 @@ const phone = computed(() => route.query.phone as string || '')
 const loading = ref(false)
 const countdown = ref(60)
 const toast = useToast()
+const { sendSMS, signIn, getMe } = useApi()
 
 const formState = reactive({
   pin: Array(6).fill('')

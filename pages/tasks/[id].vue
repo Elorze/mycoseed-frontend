@@ -236,7 +236,7 @@
 </template>
 
 <script setup lang="ts">
-import { getTaskById, claimTask } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 import { useToast } from '~/composables/useToast'
 
 definePageMeta({
@@ -252,6 +252,7 @@ const router = useRouter()
 const taskId = route.params.id as string  // UUID string
 const toast = useToast()
 const loading = ref(false)
+const { getTaskById, claimTask } = useApi()
 
 // 任务数据
 const task = ref<any>({

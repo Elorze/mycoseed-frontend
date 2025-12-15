@@ -165,11 +165,12 @@ import { useRoute, useRouter } from 'vue-router'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
-import { getCommunityById, getCommunityMembers } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 
 const route = useRoute()
 const router = useRouter()
 const communityId = parseInt(route.params.id as string)
+const { getCommunityById, getCommunityMembers } = useApi()
 const activeTab = ref('INTRO')
 
 const tabs = [

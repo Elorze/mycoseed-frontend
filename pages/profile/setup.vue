@@ -99,7 +99,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user'
-import { updateUserProfile, getMe } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 import { useFileUpload } from '~/composables/useFileUpload'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
@@ -111,6 +111,7 @@ definePageMeta({
 const router = useRouter()
 const userStore = useUserStore()
 const toast = useToast()
+const { updateUserProfile, getMe } = useApi()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const loading = ref(false)

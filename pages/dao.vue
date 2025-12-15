@@ -256,12 +256,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { getActivities, getAllTasks, getReviewTasks, approveTask, rejectTask, discountTask, getFinalReward, type Activity, type Task } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
+import type { Activity, Task } from '~/utils/api'
 
 definePageMeta({
   layout: 'default',
   middleware: 'auth'
 })
+
+const { getActivities, getAllTasks, getReviewTasks, approveTask, rejectTask, discountTask, getFinalReward } = useApi()
 
 // 响应式数据
 const activeTab = ref<'management' | 'review'>('management')

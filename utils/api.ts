@@ -1,5 +1,5 @@
-const API_BASE_URL = process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3001'
 // 导入 semi 的 API 功能 - 已注释，使用mock数据
+// 注意：API_BASE_URL 已移除，现在通过 composables/useApi.ts 使用 useRuntimeConfig() 获取
 // export { 
 //   sendSMS, 
 //   signIn, 
@@ -115,11 +115,12 @@ export const joinActivity = async (id: number): Promise<{ success: boolean; mess
 /**
  * 获取活动的任务列表
  * @param activityId 活动 ID
+ * @param baseUrl API 基础 URL
  */
-export const getTasks = async (activityId: number): Promise<Task[]> => {
+export const getTasks = async (activityId: number, baseUrl: string): Promise<Task[]> => {
   try {
     // 获取所有任务，然后在前端过滤
-    const allTasks = await getAllTasks()
+    const allTasks = await getAllTasks(baseUrl)
     return allTasks.filter(task => task.activityId === activityId)
   } catch (error: any) {
     console.error('Get tasks error:', error)
@@ -130,10 +131,11 @@ export const getTasks = async (activityId: number): Promise<Task[]> => {
 /**
  * 根据 ID 获取单个任务详情
  * @param id 任务 ID (UUID string)
+ * @param baseUrl API 基础 URL
  */
-export const getTaskById = async (id: string): Promise<Task | null> => {
+export const getTaskById = async (id: string, baseUrl: string): Promise<Task | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
+    const response = await fetch(`${baseUrl}/api/tasks/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -158,10 +160,11 @@ export const getTaskById = async (id: string): Promise<Task | null> => {
 
 /**
  * 获取所有任务列表
+ * @param baseUrl API 基础 URL
  */
-export const getAllTasks = async (): Promise<Task[]> => {
+export const getAllTasks = async (baseUrl: string): Promise<Task[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+    const response = await fetch(`${baseUrl}/api/tasks`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -194,9 +197,14 @@ export interface CreateTaskParams {
   allowRepeatClaim?: boolean  // 是否允许重复领取
 }
 
-export const createTask = async (params: CreateTaskParams): Promise<Task> => {
+/**
+ * 创建新任务
+ * @param params 任务参数
+ * @param baseUrl API 基础 URL
+ */
+export const createTask = async (params: CreateTaskParams, baseUrl: string): Promise<Task> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+    const response = await fetch(`${baseUrl}/api/tasks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -228,15 +236,16 @@ export const createTask = async (params: CreateTaskParams): Promise<Task> => {
 /**
  * 领取任务
  * @param taskId 任务 ID (UUID string)
+ * @param baseUrl API 基础 URL
  * @param userIdentifier 用户标识（可选，如果已登录则从 getMe 获取用户ID）
  */
-export const claimTask = async (taskId: string, userIdentifier?: string): Promise<{ success: boolean; message: string }> => {
+export const claimTask = async (taskId: string, baseUrl: string, userIdentifier?: string): Promise<{ success: boolean; message: string }> => {
   try {
     // 如果没有提供 userIdentifier，尝试从当前登录用户获取
     let userId = userIdentifier
     if (!userId) {
       try {
-        const user = await getMe()
+        const user = await getMe(baseUrl)
         userId = user.id
       } catch (e) {
         // 如果未登录，使用临时标识符（从 localStorage 获取）
@@ -246,7 +255,7 @@ export const claimTask = async (taskId: string, userIdentifier?: string): Promis
       }
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/claim`, {
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/claim`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -272,17 +281,18 @@ export const claimTask = async (taskId: string, userIdentifier?: string): Promis
 
 /**
  * 获取我的任务列表
+ * @param baseUrl API 基础 URL
  */
-export const getMyTasks = async (): Promise<Task[]> => {
+export const getMyTasks = async (baseUrl: string): Promise<Task[]> => {
   try {
     // 获取所有任务，然后在前端过滤（需要根据用户ID过滤）
     // 注意：这个功能需要后端支持，或者前端根据 task_claims 表查询
     // 目前先返回所有任务，后续可以优化
-    const allTasks = await getAllTasks()
+    const allTasks = await getAllTasks(baseUrl)
     
     // 尝试获取当前用户ID
     try {
-      const user = await getMe()
+      const user = await getMe(baseUrl)
       // TODO: 如果后端提供了根据用户ID获取任务的接口，应该调用那个接口
       // 目前先返回所有任务，前端可以根据需要进一步过滤
       return allTasks.filter(task => task.isClaimed)
@@ -300,10 +310,11 @@ export const getMyTasks = async (): Promise<Task[]> => {
  * 提交任务完成凭证
  * @param taskId 任务 ID (UUID string)
  * @param proof 凭证内容
+ * @param baseUrl API 基础 URL
  */
-export const submitProof = async (taskId: string, proof: string): Promise<{ success: boolean; message: string }> => {
+export const submitProof = async (taskId: string, proof: string, baseUrl: string): Promise<{ success: boolean; message: string }> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/submit`, {
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/submit`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -329,11 +340,12 @@ export const submitProof = async (taskId: string, proof: string): Promise<{ succ
 
 /**
  * 获取审核中的任务列表
+ * @param baseUrl API 基础 URL
  */
-export const getReviewTasks = async (): Promise<Task[]> => {
+export const getReviewTasks = async (baseUrl: string): Promise<Task[]> => {
   try {
     // 从后端获取所有任务，然后过滤出审核中的任务
-    const allTasks = await getAllTasks()
+    const allTasks = await getAllTasks(baseUrl)
     return allTasks.filter(task => task.status === 'under_review')
   } catch (error) {
     console.error('Get review tasks error:', error)
@@ -421,8 +433,13 @@ const mockUser = {
 }
 
 // Mock API 函数
-export const sendSMS = async (phone: string): Promise<{ result: string }> => {
-  const response = await fetch(`${API_BASE_URL}/api/auth/send-sms`,
+/**
+ * 发送短信验证码
+ * @param phone 手机号
+ * @param baseUrl API 基础 URL
+ */
+export const sendSMS = async (phone: string, baseUrl: string): Promise<{ result: string }> => {
+  const response = await fetch(`${baseUrl}/api/auth/send-sms`,
     {
       method:'POST',
       headers:
@@ -447,8 +464,14 @@ export const sendEmailCode = async (email: string): Promise<{ result: string }> 
   return { result: 'ok' }
 }
 
-export const signIn = async (identifier: string, code: string): Promise<{ result: string; auth_token?:string }> => {
-  const response = await fetch(`${API_BASE_URL}/api/auth/signin`,
+/**
+ * 登录
+ * @param identifier 手机号或邮箱
+ * @param code 验证码
+ * @param baseUrl API 基础 URL
+ */
+export const signIn = async (identifier: string, code: string, baseUrl: string): Promise<{ result: string; auth_token?:string }> => {
+  const response = await fetch(`${baseUrl}/api/auth/signin`,
     {
       method:'POST',
       headers:
@@ -476,12 +499,23 @@ export const signIn = async (identifier: string, code: string): Promise<{ result
   return data
 }
 
-export const signInWithEmail = async (email: string, code: string, userType?: 'member' | 'community'): Promise<{ result: string; isNewUser?: boolean }> => {
-  return signIn(email, code, userType)
+/**
+ * 使用邮箱登录
+ * @param email 邮箱
+ * @param code 验证码
+ * @param baseUrl API 基础 URL
+ * @param userType 用户类型（可选）
+ */
+export const signInWithEmail = async (email: string, code: string, baseUrl: string, userType?: 'member' | 'community'): Promise<{ result: string; isNewUser?: boolean }> => {
+  return signIn(email, code, baseUrl)
 }
 
-export const getMe = async (): Promise<any> => {
-  const response = await fetch(`${API_BASE_URL}/api/auth/me`,
+/**
+ * 获取当前用户信息
+ * @param baseUrl API 基础 URL
+ */
+export const getMe = async (baseUrl: string): Promise<any> => {
+  const response = await fetch(`${baseUrl}/api/auth/me`,
     {
       method:'GET',
       headers: getAuthHeaders(),
@@ -499,8 +533,13 @@ export const getMe = async (): Promise<any> => {
   return response.json()
 }
 
-export const setEncryptedKeys = async (keys: string): Promise<{ result: string }> => {
-  const response = await fetch(`${API_BASE_URL}/api/auth/set-encrypted-keys`,
+/**
+ * 设置加密密钥
+ * @param keys 加密密钥
+ * @param baseUrl API 基础 URL
+ */
+export const setEncryptedKeys = async (keys: string, baseUrl: string): Promise<{ result: string }> => {
+  const response = await fetch(`${baseUrl}/api/auth/set-encrypted-keys`,
   {
     method:'POST',
     headers: getAuthHeaders(),

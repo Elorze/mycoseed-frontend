@@ -213,7 +213,7 @@
 </template>
 
 <script setup lang="ts">
-import { getTaskById, approveTask, rejectTask } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 import { useToast } from '~/composables/useToast'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
@@ -223,6 +223,8 @@ definePageMeta({
   layout: 'default',
   middleware: 'auth'
 })
+
+const { getTaskById, approveTask, rejectTask } = useApi()
 
 // 获取路由参数
 const route = useRoute()

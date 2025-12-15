@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { sendSMS, sendEmailCode, signIn, signInWithEmail, getMe, setCurrentIdentifier } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
@@ -82,6 +82,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const toast = useToast()
+const { sendSMS, sendEmailCode, signIn, signInWithEmail, getMe, setCurrentIdentifier } = useApi()
 
 const identifier = computed(() => route.query.identifier as string || '')
 const identifierType = computed(() => (route.query.type as string) || 'phone')
@@ -188,7 +189,7 @@ const onSubmit = async () => {
     // 验证码验证
     let response
     if (identifierType.value === 'phone') {
-      response = await signIn(identifier.value, pinCode, isLogin.value ? undefined : userType.value as 'member' | 'community')
+      response = await signIn(identifier.value, pinCode)
     } else {
       response = await signInWithEmail(identifier.value, pinCode, isLogin.value ? undefined : userType.value as 'member' | 'community')
     }
