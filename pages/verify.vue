@@ -2,7 +2,7 @@
   <div class="w-full max-w-md">
     <PixelCard>
       <template #header>
-        <div class="text-center font-pixel text-xl text-mario-red">VERIFY CODE</div>
+        <div class="text-center font-pixel text-xl text-mario-red">验证码</div>
       </template>
 
       <div class="flex flex-col gap-6 py-4">
@@ -51,7 +51,7 @@
           :disabled="loading || !isPinComplete"
           @click="onSubmit"
         >
-          {{ loading ? 'VERIFYING...' : 'VERIFY' }}
+          {{ loading ? '验证中...' : '验证' }}
         </PixelButton>
 
         <PixelButton 
@@ -221,22 +221,12 @@ const onSubmit = async () => {
       // 设置用户信息到store
       userStore.setUser(user)
 
-      // 检查是否是新用户且未完成设置
-      if (response.isNewUser || !user.isProfileSetup) {
-        // 根据用户类型跳转到对应的设置页面
-        if (user.userType === 'community') {
-          await router.push('/community/setup')
-        } else {
-          await router.push('/profile/setup')
-        }
-      } else {
-        // 老用户直接登录
-        toast.add({
-          title: '登录成功',
-          description: '欢迎回来'
-        })
-        await router.push('/')
-      }
+      // 登录成功后统一跳转到首页
+      toast.add({
+        title: response.isNewUser ? '注册成功' : '登录成功',
+        description: response.isNewUser ? '欢迎加入' : '欢迎回来'
+      })
+      await router.push('/')
     } else {
       toast.add({
         title: '验证失败',
@@ -262,3 +252,7 @@ onMounted(() => {
   startCountdown()
 })
 </script>
+
+
+
+

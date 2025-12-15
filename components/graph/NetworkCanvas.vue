@@ -1,5 +1,9 @@
 <template>
-  <div ref="container" class="w-full h-full relative bg-mario-sky overflow-hidden">
+  <div 
+    ref="container" 
+    class="w-full h-full relative overflow-hidden bg-mario-sky bg-[size:40px_40px]"
+    style="background-image: linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px);"
+  >
     <svg ref="svgRef" class="w-full h-full block"></svg>
     
     <!-- Loading State -->
@@ -42,6 +46,9 @@ const loading = ref(true)
 const hoveredNode = ref<any>(null)
 const tooltipX = ref(0)
 const tooltipY = ref(0)
+
+let nodeSelection: d3.Selection<any, any, any, any> | null = null
+let linkSelection: d3.Selection<any, any, any, any> | null = null
 
 const emit = defineEmits(['nodeClick'])
 
@@ -156,6 +163,8 @@ const initGraph = (data: any) => {
     .attr("stroke-dasharray", "4,2") // Pixelated vine look
     .style("image-rendering", "pixelated")
 
+  linkSelection = link
+
   // 4. Draw Nodes
   const node = svg.append("g")
     .selectAll("g")
@@ -178,6 +187,8 @@ const initGraph = (data: any) => {
     .on("click", (event, d) => {
       emit('nodeClick', d)
     })
+
+  nodeSelection = node
 
   // Draw Node Shape (Square for pixel art feel)
   // 根据参与度和活跃度调整节点大小
@@ -253,18 +264,171 @@ const initGraph = (data: any) => {
     })
     .style("pointer-events", "none")
 
-  // 5. Tick Function
+  // 5. Tick Function：保证节点不会跑出可视区域
+  const margin = 60
+
+  const clamp = (value: number, min: number, max: number) => {
+    if (Number.isNaN(value)) return min
+    return Math.max(min, Math.min(max, value))
+  }
+
   simulation.on("tick", () => {
+    // 以当前容器尺寸为准，避免窗口缩放后节点溢出
+    const bounds = container.value?.getBoundingClientRect()
+    const currentWidth = (bounds?.width || width) - margin
+    const currentHeight = (bounds?.height || height) - margin
+
+    const nodes = simulation?.nodes() as any[]
+    nodes.forEach((d) => {
+      d.x = clamp(d.x ?? width / 2, margin, currentWidth)
+      d.y = clamp(d.y ?? height / 2, margin, currentHeight)
+    })
+
     link
-      .attr("x1", (d: any) => d.source.x)
-      .attr("y1", (d: any) => d.source.y)
-      .attr("x2", (d: any) => d.target.x)
-      .attr("y2", (d: any) => d.target.y)
+      .attr("x1", (d: any) => clamp(d.source.x, margin, currentWidth))
+      .attr("y1", (d: any) => clamp(d.source.y, margin, currentHeight))
+      .attr("x2", (d: any) => clamp(d.target.x, margin, currentWidth))
+      .attr("y2", (d: any) => clamp(d.target.y, margin, currentHeight))
 
     node
       .attr("transform", (d: any) => `translate(${d.x},${d.y})`)
   })
 }
+
+const filterNodes = (criteria: { location?: string, query?: string }) => {
+  if (!svgRef.value) return
+  
+  const { location, query } = criteria
+  const svg = d3.select(svgRef.value)
+  
+  // Update node opacity based on filter
+  svg.selectAll("g > rect")
+    .transition() // Smooth transition
+    .duration(300)
+    .style("opacity", (d: any) => {
+      let match = true
+      
+      // Filter by location (only for communities)
+      if (location && d.type === 'COMMUNITY') {
+        if (d.location !== location) match = false
+      }
+      
+      // Filter by query (name)
+      if (query && query.trim() !== '') {
+        if (!d.name.toLowerCase().includes(query.toLowerCase())) match = false
+      }
+      
+      return match ? 1 : 0.1
+    })
+    
+  // Also dim text/emoji
+  svg.selectAll("g > text")
+    .transition()
+    .duration(300)
+    .style("opacity", (d: any) => {
+      let match = true
+      if (location && d.type === 'COMMUNITY') {
+        if (d.location !== location) match = false
+      }
+      if (query && query.trim() !== '') {
+        if (!d.name.toLowerCase().includes(query.toLowerCase())) match = false
+      }
+      return match ? 1 : 0.1
+    })
+    
+  // Optional: dim links connected to dimmed nodes
+  // This is more complex as links depend on both ends. 
+  // For now, let's leave links as is or just lower global link opacity slightly if filter is active.
+}
+
+const highlightCommunity = (communityId: number) => {
+  if (!svgRef.value || !nodeSelection) return
+
+  const svg = d3.select(svgRef.value)
+  const targetCommunityId = `comm${communityId}`
+
+  // 高亮目标社区及其成员节点，并放大显示
+  nodeSelection
+    .transition()
+    .duration(200)
+    .style('opacity', (d: any) => {
+      const isCommunity = d.type === 'COMMUNITY' && d.id === targetCommunityId
+      const isMember = d.type === 'USER' && d.communityId === communityId
+      return isCommunity || isMember ? 1 : 0.15
+    })
+
+  svg.selectAll("g > rect")
+    .transition()
+    .duration(200)
+    .style("opacity", (d: any) => {
+      const isCommunity = d.type === 'COMMUNITY' && d.id === targetCommunityId
+      const isMember = d.type === 'USER' && d.communityId === communityId
+      return isCommunity || isMember ? 1 : 0.15
+    })
+    .attr("transform", (d: any) => {
+      const isCommunity = d.type === 'COMMUNITY' && d.id === targetCommunityId
+      const isMember = d.type === 'USER' && d.communityId === communityId
+      return isCommunity || isMember ? "scale(1.3)" : "scale(1)"
+    })
+
+  svg.selectAll("g > text")
+    .transition()
+    .duration(200)
+    .style("opacity", (d: any) => {
+      const isCommunity = d.type === 'COMMUNITY' && d.id === targetCommunityId
+      const isMember = d.type === 'USER' && d.communityId === communityId
+      return isCommunity || isMember ? 1 : 0.15
+    })
+
+  if (linkSelection) {
+    linkSelection
+      .transition()
+      .duration(200)
+      .style("opacity", (d: any) => {
+        const src: any = d.source
+        const tgt: any = d.target
+        const srcHit =
+          (src.id === targetCommunityId) ||
+          (typeof src.communityId !== 'undefined' && src.communityId === communityId)
+        const tgtHit =
+          (tgt.id === targetCommunityId) ||
+          (typeof tgt.communityId !== 'undefined' && tgt.communityId === communityId)
+        return srcHit || tgtHit ? 1 : 0.15
+      })
+  }
+}
+
+const clearHighlight = () => {
+  if (!svgRef.value) return
+
+  const svg = d3.select(svgRef.value)
+  if (nodeSelection) {
+    nodeSelection
+      .transition()
+      .duration(200)
+      .style("opacity", 1)
+  }
+
+  svg.selectAll("g > rect")
+    .transition()
+    .duration(200)
+    .style("opacity", 1)
+    .attr("transform", "scale(1)")
+
+  svg.selectAll("g > text")
+    .transition()
+    .duration(200)
+    .style("opacity", 1)
+
+  if (linkSelection) {
+    linkSelection
+      .transition()
+      .duration(200)
+      .style("opacity", 1)
+  }
+}
+
+defineExpose({ filterNodes, highlightCommunity, clearHighlight })
 
 const updateTooltipPosition = (event: MouseEvent) => {
   // Offset tooltip slightly

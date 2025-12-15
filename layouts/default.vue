@@ -40,13 +40,26 @@ const currentPage = ref('hub')
 
 const handleNavigate = (page: string) => {
   currentPage.value = page
+  const targetPath = page === 'hub' ? '/' : '/' + page
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/af348509-5d27-4b86-baea-9c27926471bf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'debug-session',
+      runId: 'nav-structure',
+      hypothesisId: 'H1',
+      location: 'layouts/default.vue:handleNavigate',
+      message: 'handleNavigate called',
+      data: { page, targetPath },
+      timestamp: Date.now()
+    })
+  }).catch(() => {})
+  // #endregion
+
   // Map 'hub' to root index, 'wallet' to /wallet (if it exists, or keep as placeholder)
-  if (page === 'hub') {
-    navigateTo('/')
-  } else {
-    // For now, assuming other routes follow the name
-    navigateTo('/' + page)
-  }
+  navigateTo(targetPath)
 }
 </script>
 

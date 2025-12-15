@@ -1,8 +1,17 @@
 <template>
   <div class="relative h-[calc(100vh-140px)] -mx-4 -my-8 overflow-hidden">
+    <!-- Sidebar -->
+    <SquareSidebar 
+      @filter="handleFilter" 
+      @select-community="handleCommunitySelect"
+      @preview-community="handleCommunityPreview"
+      @clear-preview="handleClearPreview"
+      @activity-click="handleActivityClick"
+    />
+
     <!-- Graph Layer -->
     <ClientOnly>
-      <NetworkCanvas @nodeClick="handleNodeClick" />
+      <NetworkCanvas ref="networkCanvas" @nodeClick="handleNodeClick" />
       <template #fallback>
         <div class="w-full h-full flex items-center justify-center bg-mario-sky">
           <div class="text-center">
@@ -35,7 +44,10 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import NetworkCanvas from '~/components/graph/NetworkCanvas.vue'
+import SquareSidebar from '~/components/square/SquareSidebar.vue'
+import { useUserStore } from '~/stores/user'
 
 // Use definePageMeta to ensure layout is applied
 definePageMeta({
@@ -43,6 +55,75 @@ definePageMeta({
 })
 
 const router = useRouter()
+const userStore = useUserStore()
+const networkCanvas = ref<any>(null)
+
+const handleFilter = (filter: any) => {
+  if (networkCanvas.value) {
+    networkCanvas.value.filterNodes(filter)
+  }
+}
+
+const handleCommunitySelect = (id: number) => {
+  router.push(`/community/${id}`)
+}
+
+const handleCommunityPreview = (id: number) => {
+  if (networkCanvas.value && typeof networkCanvas.value.highlightCommunity === 'function') {
+    networkCanvas.value.highlightCommunity(id)
+  }
+}
+
+const handleClearPreview = () => {
+  if (networkCanvas.value && typeof networkCanvas.value.clearHighlight === 'function') {
+    networkCanvas.value.clearHighlight()
+  }
+}
+
+const inferCommunityIdFromLog = (log: any): number | null => {
+  if (log.type === 'join' || log.type === 'new_community') {
+    return log.targetId
+  }
+
+  if (log.type === 'complete_task' || log.type === 'create_proposal') {
+    // 根据文案简单推断所属社区（mock 数据）
+    if (log.targetName?.includes('民宿') || log.targetName?.includes('南塘')) {
+      return 2
+    }
+    return 1
+  }
+
+  return null
+}
+
+const handleActivityClick = async (log: any) => {
+  const communityId = inferCommunityIdFromLog(log)
+
+  if (communityId && networkCanvas.value && typeof networkCanvas.value.highlightCommunity === 'function') {
+    networkCanvas.value.highlightCommunity(communityId)
+  }
+
+  if (log.type === 'join' || log.type === 'new_community') {
+    await router.push(`/community/${log.targetId}`)
+  } else if (log.type === 'complete_task') {
+    await router.push('/tasks')
+  } else if (log.type === 'create_proposal') {
+    if (communityId) {
+      await router.push(`/community/${communityId}`)
+    } else {
+      await router.push('/activities')
+    }
+  }
+}
+
+
+// 检查用户认证状态，未登录则重定向到登录页
+onMounted(async () => {
+  const user = await userStore.getUser()
+  if (!user) {
+    await router.push('/login')
+  }
+})
 
 const handleNodeClick = (node: any) => {
   if (node.type === 'COMMUNITY') {

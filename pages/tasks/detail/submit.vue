@@ -24,7 +24,13 @@
             提交任务
           </template>
           
-          <p class="font-vt323 text-lg text-black mb-6">请上传您的任务完成证明和相关文件</p>
+          <p class="font-vt323 text-lg text-black mb-6">
+            <span v-if="requiresFileUpload && requiresGPS">请上传文件并验证位置</span>
+            <span v-else-if="requiresFileUpload">请上传您的任务完成证明和相关文件</span>
+            <span v-else-if="requiresGPS">请验证您的位置信息</span>
+            <span v-else-if="requiresDescription">请填写任务完成说明</span>
+            <span v-else>请提交任务</span>
+          </p>
           
           <form @submit.prevent="submitForm" class="space-y-6">
             <!-- 任务信息 -->
@@ -33,7 +39,7 @@
               <p class="font-vt323 text-base text-black mb-3">{{ task.description }}</p>
               <div class="flex items-center gap-3 flex-wrap">
                 <span class="px-3 py-1.5 bg-mario-coin text-white border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase">
-                  {{ task.reward }} ETH
+                  {{ task.reward }} {{ taskRewardSymbol }}
                 </span>
                 <span class="font-vt323 text-sm text-black">截止: {{ formatDate(task.deadline) }}</span>
               </div>
@@ -46,7 +52,7 @@
             </div>
 
             <!-- 文件上传 -->
-            <div class="pt-4 border-t-2 border-black/20">
+            <div v-if="requiresFileUpload" class="pt-4 border-t-2 border-black/20">
               <h3 class="font-pixel text-xs uppercase text-black mb-4">上传文件</h3>
               <div class="space-y-4">
                 <!-- 主要证明文件 -->
@@ -64,14 +70,14 @@
                   >
                     <div class="text-4xl mb-3">☁️</div>
                     <p class="font-vt323 text-base text-black font-medium mb-1">点击上传或拖拽文件到此处</p>
-                    <p class="font-vt323 text-sm text-black/70">支持 PDF, DOC, DOCX, PNG, JPG 格式</p>
+                    <p class="font-vt323 text-sm text-black/70">支持 {{ allowedFileTypesText }} 格式</p>
                     <p class="font-vt323 text-xs text-black/60 mt-1">最大 10MB</p>
                   </div>
                   <input
                     ref="mainFileInput"
                     type="file"
                     class="hidden"
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    :accept="allowedFileTypes"
                     @change="handleFileSelect($event, 'main')"
                   />
                   
@@ -111,7 +117,7 @@
                     type="file"
                     multiple
                     class="hidden"
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    :accept="allowedFileTypes"
                     @change="handleFileSelect($event, 'additional')"
                   />
                   
@@ -142,17 +148,68 @@
               </div>
             </div>
 
+            <!-- GPS定位验证 -->
+            <div v-if="requiresGPS" class="pt-4 border-t-2 border-black/20">
+              <h3 class="font-pixel text-xs uppercase text-black mb-4">位置定位验证</h3>
+              <div class="space-y-3">
+                <div v-if="!gpsLocation.latitude" class="p-4 bg-white border-2 border-black shadow-pixel-sm">
+                  <p class="font-vt323 text-base text-black mb-3">请获取您当前的位置信息</p>
+                  <PixelButton
+                    @click="getGPSLocation"
+                    :disabled="isGettingLocation"
+                    variant="primary"
+                    size="md"
+                    class="w-full"
+                  >
+                    {{ isGettingLocation ? '获取位置中...' : '📍 获取位置' }}
+                  </PixelButton>
+                  <p v-if="locationError" class="mt-2 font-vt323 text-sm text-mario-red">
+                    {{ locationError }}
+                  </p>
+                </div>
+                <div v-else class="p-4 bg-green-50 border-2 border-green-600 shadow-pixel-sm">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-2xl">✅</span>
+                    <span class="font-pixel text-xs uppercase text-green-800">位置已验证</span>
+                  </div>
+                  <div class="font-vt323 text-sm text-black space-y-1">
+                    <div>纬度: {{ gpsLocation.latitude?.toFixed(6) }}</div>
+                    <div>经度: {{ gpsLocation.longitude?.toFixed(6) }}</div>
+                    <div v-if="gpsLocation.accuracy">精度: ±{{ Math.round(gpsLocation.accuracy) }}米</div>
+                  </div>
+                  <PixelButton
+                    @click="getGPSLocation"
+                    :disabled="isGettingLocation"
+                    variant="secondary"
+                    size="sm"
+                    class="mt-3"
+                  >
+                    {{ isGettingLocation ? '重新获取中...' : '重新获取位置' }}
+                  </PixelButton>
+                </div>
+              </div>
+            </div>
+
             <!-- 提交说明输入 -->
-            <div class="pt-4 border-t-2 border-black/20">
+            <div v-if="requiresDescription" class="pt-4 border-t-2 border-black/20">
               <label class="block font-pixel text-xs uppercase text-black mb-2">
                 提交说明 <span class="text-mario-red">*</span>
               </label>
               <textarea
                 v-model="submissionDescription"
-                placeholder="请详细描述您完成的任务内容，包括主要工作、技术实现、遇到的问题和解决方案等..."
+                :placeholder="task.proofConfig?.description?.prompt || '请详细描述您完成的任务内容，包括主要工作、技术实现、遇到的问题和解决方案等...'"
                 rows="6"
                 class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
               />
+              <p v-if="task.proofConfig?.description?.minWords" class="mt-2 font-vt323 text-xs" :class="isValidDescription ? 'text-black/60' : 'text-mario-red'">
+                最少字数: {{ task.proofConfig.description.minWords }} 字
+                <span v-if="submissionDescription.trim().length > 0">
+                  (当前: {{ submissionDescription.trim().length }} 字)
+                </span>
+                <span v-if="!isValidDescription" class="block mt-1">
+                  ⚠️ 字数不足，请至少输入 {{ task.proofConfig.description.minWords }} 字
+                </span>
+              </p>
             </div>
 
             <!-- 提交按钮 -->
@@ -187,6 +244,7 @@ import { getTaskById } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
+import { getTaskRewardSymbol } from '~/utils/display'
 import type { Task } from '~/utils/api'
 
 // 获取路由参数
@@ -207,6 +265,7 @@ const selectedFiles = ref<{
 const submissionDescription = ref('')
 const isSubmitting = ref(false)
 const dragOver = ref(false)
+const taskRewardSymbol = ref('积分') // 任务奖励的积分符号
 
 // 文件输入引用
 const mainFileInput = ref<HTMLInputElement | null>(null)
@@ -220,13 +279,15 @@ const task = ref<{
   reward: number
   deadline: string
   submissionInstructions: string
+  proofConfig?: any
 }>({
   id: taskId,
   title: '',
   description: '',
   reward: 0,
   deadline: '',
-  submissionInstructions: '请按照任务要求完成并提交相关凭证。'
+  submissionInstructions: '请按照任务要求完成并提交相关凭证。',
+  proofConfig: null
 })
 
 // 加载任务详情
@@ -250,9 +311,13 @@ const loadTask = async () => {
       title: taskData.title,
       description: taskData.description,
       reward: taskData.reward,
-      deadline: taskData.createdAt, // 使用创建时间作为截止时间（实际应从任务数据获取）
-      submissionInstructions: taskData.description || '请按照任务要求完成并提交相关凭证。'
+      deadline: taskData.deadline || taskData.createdAt, // 使用截止日期，如果没有则使用创建时间作为后备
+      submissionInstructions: taskData.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
+      proofConfig: taskData.proofConfig || null // 保存证明配置用于动态设置文件类型
     }
+    
+    // 获取任务奖励的积分符号
+    taskRewardSymbol.value = await getTaskRewardSymbol(taskData)
   } catch (error) {
     console.error('加载任务失败:', error)
     toast.add({
@@ -265,9 +330,154 @@ const loadTask = async () => {
   }
 }
 
+// 判断是否需要文件上传
+const requiresFileUpload = computed(() => {
+  const config = task.value.proofConfig
+  if (!config) return false
+  
+  // 如果启用了照片证据，需要文件上传
+  if (config.photo?.enabled) return true
+  
+  return false
+})
+
+// 判断是否需要GPS定位验证
+const requiresGPS = computed(() => {
+  const config = task.value.proofConfig
+  if (!config) return false
+  
+  // 如果启用了GPS定位，需要位置验证
+  return config.gps?.enabled === true
+})
+
+// 判断是否需要文字描述
+const requiresDescription = computed(() => {
+  const config = task.value.proofConfig
+  if (!config) return false
+  
+  // 如果启用了文字描述，需要填写说明
+  return config.description?.enabled === true
+})
+
+// GPS位置数据
+const gpsLocation = ref<{
+  latitude: number | null
+  longitude: number | null
+  accuracy: number | null
+  timestamp: number | null
+}>({
+  latitude: null,
+  longitude: null,
+  accuracy: null,
+  timestamp: null
+})
+
+const isGettingLocation = ref(false)
+const locationError = ref('')
+
+// 获取GPS位置
+const getGPSLocation = async () => {
+  if (!navigator.geolocation) {
+    locationError.value = '您的浏览器不支持地理位置服务'
+    return
+  }
+
+  isGettingLocation.value = true
+  locationError.value = ''
+
+  try {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        reject,
+        {
+          enableHighAccuracy: task.value.proofConfig?.gps?.accuracy === 'high',
+          timeout: 10000,
+          maximumAge: 0
+        }
+      )
+    })
+
+    gpsLocation.value = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      timestamp: position.timestamp
+    }
+  } catch (error: any) {
+    console.error('获取位置失败:', error)
+    locationError.value = error.message || '无法获取您的位置，请检查位置权限设置'
+  } finally {
+    isGettingLocation.value = false
+  }
+}
+
+// 验证文字描述是否符合最小字数要求
+const isValidDescription = computed(() => {
+  if (!requiresDescription.value) return true
+  
+  const minWords = task.value.proofConfig?.description?.minWords || 0
+  const currentLength = submissionDescription.value.trim().length
+  
+  return currentLength >= minWords
+})
+
 // 计算属性
 const canSubmit = computed(() => {
-  return selectedFiles.value.main && submissionDescription.value.trim().length > 0
+  // 如果需要文件上传，则必须上传文件
+  if (requiresFileUpload.value) {
+    const hasFile = selectedFiles.value.main !== null
+    const hasGPS = requiresGPS.value ? (gpsLocation.value.latitude !== null && gpsLocation.value.longitude !== null) : true
+    const hasDescription = requiresDescription.value ? isValidDescription.value : true
+    return hasFile && hasGPS && hasDescription
+  }
+  
+  // 如果需要GPS定位，必须获取位置
+  if (requiresGPS.value) {
+    return gpsLocation.value.latitude !== null && gpsLocation.value.longitude !== null
+  }
+  
+  // 如果需要文字描述，必须填写说明并满足最小字数
+  if (requiresDescription.value) {
+    return isValidDescription.value
+  }
+  
+  // 如果没有任何要求，可以直接提交
+  return true
+})
+
+// 根据 proofConfig 动态生成允许的文件类型
+const allowedFileTypes = computed(() => {
+  const types: string[] = []
+  
+  // 始终允许文档格式
+  types.push('.pdf', '.doc', '.docx', '.txt')
+  
+  // 如果启用了照片要求，添加图片格式
+  if (task.value.proofConfig?.photo?.enabled) {
+    types.push('.png', '.jpg', '.jpeg', '.gif', '.webp')
+  }
+  
+  // 如果只有文字描述要求，也允许文档格式（已经在上面添加了）
+  
+  return types.join(',')
+})
+
+// 生成文件类型提示文本
+const allowedFileTypesText = computed(() => {
+  const parts: string[] = []
+  
+  // 文档格式
+  const docFormats = ['PDF', 'DOC', 'DOCX', 'TXT']
+  parts.push(docFormats.join(', '))
+  
+  // 如果启用了照片要求，添加图片格式
+  if (task.value.proofConfig?.photo?.enabled) {
+    const imageFormats = ['PNG', 'JPG', 'JPEG']
+    parts.push(imageFormats.join(', '))
+  }
+  
+  return parts.join(', ')
 })
 
 // 触发文件输入
@@ -340,9 +550,14 @@ const submitForm = async () => {
     // 创建FormData
     const formData = new FormData()
     formData.append('taskId', taskId)
-    formData.append('description', submissionDescription.value)
     
-    if (selectedFiles.value.main) {
+    // 添加文字描述（如果需要）
+    if (requiresDescription.value) {
+      formData.append('description', submissionDescription.value)
+    }
+    
+    // 添加文件（如果需要）
+    if (requiresFileUpload.value && selectedFiles.value.main) {
       formData.append('mainFile', selectedFiles.value.main)
     }
     
@@ -350,21 +565,60 @@ const submitForm = async () => {
       formData.append(`additionalFile${index}`, file)
     })
     
+    // 添加GPS位置（如果需要）
+    if (requiresGPS.value && gpsLocation.value.latitude && gpsLocation.value.longitude) {
+      formData.append('gps', JSON.stringify({
+        latitude: gpsLocation.value.latitude,
+        longitude: gpsLocation.value.longitude,
+        accuracy: gpsLocation.value.accuracy,
+        timestamp: gpsLocation.value.timestamp
+      }))
+    }
+    
     // 模拟API调用
     await new Promise(resolve => setTimeout(resolve, 2000))
     
+    // 构建提交内容
+    // 如果有GPS位置，优先保存GPS位置信息（JSON格式）
+    let proofContent = ''
+    
+    if (requiresGPS.value && gpsLocation.value.latitude && gpsLocation.value.longitude) {
+      // 如果有GPS位置，保存为JSON格式
+      proofContent = JSON.stringify({
+        latitude: gpsLocation.value.latitude,
+        longitude: gpsLocation.value.longitude,
+        accuracy: gpsLocation.value.accuracy,
+        timestamp: gpsLocation.value.timestamp
+      })
+      
+      // 如果有文字描述，追加到JSON中（作为description字段）
+      if (requiresDescription.value && submissionDescription.value.trim()) {
+        const gpsData = JSON.parse(proofContent)
+        gpsData.description = submissionDescription.value.trim()
+        proofContent = JSON.stringify(gpsData)
+      }
+    } else if (requiresDescription.value) {
+      // 如果只有文字描述，直接使用描述内容
+      proofContent = submissionDescription.value.trim()
+    } else {
+      // 如果没有任何要求，使用默认内容
+      proofContent = '任务完成'
+    }
+    
     console.log('提交任务:', {
       taskId,
-      description: submissionDescription.value,
-      files: {
+      description: requiresDescription.value ? submissionDescription.value : undefined,
+      files: requiresFileUpload.value ? {
         main: selectedFiles.value.main?.name,
         additional: selectedFiles.value.additional.map(f => f.name)
-      }
+      } : undefined,
+      gps: requiresGPS.value ? gpsLocation.value : undefined,
+      proofContent
     })
     
     // 调用API提交凭证
     const { submitProof } = await import('~/utils/api')
-    const result = await submitProof(taskId, submissionDescription.value)
+    const result = await submitProof(taskId, proofContent)
     
     if (result.success) {
       toast.add({

@@ -3,8 +3,8 @@
     <!-- 顶部个人信息区域 -->
     <div class="bg-white border-b-4 border-black p-6 pb-8 relative">
       <div class="flex flex-col items-center gap-4">
-        <!-- 编辑按钮 -->
-        <div class="absolute top-4 right-4">
+        <!-- 编辑按钮（仅「我的」页面显示） -->
+        <div v-if="isMyProfile" class="absolute top-4 right-4">
           <button
             @click="isEditing = !isEditing"
             class="w-10 h-10 bg-gray-100 border-2 border-black flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -114,28 +114,36 @@
           <PixelButton block variant="secondary" @click="cancelEdit">取消</PixelButton>
         </div>
 
-        <!-- 非编辑模式下的操作按钮 -->
-        <div v-else class="flex gap-4 mt-2 w-full max-w-xs">
-          <PixelButton block variant="primary" @click="navigateTo('/wallet')">钱包</PixelButton>
-          <PixelButton block variant="secondary" @click="navigateTo('/tasks/create')">发布任务</PixelButton>
-        </div>
+        <!-- 非编辑模式下的操作按钮（已移除，发布任务按钮移到动态tab） -->
       </div>
     </div>
 
     <!-- 下方 Tab 区域 -->
     <div class="mt-4 px-4">
       <!-- Tab 导航 -->
-      <div class="flex border-b-2 border-black mb-4 overflow-x-auto scrollbar-hide">
-        <button 
-          v-for="tab in tabs" 
-          :key="tab.id"
-          @click="activeTab = tab.id"
-          :class="[
-            'px-4 py-2 font-pixel text-sm whitespace-nowrap transition-colors',
-            activeTab === tab.id ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'
-          ]"
+      <div class="flex items-center justify-between border-b-2 border-black mb-4 gap-4">
+        <div class="flex overflow-x-auto scrollbar-hide flex-1">
+          <button 
+            v-for="tab in tabs" 
+            :key="tab.id"
+            @click="activeTab = tab.id"
+            :class="[
+              'px-4 py-2 font-pixel text-sm whitespace-nowrap transition-colors',
+              activeTab === tab.id ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'
+            ]"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+        <button
+          v-if="isMyProfile"
+          @click="navigateTo('/tasks/create')"
+          class="create-task-btn relative px-4 py-2.5 font-pixel text-xs uppercase"
         >
-          {{ tab.label }}
+          <span class="relative z-10 flex items-center gap-1.5 whitespace-nowrap">
+            <span class="text-base">🎯</span>
+            <span class="font-bold">创建任务</span>
+          </span>
         </button>
       </div>
 
@@ -157,7 +165,7 @@
                   <div class="flex justify-between items-start mb-1">
                     <div class="font-bold font-vt323 text-lg leading-tight">{{ task.title }}</div>
                     <div v-if="task.status === 'completed'" class="font-pixel text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                      +{{ task.reward }} ETH
+                      +{{ task.reward }} {{ taskRewardSymbols[task.id] || '积分' }}
                     </div>
                   </div>
                   <div class="flex items-center gap-2 mb-2">
@@ -183,14 +191,6 @@
           <div v-else class="text-center py-12">
             <div class="text-4xl mb-4">📋</div>
             <div class="font-vt323 text-gray-500">还没有领取任何任务</div>
-            <PixelButton 
-              variant="primary" 
-              size="sm" 
-              class="mt-4"
-              @click="navigateTo('/tasks')"
-            >
-              去领取任务
-            </PixelButton>
           </div>
         </div>
 
@@ -200,7 +200,10 @@
             <div class="w-12 h-12 bg-mario-red border-2 border-black flex-shrink-0"></div>
             <div class="flex-1">
               <div class="font-pixel text-sm">{{ comm.name }}</div>
-              <div class="font-vt323 text-gray-500 text-sm mt-1">积分: {{ comm.points }}</div>
+              <div class="font-vt323 text-gray-500 text-sm mt-1">
+                <span v-if="comm.pointName">{{ comm.pointName }}: {{ comm.points }}</span>
+                <span v-else>积分: {{ comm.points }}</span>
+              </div>
             </div>
             <div class="text-gray-400">›</div>
           </div>
@@ -223,9 +226,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '~/stores/user'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import { getMemberById, getCommunities, getMyTasks, type Task } from '~/utils/api'
+import { getTaskRewardSymbol } from '~/utils/display'
 
 definePageMeta({
   layout: 'default'
@@ -237,6 +242,12 @@ const memberId = parseInt(route.params.id as string)
 const activeTab = ref('HISTORY')
 const isEditing = ref(false)
 const newSkill = ref('')
+const userStore = useUserStore()
+
+// 判断是否是当前用户自己的页面
+const isMyProfile = computed(() => {
+  return userStore.user?.id === memberId
+})
 
 const tabs = [
   { id: 'HISTORY', label: '动态' },
@@ -250,6 +261,7 @@ const history = ref<any[]>([])
 const communities = ref<any[]>([])
 const claimedTasks = ref<Task[]>([])
 const loadingTasks = ref(false)
+const taskRewardSymbols = ref<Record<number, string>>({}) // 存储每个任务对应的积分符号
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
 // 编辑表单数据
@@ -351,12 +363,27 @@ const loadClaimedTasks = async () => {
   loadingTasks.value = true
   try {
     const tasks = await getMyTasks()
-    // 按更新时间倒序排列，最新的在前
+    // 排序：优先显示已完成的任务，然后按更新时间倒序
     claimedTasks.value = tasks.sort((a, b) => {
-      const timeA = new Date(b.updatedAt || b.claimedAt || b.createdAt).getTime()
-      const timeB = new Date(a.updatedAt || a.claimedAt || a.createdAt).getTime()
+      // 优先显示已完成的任务
+      if (a.status === 'completed' && b.status !== 'completed') {
+        return -1
+      }
+      if (a.status !== 'completed' && b.status === 'completed') {
+        return 1
+      }
+      // 对于相同优先级（都是已完成或都不是已完成），按更新时间倒序
+      const timeA = new Date(b.updatedAt || b.completedAt || b.submittedAt || b.claimedAt || b.createdAt).getTime()
+      const timeB = new Date(a.updatedAt || a.completedAt || a.submittedAt || a.claimedAt || a.createdAt).getTime()
       return timeA - timeB
     })
+    
+    // 为每个任务获取对应的积分符号
+    const allCommunities = await getCommunities()
+    for (const task of claimedTasks.value) {
+      const symbol = await getTaskRewardSymbol(task, allCommunities)
+      taskRewardSymbols.value[task.id] = symbol
+    }
   } catch (error) {
     console.error('Failed to load claimed tasks:', error)
   } finally {
@@ -448,6 +475,9 @@ watch(() => activeTab.value, (newTab) => {
 })
 
 onMounted(async () => {
+  // 确保用户信息已加载
+  await userStore.getUser()
+  
   // 从 API 获取成员数据
   try {
     member.value = await getMemberById(memberId)
@@ -460,7 +490,8 @@ onMounted(async () => {
         .map(c => ({
           id: c.id,
           name: c.name,
-          points: member.value.reputation // 使用成员的声誉值作为在该社群的积分
+          points: member.value.reputation, // 使用成员的声誉值作为在该社群的积分
+          pointName: c.pointName // 添加社区积分名称
         }))
       
       // 生成历史记录（基于成员的贡献）
@@ -516,5 +547,68 @@ onUnmounted(() => {
 .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+.create-task-btn {
+  /* 机械键盘按钮风格：白底黑框 */
+  background: #ffffff;
+  color: #000000;
+  border: 3px solid #000000;
+  
+  /* 无阴影 */
+  box-shadow: none;
+  
+  /* 轻微浮动动画（包含缩放） */
+  animation: float-gentle 3s ease-in-out infinite;
+  
+  /* 过渡效果 */
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  /* 像素风格 */
+  image-rendering: pixelated;
+  position: relative;
+  overflow: visible;
+}
+
+/* 轻微浮动动画 */
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0px) scale(0.85);
+  }
+  50% {
+    transform: translateY(-2px) scale(0.85);
+  }
+}
+
+/* Hover 效果：放大、旋转、上浮 */
+.create-task-btn:hover {
+  transform: translateY(-4px) rotate(2deg) scale(1);
+  box-shadow: none;
+  animation-play-state: paused;
+}
+
+/* Active 效果：点击放大到当前尺度 */
+.create-task-btn:active {
+  transform: translateY(0px) rotate(0deg) scale(1);
+  box-shadow: none;
+  animation-play-state: paused;
+}
+
+/* 表情动画 */
+.create-task-btn .text-base {
+  display: inline-block;
+  animation: emoji-bounce 2s ease-in-out infinite;
+}
+
+@keyframes emoji-bounce {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(-5deg);
+  }
+  75% {
+    transform: scale(1.1) rotate(5deg);
+  }
 }
 </style>

@@ -2,11 +2,10 @@
   <div class="w-full max-w-md">
     <PixelCard>
       <template #header>
-        <div class="text-center font-pixel text-xl text-mario-red">INSERT COIN</div>
+        <div class="text-center font-pixel text-xl text-mario-red">登录</div>
       </template>
 
       <div class="flex flex-col gap-6 py-4">
-        <div class="text-center font-vt323 text-2xl">START GAME</div>
         
         <!-- 输入类型切换 -->
         <div class="flex gap-2 border-2 border-black">
@@ -58,7 +57,7 @@
         <!-- 输入框 -->
         <div class="space-y-4">
           <label class="block font-pixel text-xs uppercase text-gray-600">
-            {{ inputType === 'phone' ? 'Phone Number' : 'Email Address' }}
+            {{ inputType === 'phone' ? '手机号' : '邮箱地址' }}
           </label>
           <input 
             v-model="formState.identifier"
@@ -89,7 +88,7 @@
           :disabled="loading || !formState.identifier || (!isLoginMode && !formState.userType)"
           @click="onSubmit"
         >
-          {{ loading ? 'LOADING...' : isLoginMode ? 'SEND CODE' : 'REGISTER' }}
+          {{ loading ? '加载中...' : isLoginMode ? '发送验证码' : '注册' }}
         </PixelButton>
 
         <PixelButton 
@@ -97,13 +96,13 @@
           block 
           @click="router.push('/')"
         >
-          BACK TO MAP
+          返回地图
         </PixelButton>
       </div>
 
       <template #footer>
         <div class="w-full text-center text-xs text-gray-400 font-pixel uppercase">
-          Web3 Login Powered by AA
+          由 AA 驱动的 Web3 登录
         </div>
       </template>
     </PixelCard>

@@ -41,37 +41,48 @@
         <!-- QUESTS TAB -->
         <div v-if="activeTab === 'QUESTS'" class="space-y-6">
           <div class="flex items-center justify-between bg-white border-2 border-black p-2">
-            <div class="font-pixel text-sm">当前任务: {{ tasks.length }}</div>
+            <div class="font-pixel text-sm">当前任务: {{ activeTasksCount }}</div>
           </div>
 
-          <div class="grid gap-4">
-            <PixelCard v-for="task in tasks" :key="task.id" hover>
+          <div v-if="tasks.length === 0" class="text-center py-12 bg-white border-2 border-black p-4">
+            <p class="font-vt323 text-lg text-gray-600">暂无任务</p>
+          </div>
+          
+          <div v-else class="grid gap-4">
+            <PixelCard v-for="task in tasks" :key="task.id" hover class="cursor-pointer" @click="navigateTo(`/tasks/${task.id}`)">
               <template #header>
                 <div class="flex justify-between items-start">
-                  <span :class="task.type === 'OFFER' ? 'text-blue-600' : 'text-red-600'">
-                    [{{ task.type === 'OFFER' ? '提供' : '需求' }}]
-                  </span>
-                  <span class="text-xs text-gray-400">{{ task.timeAgo }}</span>
+                  <span class="text-gray-600 text-xs">任务 #{{ task.id }}</span>
+                  <span class="text-xs text-gray-400">{{ formatTimeAgo(task.createdAt) }}</span>
                 </div>
               </template>
               
               <div class="flex gap-4">
-                <PixelAvatar :seed="task.author" size="md" />
-                <div>
+                <PixelAvatar :seed="task.creatorName || `user${task.creatorId}`" size="md" />
+                <div class="flex-1">
                   <h3 class="font-bold text-lg">{{ task.title }}</h3>
-                  <p class="text-gray-600 text-sm">{{ task.description }}</p>
+                  <p class="text-gray-600 text-sm line-clamp-2">{{ task.description }}</p>
                 </div>
               </div>
 
               <template #footer>
-                <div class="flex items-center gap-2">
-                  <div class="text-mario-coin font-bold flex items-center gap-1">
-                    <div class="w-3 h-3 bg-mario-coin rounded-sm"></div>
-                    {{ task.reward }}
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="text-mario-coin font-bold flex items-center gap-1">
+                      <div class="w-3 h-3 bg-mario-coin rounded-sm"></div>
+                      {{ task.reward }} 积分
+                    </div>
+                    <span class="text-xs bg-gray-200 px-2 py-1 font-pixel uppercase">{{ getStatusLabel(task.status) }}</span>
                   </div>
-                  <span class="text-xs bg-gray-200 px-2 py-1 font-pixel uppercase">{{ task.statusLabel }}</span>
+                  <PixelButton 
+                    v-if="task.status === 'unclaimed'"
+                    size="sm" 
+                    variant="secondary"
+                    @click.stop="navigateTo(`/tasks/${task.id}`)"
+                  >
+                    查看详情
+                  </PixelButton>
                 </div>
-                <PixelButton size="sm" variant="secondary">接受任务</PixelButton>
               </template>
             </PixelCard>
           </div>
@@ -122,7 +133,7 @@
                 
                 <!-- Community Stats -->
                 <div class="grid grid-cols-2 gap-2 text-left font-vt323 text-lg bg-gray-50 p-2 border border-black/10">
-                   <div>总积分:</div>
+                   <div>{{ community?.pointName || '总积分' }}:</div>
                    <div class="text-right text-mario-coin font-bold">{{ community?.totalPoints || 0 }}</div>
                    <div>成员:</div>
                    <div class="text-right font-bold">{{ community?.memberCount || 0 }}</div>
@@ -160,89 +171,127 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '~/stores/user'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
-import { getCommunityById, getCommunityMembers } from '~/utils/api'
+import { getCommunityById, getCommunityMembers, getAllTasks, getMemberById, type Task } from '~/utils/api'
 
 const route = useRoute()
 const router = useRouter()
 const communityId = parseInt(route.params.id as string)
 const activeTab = ref('INTRO')
+const userStore = useUserStore()
+
+// 判断是否是当前用户自己的社区
+const isMyCommunity = computed(() => {
+  return userStore.user?.id === communityId && userStore.user?.userType === 'community'
+})
 
 const tabs = [
   { id: 'INTRO', label: '简介' },
   { id: 'EVENTS', label: '社区活动' },
-  { id: 'QUESTS', label: '任务看板' }
+  { id: 'QUESTS', label: '社区动态' }
 ]
 
 // Data
 const community = ref<any>(null)
 const members = ref<any[]>([])
-const tasks = ref<any[]>([])
+const tasks = ref<Task[]>([])
 const events = ref<any[]>([])
+
+// 计算当前任务数量（未领取和进行中的任务）
+const activeTasksCount = computed(() => {
+  return tasks.value.filter(task => 
+    task.status === 'unclaimed' || task.status === 'in_progress'
+  ).length
+})
+
+// 格式化时间差
+const formatTimeAgo = (dateString: string): string => {
+  if (!dateString) return ''
+  const now = new Date()
+  const date = new Date(dateString)
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  
+  if (diffMins < 60) {
+    return `${diffMins}分钟前`
+  } else if (diffHours < 24) {
+    return `${diffHours}小时前`
+  } else {
+    return `${diffDays}天前`
+  }
+}
+
+// 获取状态标签
+const getStatusLabel = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    'unclaimed': '未领取',
+    'in_progress': '进行中',
+    'under_review': '审核中',
+    'completed': '已完成',
+    'rejected': '已驳回'
+  }
+  return statusMap[status] || '未知'
+}
 
 const navigateTo = (path: string) => {
   router.push(path)
 }
 
+// 加载社区任务
+const loadCommunityTasks = async () => {
+  try {
+    // 获取所有任务
+    const allTasks = await getAllTasks()
+    
+    // 获取社区成员列表
+    const communityMembers = await getCommunityMembers(communityId)
+    const memberIds = new Set(communityMembers.map(m => m.id))
+    
+    // 过滤出属于该社区的任务
+    // 任务的创建者必须是该社区的成员
+    const communityTasks = allTasks.filter(task => {
+      // 如果任务的创建者是社区成员，则属于该社区
+      return memberIds.has(task.creatorId)
+    })
+    
+    // 只显示未领取和进行中的任务
+    tasks.value = communityTasks.filter(task => 
+      task.status === 'unclaimed' || task.status === 'in_progress'
+    )
+  } catch (error) {
+    console.error('Failed to load community tasks:', error)
+    tasks.value = []
+  }
+}
+
 onMounted(async () => {
+  // 确保用户信息已加载
+  await userStore.getUser()
+  
   // 从 API 获取社群数据
   try {
     community.value = await getCommunityById(communityId)
     if (community.value) {
       members.value = await getCommunityMembers(communityId)
+      // 加载社区任务
+      await loadCommunityTasks()
     }
   } catch (error) {
     console.error('Failed to load community data:', error)
   }
   
-  // Mock tasks and events (可以后续从 API 获取)
-  setTimeout(() => {
-
-    tasks.value = [
-      {
-        id: 1,
-        type: 'NEED',
-        title: '修理水管',
-        description: '厨房水管漏得到处都是！急需专业人士。',
-        reward: 50,
-        author: 'Peach',
-        timeAgo: '2小时前',
-        status: 'OPEN',
-        statusLabel: '开放中'
-      },
-      {
-        id: 2,
-        type: 'OFFER',
-        title: '免费卡丁车接送',
-        description: '这周末我可以送任何人去市中心。',
-        reward: 0,
-        author: 'Toad',
-        timeAgo: '5小时前',
-        status: 'OPEN',
-        statusLabel: '开放中'
-      },
-      {
-        id: 3,
-        type: 'NEED',
-        title: '打败库巴',
-        description: '他又回来了。非诚勿扰。',
-        reward: 9999,
-        author: 'Mario',
-        timeAgo: '1天前',
-        status: 'BOSS LEVEL',
-        statusLabel: 'BOSS战'
-      }
-    ]
-
-    events.value = [
-       { id: 1, title: '每周管道检查', date: '2024-11-30', description: '检查所有绿色管道是否有食人花。', participants: 12 },
-       { id: 2, title: '卡丁车锦标赛', date: '2024-12-05', description: '彩虹之路聚会。自带香蕉皮。', participants: 64 }
-    ]
-  }, 500)
+  // Mock events (可以后续从 API 获取)
+  events.value = [
+     { id: 1, title: '每周管道检查', date: '2024-11-30', description: '检查所有绿色管道是否有食人花。', participants: 12 },
+     { id: 2, title: '卡丁车锦标赛', date: '2024-12-05', description: '彩虹之路聚会。自带香蕉皮。', participants: 64 }
+  ]
 })
 </script>
 

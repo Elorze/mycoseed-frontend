@@ -22,7 +22,7 @@
                 <h1 class="text-3xl font-bold text-foreground mb-2">{{ activity.title }}</h1>
                 <div class="flex items-center gap-4">
                   <span class="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                    {{ activity.reward }} ETH
+                    {{ activity.reward }} 积分
                   </span>
                   <span class="px-3 py-1 bg-muted text-muted-foreground rounded-full text-sm">
                     {{ getStatusText(activity.status) }}

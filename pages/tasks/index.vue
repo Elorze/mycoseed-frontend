@@ -8,7 +8,7 @@
       </div>
 
       <!-- 操作栏 -->
-      <div class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div class="mb-6 flex flex-col sm:flex-row justify-start items-center gap-4">
         <div class="flex gap-4">
           <button
             v-for="tab in tabs"
@@ -24,10 +24,6 @@
             {{ tab.label }}
           </button>
         </div>
-        
-        <PixelButton variant="primary" size="lg" @click="navigateTo('/tasks/create')">
-          + 创建新任务
-        </PixelButton>
       </div>
 
       <!-- 任务列表 -->
@@ -37,9 +33,6 @@
 
       <div v-else-if="filteredTasks.length === 0" class="text-center py-12">
         <div class="font-pixel text-xl text-white mb-4">暂无任务</div>
-        <PixelButton variant="secondary" @click="navigateTo('/tasks/create')">
-          创建第一个任务
-        </PixelButton>
       </div>
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -51,7 +44,7 @@
         >
           <template #header>
             <div class="flex justify-between items-start">
-              <h3 class="font-pixel text-sm uppercase text-black line-clamp-1">{{ task.title }}</h3>
+              <h3 class="font-pixel text-sm text-black line-clamp-1">{{ task.title }}</h3>
               <span
                 class="px-2 py-1 text-xs font-pixel uppercase border border-black"
                 :class="getStatusClass(task.status)"
@@ -105,6 +98,12 @@ definePageMeta({
   layout: 'default'
 })
 
+const router = useRouter()
+
+const navigateTo = (path: string) => {
+  router.push(path)
+}
+
 // 标签页
 const activeTab = ref('all')
 const tabs = [
@@ -117,8 +116,20 @@ const tabs = [
 // 加载状态
 const loading = ref(false)
 
+// 本地任务类型（扩展了 Task 接口）
+interface LocalTask {
+  id: string
+  title: string
+  objective: string
+  description: string
+  reward: number
+  deadline: string
+  status: string
+  creator: string
+}
+
 // 任务列表
-const tasks = ref<any[]>([])
+const tasks = ref<LocalTask[]>([])
 
 // 从 API 加载任务
 const loadTasksFromAPI = async () => {
@@ -131,9 +142,9 @@ const loadTasksFromAPI = async () => {
       objective: task.description,
       description: task.description,
       reward: task.reward,
-      deadline: task.deadline || '',
+      deadline: task.deadline || task.completedAt || task.updatedAt || task.createdAt || '',
       status: task.status,
-      creator: '系统'
+      creator: task.creatorName || '系统'
     }))
   } catch (error) {
     console.error('加载任务失败:', error)

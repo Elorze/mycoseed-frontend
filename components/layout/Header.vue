@@ -22,7 +22,7 @@
         <PixelButton
            variant="warning"
            size="sm"
-           @click="navigateTo('market')"
+           @click="navigateTo('tasks')"
         >
            🛒 商城
         </PixelButton>
@@ -64,6 +64,22 @@ const emit = defineEmits<{
 }>()
 
 const navigateTo = (page: string) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/af348509-5d27-4b86-baea-9c27926471bf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'debug-session',
+      runId: 'nav-structure',
+      hypothesisId: 'H1',
+      location: 'components/layout/Header.vue:navigateTo',
+      message: 'Header navigateTo called',
+      data: { page, currentPage: props.currentPage },
+      timestamp: Date.now()
+    })
+  }).catch(() => {})
+  // #endregion
+
   if (page === 'profile') {
     // Mock ID 1 for current user
     emit('navigate', 'member/1')

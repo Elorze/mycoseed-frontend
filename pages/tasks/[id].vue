@@ -4,11 +4,11 @@
       <!-- 返回按钮 -->
       <div class="mb-6">
         <PixelButton
-          @click="navigateTo(`/community/${task.communityId}`)"
+          @click="navigateTo('/tasks')"
           variant="secondary"
           size="sm"
         >
-          ← 返回社区
+          ← 返回市集
         </PixelButton>
       </div>
 
@@ -18,228 +18,233 @@
       </div>
 
       <!-- 任务详情 -->
-      <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        <!-- 任务基本信息 -->
-        <div class="lg:col-span-2 space-y-4 md:space-y-6">
-          <!-- 任务标题卡片 -->
-          <PixelCard>
-            <template #header>
-              任务详情
-            </template>
-            <div class="space-y-4">
-              <div>
-                <h1 class="font-pixel text-xl md:text-2xl text-black mb-3 leading-tight">
-                  {{ task.title || '加载中...' }}
-                </h1>
-                <div class="flex items-center gap-3 flex-wrap">
-                  <span class="px-3 py-1.5 bg-mario-coin text-white border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase">
-                    {{ task.reward }} 积分
-                  </span>
-                  <span 
-                    class="px-3 py-1.5 border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase"
-                    :class="getStatusBadgeClass(task.status)"
-                  >
-                    {{ getStatusText(task.status) }}
-                  </span>
-                </div>
-              </div>
-              
-              <div class="pt-4 border-t-2 border-black/20">
-                <h3 class="font-pixel text-xs uppercase text-black mb-2">任务描述</h3>
-                <p class="font-vt323 text-lg text-black leading-relaxed">{{ task.description }}</p>
-              </div>
-              
-              <div v-if="task.requirements && task.requirements.length > 0" class="pt-4 border-t-2 border-black/20">
-                <h3 class="font-pixel text-xs uppercase text-black mb-2">任务要求</h3>
-                <ul class="font-vt323 text-lg text-black space-y-2 list-none pl-0">
-                  <li v-for="(requirement, idx) in task.requirements" :key="idx" class="flex items-start gap-2">
-                    <span class="text-mario-red font-pixel text-xs mt-1">■</span>
-                    <span>{{ requirement }}</span>
-                  </li>
-                </ul>
-              </div>
-              
-              <div class="pt-4 border-t-2 border-black/20">
-                <h3 class="font-pixel text-xs uppercase text-black mb-2">提交说明</h3>
-                <p class="font-vt323 text-lg text-black leading-relaxed">{{ task.submissionInstructions }}</p>
+      <div v-else class="space-y-4 md:space-y-6">
+        <!-- 任务介绍 -->
+        <PixelCard>
+          <template #header>
+            任务介绍
+          </template>
+          <div class="space-y-4">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+              <h1 class="font-pixel text-xl md:text-2xl text-black leading-tight flex-1 min-w-0">
+                {{ task.title || '加载中...' }}
+              </h1>
+              <div class="flex items-center gap-3 flex-wrap">
+                <span class="px-3 py-1.5 bg-mario-coin text-white border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase">
+                  {{ task.reward }} {{ taskRewardSymbol }}
+                </span>
+                <span 
+                  class="px-3 py-1.5 border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase"
+                  :class="getStatusBadgeClass(task.status)"
+                >
+                  {{ getStatusText(task.status) }}
+                </span>
               </div>
             </div>
-          </PixelCard>
+            
+            <div class="pt-4 border-t-2 border-black/20">
+              <h3 class="font-pixel text-xs uppercase text-black mb-2">任务描述</h3>
+              <p class="font-vt323 text-lg text-black leading-relaxed">{{ task.description }}</p>
+            </div>
+            
+            <div v-if="task.proofConfig" class="pt-4 border-t-2 border-black/20">
+              <h3 class="font-pixel text-xs uppercase text-black mb-4">提交要求</h3>
+              <div class="space-y-3">
+                <!-- 照片证据 -->
+                <div v-if="task.proofConfig.photo?.enabled" class="p-3 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xl">📷</span>
+                    <h4 class="font-pixel text-xs uppercase text-black">照片证据</h4>
+                  </div>
+                  <div class="font-vt323 text-base text-black space-y-1">
+                    <div>数量要求：{{ task.proofConfig.photo.count }}张</div>
+                    <div v-if="task.proofConfig.photo.requirements" class="mt-2">
+                      <span class="font-pixel text-[10px] uppercase text-black/70">要求说明：</span>
+                      <p class="mt-1">{{ task.proofConfig.photo.requirements }}</p>
+                    </div>
+                  </div>
+                </div>
 
-          <!-- 任务进度 -->
-          <PixelCard v-if="task.updates && task.updates.length > 0">
-            <template #header>
-              任务进度
-            </template>
-            <div class="space-y-4">
-              <div
-                v-for="(update, index) in task.updates"
-                :key="update.id"
-                class="relative pl-8"
-              >
-                <!-- 时间线连接线 -->
-                <div 
-                  v-if="index < task.updates.length - 1"
-                  class="absolute left-3 top-6 w-0.5 h-8 bg-black"
-                ></div>
+                <!-- GPS定位 -->
+                <div v-if="task.proofConfig.gps?.enabled" class="p-3 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xl">📍</span>
+                    <h4 class="font-pixel text-xs uppercase text-black">GPS 定位</h4>
+                  </div>
+                  <div class="font-vt323 text-base text-black">
+                    <div>定位精度：{{ getGpsAccuracyLabel(task.proofConfig.gps.accuracy) }}</div>
+                  </div>
+                </div>
+
+                <!-- 文字描述 -->
+                <div v-if="task.proofConfig.description?.enabled" class="p-3 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xl">📝</span>
+                    <h4 class="font-pixel text-xs uppercase text-black">文字描述</h4>
+                  </div>
+                  <div class="font-vt323 text-base text-black space-y-1">
+                    <div>最少字数：{{ task.proofConfig.description.minWords || 50 }}字</div>
+                    <div v-if="task.proofConfig.description.prompt" class="mt-2">
+                      <span class="font-pixel text-[10px] uppercase text-black/70">提示语：</span>
+                      <p class="mt-1">{{ task.proofConfig.description.prompt }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 如果没有配置任何提交要求 -->
+                <div v-if="!hasAnyProofConfig(task.proofConfig)" class="font-vt323 text-base text-black/60">
+                  未设置提交要求
+                </div>
+              </div>
+            </div>
+            
+            <div class="pt-4 border-t-2 border-black/20">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-vt323 text-base">
+                <div class="flex justify-between items-center pb-2 border-b border-black/10">
+                  <span class="text-black/70">创建人:</span>
+                  <span class="text-black font-medium">{{ task.creator }}</span>
+                </div>
+                <div class="flex justify-between items-center pb-2 border-b border-black/10">
+                  <span class="text-black/70">开始时间:</span>
+                  <span class="text-black font-medium">
+                    {{ task.claimedAt ? formatDate(task.claimedAt) : (task.startDate ? formatDate(task.startDate) : '未开始') }}
+                  </span>
+                </div>
+                <div class="flex justify-between items-center pb-2 border-b border-black/10">
+                  <span class="text-black/70">截止时间:</span>
+                  <span class="text-black font-medium">{{ formatDate(task.deadline) }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="pt-4 border-t-2 border-black/20">
+              <h3 class="font-pixel text-xs uppercase text-black mb-2">提交说明</h3>
+              <p class="font-vt323 text-lg text-black leading-relaxed">
+                {{ task.submissionInstructions }}
+              </p>
+            </div>
+          </div>
+        </PixelCard>
+
+        <!-- 任务进度 -->
+        <PixelCard v-if="task.updates && task.updates.length > 0">
+          <template #header>
+            任务进度
+          </template>
+          <div class="space-y-4">
+            <div
+              v-for="(update, index) in task.updates"
+              :key="update.id"
+              class="relative pl-8"
+            >
+              <!-- 时间线连接线 -->
+              <div 
+                v-if="index < task.updates.length - 1"
+                class="absolute left-3 top-6 w-0.5 h-8 bg-mario-blue"
+              ></div>
+              
+              <!-- 时间线节点 -->
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-6 h-6 bg-mario-blue border-2 border-black shadow-pixel-sm flex items-center justify-center -ml-8">
+                  <div class="w-2 h-2 bg-white border border-black"></div>
+                </div>
                 
-                <!-- 时间线节点 -->
-                <div class="flex items-start gap-3">
-                  <div class="flex-shrink-0 w-6 h-6 bg-mario-red border-2 border-black shadow-pixel-sm flex items-center justify-center -ml-8">
-                    <div class="w-2 h-2 bg-white border border-black"></div>
-                  </div>
-                  
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1 flex-wrap">
-                      <span class="font-pixel text-[10px] uppercase text-black">{{ update.title }}</span>
-                      <span class="font-vt323 text-sm text-black/60">{{ formatDate(update.timestamp) }}</span>
-                      <span 
-                        v-if="update.status"
-                        class="px-2 py-0.5 border border-black font-pixel text-[8px] uppercase"
-                        :class="getStatusBadgeClass(update.status)"
-                      >
-                        {{ getStatusText(update.status) }}
-                      </span>
-                    </div>
-                    <p class="font-vt323 text-base text-black">{{ update.description }}</p>
-                    
-                    <!-- 显示实时状态 -->
-                    <div v-if="update.isRealTime" class="mt-2 flex items-center gap-2">
-                      <div class="w-2 h-2 bg-mario-red border border-black animate-pulse"></div>
-                      <span class="font-vt323 text-sm text-mario-red">实时更新中...</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </PixelCard>
-        </div>
-
-        <!-- 任务信息和操作 -->
-        <div class="space-y-4 md:space-y-6">
-          <!-- 任务信息卡片 -->
-          <PixelCard>
-            <template #header>
-              任务信息
-            </template>
-            <div class="space-y-3 font-vt323 text-base">
-              <div class="flex justify-between items-center pb-2 border-b border-black/10">
-                <span class="text-black/70">截止时间:</span>
-                <span class="text-black font-medium">{{ formatDate(task.deadline) }}</span>
-              </div>
-              <div class="flex justify-between items-center pb-2 border-b border-black/10">
-                <span class="text-black/70">创建者:</span>
-                <span class="text-black font-medium">{{ task.creator }}</span>
-              </div>
-              <div class="pb-2 border-b border-black/10">
-                <div class="flex justify-between items-center mb-2">
-                  <span class="text-black/70">参与者:</span>
-                  <span class="text-black font-medium">{{ task.participants }}/{{ task.maxParticipants }} 人</span>
-                </div>
-                <div class="mt-2 space-y-2">
-                  <div v-if="task.participantsList && task.participantsList.length > 0">
-                    <div
-                      v-for="participant in task.participantsList"
-                      :key="participant.id"
-                      @click="navigateToMember(participant.id)"
-                      class="flex items-center gap-2 p-2 bg-white border-2 border-black shadow-pixel-sm hover:-translate-y-0.5 hover:shadow-pixel transition-all cursor-pointer"
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1 flex-wrap">
+                    <span class="font-pixel text-[10px] uppercase text-black">{{ update.title }}</span>
+                    <span class="font-vt323 text-sm text-black/60">{{ formatDate(update.timestamp) }}</span>
+                    <span 
+                      v-if="update.status"
+                      class="px-2 py-0.5 border border-black font-pixel text-[8px] uppercase"
+                      :class="getStatusBadgeClass(update.status)"
                     >
-                      <div class="w-8 h-8 bg-mario-red border-2 border-black flex items-center justify-center font-pixel text-xs text-white">
-                        {{ participant.name.charAt(0) }}
-                      </div>
-                      <div class="flex-1">
-                        <div class="font-vt323 text-sm text-black font-medium">{{ participant.name }}</div>
-                        <div class="font-vt323 text-xs text-black/60">{{ participant.role }}</div>
-                      </div>
-                      <span class="font-pixel text-[8px]">→</span>
-                    </div>
+                      {{ getStatusText(update.status) }}
+                    </span>
                   </div>
-                  <div v-else class="font-vt323 text-sm text-black/60 text-center py-2">
-                    暂无参与者
+                  <p class="font-vt323 text-base text-black">{{ update.description }}</p>
+                  
+                  <!-- 显示实时状态 -->
+                  <div v-if="update.isRealTime" class="mt-2 flex items-center gap-2">
+                    <div class="w-2 h-2 bg-mario-blue border border-black animate-pulse"></div>
+                    <span class="font-vt323 text-sm text-mario-blue">实时更新中...</span>
                   </div>
                 </div>
               </div>
-              <div class="flex justify-between items-center">
-                <span class="text-black/70">难度:</span>
-                <span class="text-black font-medium">{{ task.difficulty }}</span>
-              </div>
             </div>
-          </PixelCard>
-          
-          <!-- 操作按钮卡片 -->
-          <PixelCard>
-            <template #header>
-              操作
-            </template>
-            <div class="space-y-3">
-              <PixelButton
-                v-if="task.status === 'unclaimed'"
-                @click="handleClaimTask"
-                variant="primary"
-                size="lg"
-                :block="true"
-                :disabled="loading"
-              >
-                {{ loading ? '领取中...' : '领取任务' }}
-              </PixelButton>
-              
-              <PixelButton
-                v-if="task.status === 'in_progress'"
-                @click="submitTask"
-                variant="success"
-                size="lg"
-                :block="true"
-              >
-                提交任务
-              </PixelButton>
-              
-              <PixelButton
-                v-if="task.status === 'under_review'"
-                @click="reviewTask"
-                variant="warning"
-                size="lg"
-                :block="true"
-              >
-                审核任务
-              </PixelButton>
-              
-              <PixelButton
-                v-if="task.status === 'completed'"
-                variant="secondary"
-                size="lg"
-                :block="true"
-                :disabled="true"
-              >
-                已完成
-              </PixelButton>
-            </div>
-          </PixelCard>
-        </div>
+          </div>
+        </PixelCard>
+        
+        <!-- 操作按钮 -->
+        <PixelCard>
+          <template #header>
+            操作
+          </template>
+          <div class="space-y-3">
+            <PixelButton
+              v-if="task.status === 'unclaimed'"
+              @click="handleClaimTask"
+              variant="primary"
+              size="lg"
+              :block="true"
+              :disabled="loading"
+            >
+              {{ loading ? '领取中...' : '领取任务' }}
+            </PixelButton>
+            
+            <PixelButton
+              v-if="task.status === 'in_progress'"
+              @click="submitTask"
+              variant="success"
+              size="lg"
+              :block="true"
+            >
+              提交任务
+            </PixelButton>
+            
+            <PixelButton
+              v-if="task.status === 'under_review' && canReview"
+              @click="reviewTask"
+              variant="warning"
+              size="lg"
+              :block="true"
+            >
+              审核任务
+            </PixelButton>
+            
+            <PixelButton
+              v-if="task.status === 'under_review' && !canReview"
+              variant="secondary"
+              size="lg"
+              :block="true"
+              :disabled="true"
+            >
+              审核中
+            </PixelButton>
+            
+            <PixelButton
+              v-if="task.status === 'completed'"
+              variant="secondary"
+              size="lg"
+              :block="true"
+              :disabled="true"
+            >
+              已完成
+            </PixelButton>
+          </div>
+        </PixelCard>
       </div>
     </div>
 
-    <!-- 固定悬浮提交按钮（当任务进行中时显示） -->
-    <div 
-      v-if="task.status === 'in_progress'"
-      class="fixed bottom-6 right-6 z-50"
-    >
-      <PixelButton
-        @click="submitTask"
-        variant="success"
-        size="lg"
-        class="shadow-pixel-lg hover:scale-110 transition-transform"
-      >
-        <span class="font-pixel text-sm">提交任务</span>
-      </PixelButton>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { getTaskById, claimTask } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
+import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
+import { getTaskRewardSymbol } from '~/utils/display'
 
 // 获取路由参数
 const route = useRoute()
@@ -247,6 +252,8 @@ const router = useRouter()
 const taskId = parseInt(route.params.id as string)
 const toast = useToast()
 const loading = ref(false)
+const userStore = useUserStore()
+const taskRewardSymbol = ref('积分') // 任务奖励的积分符号
 
 // 任务数据
 const task = ref<any>({
@@ -257,6 +264,7 @@ const task = ref<any>({
   status: 'unclaimed',
   deadline: '',
   creator: '',
+  creatorId: 0,
   participants: 0,
   maxParticipants: 5,
   difficulty: '中等',
@@ -265,6 +273,11 @@ const task = ref<any>({
   requirements: [],
   submissionInstructions: '请按照任务要求完成并提交相关凭证。',
   updates: []
+})
+
+// 权限检查：判断当前用户是否是任务创建者
+const canReview = computed(() => {
+  return userStore.user?.id === task.value.creatorId
 })
 
 // 状态类型
@@ -306,7 +319,8 @@ const getStatusBadgeClass = (status: string): string => {
 }
 
 // 格式化日期
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: string | undefined) => {
+  if (!dateString) return '未设置'
   return new Date(dateString).toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'short',
@@ -314,6 +328,26 @@ const formatDate = (dateString: string) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// 获取GPS精度标签
+const getGpsAccuracyLabel = (accuracy: string) => {
+  const accuracyMap: Record<string, string> = {
+    'high': '高精度 (±5米)',
+    'medium': '中精度 (±50米)',
+    'low': '低精度 (±500米)'
+  }
+  return accuracyMap[accuracy] || accuracy
+}
+
+// 检查是否有任何证明配置
+const hasAnyProofConfig = (proofConfig: any) => {
+  if (!proofConfig) return false
+  return (
+    (proofConfig.photo?.enabled) ||
+    (proofConfig.gps?.enabled) ||
+    (proofConfig.description?.enabled)
+  )
 }
 
 // 生成进度时间线
@@ -409,8 +443,10 @@ const loadTask = async () => {
       description: taskData.description,
       reward: taskData.reward,
       status: taskData.status,
-      deadline: taskData.createdAt, // 使用创建时间作为截止时间（实际应从任务数据获取）
+      deadline: taskData.deadline || taskData.createdAt, // 使用截止日期，如果没有则使用创建时间作为后备
+      startDate: taskData.startDate, // 保存开始日期
       creator: taskData.creatorName || '发布者',
+      creatorId: taskData.creatorId,
       participants: taskData.claimerId ? 1 : 0,
       maxParticipants: 5,
       difficulty: '中等',
@@ -421,7 +457,8 @@ const loadTask = async () => {
         role: '参与者'
       }] : [],
       requirements: taskData.description.split('\n').filter(r => r.trim()),
-      submissionInstructions: '请按照任务要求完成并提交相关凭证。',
+      submissionInstructions: taskData.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
+      proofConfig: taskData.proofConfig || null, // 获取证明配置
       updates: [],
       // 保存原始API数据字段用于时间线
       createdAt: taskData.createdAt,
@@ -430,6 +467,9 @@ const loadTask = async () => {
       submittedAt: taskData.submittedAt,
       completedAt: taskData.completedAt
     }
+    
+    // 获取任务奖励的积分符号
+    taskRewardSymbol.value = await getTaskRewardSymbol(taskData)
     
     // 生成进度时间线
     updateTimeline()
@@ -526,6 +566,9 @@ const stopProgressPolling = () => {
 
 // 组件挂载时加载任务并开始轮询
 onMounted(async () => {
+  // 确保用户信息已加载
+  await userStore.getUser()
+  
   await loadTask()
   
   // 检查是否从提交页面返回

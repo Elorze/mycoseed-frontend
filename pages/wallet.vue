@@ -118,42 +118,25 @@
     <PixelCard hover>
       <template #header>社区积分 (POINTS)</template>
       <div class="space-y-4">
-        <!-- MYCO COIN -->
-        <div class="flex items-center justify-between">
+        <!-- Community Points -->
+        <div v-if="userCommunity" class="flex items-center justify-between">
           <div class="flex items-center gap-4">
-            <div class="w-12 h-12 bg-mario-coin border-2 border-black flex items-center justify-center text-2xl shadow-pixel">
-              🪙
+            <div class="w-12 h-12 bg-green-200 border-2 border-black flex items-center justify-center text-2xl shadow-pixel">
+              {{ userCommunity.pointName === '零废弃积分' ? '♻️' : '🌾' }}
             </div>
             <div>
-              <div class="font-pixel text-xs text-mario-coin">MYCO COIN</div>
-              <div class="font-vt323 text-4xl">8,430 CP</div>
+              <div class="font-pixel text-xs text-green-600">{{ userCommunity.pointName }}</div>
+              <div class="font-vt323 text-4xl">{{ formatPoints(userCommunityPoints) }} {{ getPointAbbr(userCommunity.pointName) }}</div>
             </div>
           </div>
           <div class="text-right">
             <div class="font-pixel text-[10px] text-green-600 bg-green-100 px-2 py-1 border border-green-600">
-              +120 本周新增
+              +50 本周新增
             </div>
           </div>
         </div>
-        
-        <!-- Zero Waste Points -->
-        <div class="border-t-2 border-dashed border-black/20 pt-4">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-4">
-              <div class="w-12 h-12 bg-green-200 border-2 border-black flex items-center justify-center text-2xl shadow-pixel">
-                ♻️
-              </div>
-              <div>
-                <div class="font-pixel text-xs text-green-600">零废弃积分</div>
-                <div class="font-vt323 text-4xl">2,150 ZWP</div>
-              </div>
-            </div>
-            <div class="text-right">
-              <div class="font-pixel text-[10px] text-green-600 bg-green-100 px-2 py-1 border border-green-600">
-                +50 本周新增
-              </div>
-            </div>
-          </div>
+        <div v-else class="text-center py-8 text-gray-400 font-vt323">
+          未加入任何社区
         </div>
       </div>
     </PixelCard>
@@ -381,17 +364,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import { useToast } from '~/composables/useToast'
+import { useUserStore } from '~/stores/user'
+import { getMemberById, getCommunities, getTransactions, getUserCommunityPoints, type Community, type Transaction } from '~/utils/api'
 
 definePageMeta({
   layout: 'default'
 })
 
 const toast = useToast()
+const userStore = useUserStore()
 
 const showSendModal = ref(false)
 const showReceiveModal = ref(false)
@@ -509,8 +495,8 @@ const sendForm = ref({
 
 const scannedAddress = ref('')
 
-// 数据将从后端 API 获取
-const transactions = ref([])
+// 交易记录
+const transactions = ref<Transaction[]>([])
 
 const savedContacts = ref([
   { id: 1, name: 'Mario', address: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', icon: '🍄' },
@@ -566,13 +552,23 @@ const handleSend = () => {
   const now = new Date()
   const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   
+  // 获取当前用户的社区积分符号
+  let currency = '积分'
+  if (userCommunity.value && userCommunity.value.pointName) {
+    if (userCommunity.value.pointName === '零废弃积分') {
+      currency = 'ZWP'
+    } else if (userCommunity.value.pointName === '南塘豆') {
+      currency = 'NTD'
+    }
+  }
+  
   const newTransaction = {
     id: transactions.value.length + 1,
     type: 'out' as const,
     title: sendForm.value.note || '转账',
     date: dateStr,
     amount: parseFloat(sendForm.value.amount),
-    currency: 'ETH' // 可以根据实际情况选择货币类型
+    currency: currency
   }
 
   // 添加到交易记录列表的最前面
@@ -584,6 +580,97 @@ const handleSend = () => {
   // 这里可以添加实际的发送逻辑，调用API等
   console.log('发送资产:', sendForm.value)
 }
+
+// 用户社区相关数据
+const userCommunity = ref<Community | null>(null)
+const userCommunityPoints = ref(0)
+
+// 加载交易记录
+const loadTransactions = async () => {
+  try {
+    const user = await userStore.getUser()
+    
+    if (!user || !user.id) {
+      console.log('用户未登录或用户ID不存在')
+      return
+    }
+    
+    const userTransactions = await getTransactions(user.id)
+    transactions.value = userTransactions
+  } catch (error) {
+    console.error('Failed to load transactions:', error)
+  }
+}
+
+// 获取用户所属社区
+const loadUserCommunity = async () => {
+  try {
+    // 确保用户信息已加载
+    const user = await userStore.getUser()
+    
+    if (!user || !user.id) {
+      console.log('用户未登录或用户ID不存在')
+      return
+    }
+
+    console.log('加载用户社区信息，用户ID:', user.id)
+    
+    // 获取成员信息
+    const member = await getMemberById(user.id)
+    
+    if (!member) {
+      console.log('未找到成员信息，用户ID:', user.id)
+      return
+    }
+
+    console.log('找到成员信息:', member.name, '所属社区:', member.communities)
+    
+    if (member.communities.length === 0) {
+      console.log('成员未加入任何社区')
+      return
+    }
+
+    // 获取所有社区信息
+    const allCommunities = await getCommunities()
+    console.log('所有社区:', allCommunities.map(c => ({ id: c.id, name: c.name, pointName: c.pointName })))
+    
+    // 找到用户所属的第一个社区（如果有多个，取第一个）
+    const community = allCommunities.find(c => member.communities.includes(c.id))
+    
+    if (community) {
+      console.log('找到用户社区:', community.name, '积分名称:', community.pointName)
+      userCommunity.value = community
+      
+      // 从 API 获取真实的社区积分
+      const points = await getUserCommunityPoints(user.id, community.id)
+      userCommunityPoints.value = points
+      console.log('用户社区积分:', points)
+    } else {
+      console.log('未找到匹配的社区信息')
+    }
+  } catch (error) {
+    console.error('Failed to load user community:', error)
+  }
+}
+
+// 格式化积分显示
+const formatPoints = (points: number): string => {
+  return points.toLocaleString('zh-CN')
+}
+
+// 获取积分缩写
+const getPointAbbr = (pointName: string | undefined): string => {
+  if (!pointName) return 'PTS'
+  if (pointName === '零废弃积分') return 'ZWP'
+  if (pointName === '南塘豆') return 'NTD'
+  return 'PTS'
+}
+
+// 页面加载时获取用户社区信息和交易记录
+onMounted(async () => {
+  await loadUserCommunity()
+  await loadTransactions()
+})
 </script>
 
 <style scoped>

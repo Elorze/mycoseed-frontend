@@ -61,10 +61,10 @@
                     class="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-sm font-medium"
                   >
                     <span class="line-through opacity-60">{{ task.reward }}</span>
-                    → {{ getFinalReward(task) }} ETH
+                    → {{ getFinalReward(task) }} {{ taskRewardSymbols[task.id] || '积分' }}
                   </span>
                   <span v-else class="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                    {{ task.reward }} ETH
+                    {{ task.reward }} {{ taskRewardSymbols[task.id] || '积分' }}
                   </span>
                 </div>
                 <p class="text-gray-600 text-sm">{{ task.description }}</p>
@@ -123,7 +123,7 @@
             <div class="flex items-center gap-3 mb-2">
               <h3 class="text-xl font-bold text-gray-900">{{ task.title }}</h3>
               <span class="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                奖金：{{ task.reward }} ETH
+                奖金：{{ task.reward }} {{ taskRewardSymbols[task.id] || '积分' }}
               </span>
             </div>
             <p class="text-gray-600 mb-4">{{ task.description }}</p>
@@ -138,7 +138,7 @@
                 @click="handleApprove(task.id)"
                 class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
               >
-                同意（发放 {{ task.reward }} ETH）
+                同意（发放 {{ task.reward }} {{ taskRewardSymbols[task.id] || '积分' }}）
               </button>
               <button
                 @click="openRejectModal(task)"
@@ -207,7 +207,7 @@
       >
         <h2 class="text-2xl font-bold text-gray-900 mb-4">打折审核</h2>
         <p class="text-gray-600 mb-2">任务：{{ selectedTask?.title }}</p>
-        <p class="text-gray-600 mb-4">原始奖金：{{ selectedTask?.reward }} ETH</p>
+        <p class="text-gray-600 mb-4">原始奖金：{{ selectedTask?.reward }} {{ selectedTask ? (taskRewardSymbols[selectedTask.id] || '积分') : '积分' }}</p>
         
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-700 mb-2">打折百分数（%）</label>
@@ -222,8 +222,8 @@
           <div v-if="discountPercent && discountPercent > 0 && discountPercent <= 100 && selectedTask" class="mt-2 p-3 bg-orange-50 rounded-lg">
             <div class="text-sm text-orange-700">
               最终奖金：
-              <span class="font-bold">{{ (selectedTask.reward * (discountPercent / 100)).toFixed(4) }} ETH</span>
-              <span class="text-xs ml-2">({{ discountPercent }}% 的 {{ selectedTask.reward }} ETH)</span>
+              <span class="font-bold">{{ (selectedTask.reward * (discountPercent / 100)).toFixed(4) }} {{ taskRewardSymbols[selectedTask.id] || '积分' }}</span>
+              <span class="text-xs ml-2">({{ discountPercent }}% 的 {{ selectedTask.reward }} {{ taskRewardSymbols[selectedTask.id] || '积分' }})</span>
             </div>
           </div>
         </div>
@@ -257,12 +257,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { getActivities, getAllTasks, getReviewTasks, approveTask, rejectTask, discountTask, getFinalReward, type Activity, type Task } from '~/utils/api'
+import { getTaskRewardSymbol } from '~/utils/display'
 
 // 响应式数据
 const activeTab = ref<'management' | 'review'>('management')
 const activities = ref<Activity[]>([])
 const tasks = ref<Task[]>([])
 const reviewTasks = ref<Task[]>([])
+const taskRewardSymbols = ref<Record<number, string>>({}) // 存储每个任务对应的积分符号
 
 // 弹窗相关
 const showRejectModal = ref(false)
@@ -334,11 +336,36 @@ const handleDiscount = async () => {
 // 加载任务数据
 const loadTasks = async () => {
   tasks.value = await getAllTasks()
+  
+  // 为每个任务获取对应的积分符号
+  const allCommunities = await getActivities() // 这里应该获取社区列表，但为了性能，我们可以批量处理
+  try {
+    const { getCommunities } = await import('~/utils/api')
+    const communities = await getCommunities()
+    for (const task of tasks.value) {
+      const symbol = await getTaskRewardSymbol(task, communities)
+      taskRewardSymbols.value[task.id] = symbol
+    }
+  } catch (error) {
+    console.error('Failed to load task reward symbols:', error)
+  }
 }
 
 // 加载审核任务
 const loadReviewTasks = async () => {
   reviewTasks.value = await getReviewTasks()
+  
+  // 为每个审核任务获取对应的积分符号
+  try {
+    const { getCommunities } = await import('~/utils/api')
+    const communities = await getCommunities()
+    for (const task of reviewTasks.value) {
+      const symbol = await getTaskRewardSymbol(task, communities)
+      taskRewardSymbols.value[task.id] = symbol
+    }
+  } catch (error) {
+    console.error('Failed to load review task reward symbols:', error)
+  }
 }
 
 // 加载数据

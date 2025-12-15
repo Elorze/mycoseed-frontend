@@ -38,8 +38,12 @@ export interface Task {
   title: string                  // 任务标题
   description: string            // 任务描述
   reward: number                 // 奖金（ETH）
+  participantLimit?: number | null // 参与人数上限（null 表示不限）
+  rewardDistributionMode?: 'per_person' | 'total' // 奖励分配模式：每人积分或总积分
   isClaimed: boolean             // 是否已被领取
   proof?: string                 // 完成凭证
+  proofConfig?: any              // 证明配置（提交要求）
+  submissionInstructions?: string // 提交说明（备注）
   status: 'unclaimed' | 'in_progress' | 'under_review' | 'completed' | 'rejected'  // 任务状态
   rejectReason?: string          // 驳回理由
   discount?: number              // 打折百分数
@@ -50,6 +54,8 @@ export interface Task {
   claimerName?: string           // 接单者名称
   createdAt: string              // 创建时间
   updatedAt: string              // 更新时间
+  startDate?: string             // 开始日期（创建时设置）
+  deadline?: string              // 截止日期（创建时设置）
   claimedAt?: string             // 领取时间
   submittedAt?: string           // 提交时间
   completedAt?: string           // 完成时间
@@ -130,23 +136,191 @@ const mockActivities: Activity[] = [
   }
 ]
 
-// Mock 任务数据
-const now = new Date().toISOString()
-const mockTasks: Task[] = [
-  // 活动1的任务
-  { id: 1, activityId: 1, title: '完成项目提案', description: '提交一份完整的项目提案文档', reward: 0.5, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  { id: 2, activityId: 1, title: '组建团队', description: '招募3-5名团队成员', reward: 0.3, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  { id: 3, activityId: 1, title: '开发 MVP', description: '完成最小可行产品开发', reward: 1.0, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  // 活动2的任务
-  { id: 4, activityId: 2, title: '学习区块链基础', description: '完成区块链基础知识学习', reward: 0.2, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  { id: 5, activityId: 2, title: '参与技术讨论', description: '在讨论会上提出问题或分享见解', reward: 0.15, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  // 活动3的任务
-  { id: 6, activityId: 3, title: '编写智能合约', description: '使用 Solidity 编写一个简单的智能合约', reward: 0.8, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  { id: 7, activityId: 3, title: '部署合约', description: '将合约部署到测试网', reward: 0.4, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-]
+// 任务数据（从 localStorage 加载，不包含 mock 数据）
+let tasks: Task[] = []
 
 // 用户已领取的任务ID列表
 let claimedTaskIds: number[] = []
+
+// 从 localStorage 加载任务
+const loadTasks = (): Task[] => {
+  if (typeof window === 'undefined') {
+    return []
+  }
+  
+  try {
+    const savedTasks = localStorage.getItem('tasks')
+    if (savedTasks) {
+      return JSON.parse(savedTasks) as Task[]
+    }
+  } catch (e) {
+    console.warn('Failed to load tasks from localStorage:', e)
+  }
+  
+  return []
+}
+
+// 初始化任务列表（从 localStorage 加载）
+tasks = loadTasks()
+
+// 将任务列表持久化到 localStorage，保持状态同步
+const persistTasks = () => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('tasks', JSON.stringify(tasks))
+    } catch (e) {
+      console.warn('Failed to save tasks to localStorage:', e)
+    }
+  }
+}
+
+// ==================== 交易记录和积分存储 ====================
+
+// 交易记录存储（按用户ID存储）
+const getTransactionsKey = (userId: number) => `transactions_${userId}`
+
+/**
+ * 获取用户的交易记录
+ * @param userId 用户ID
+ */
+export const getTransactions = async (userId: number): Promise<Transaction[]> => {
+  await new Promise(resolve => setTimeout(resolve, 200))
+  
+  if (typeof window === 'undefined') {
+    return []
+  }
+  
+  try {
+    const key = getTransactionsKey(userId)
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      const transactions = JSON.parse(saved) as Transaction[]
+      // 按时间倒序排列（最新的在前）
+      return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    }
+  } catch (e) {
+    console.warn('Failed to load transactions from localStorage:', e)
+  }
+  
+  return []
+}
+
+/**
+ * 添加交易记录
+ * @param userId 用户ID
+ * @param transaction 交易记录
+ */
+export const addTransaction = async (userId: number, transaction: Transaction): Promise<void> => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  
+  try {
+    const key = getTransactionsKey(userId)
+    const existing = await getTransactions(userId)
+    
+    // 生成新ID（使用当前最大ID + 1）
+    const newId = existing.length > 0 
+      ? Math.max(...existing.map(t => t.id)) + 1 
+      : 1
+    
+    const newTransaction: Transaction = {
+      ...transaction,
+      id: newId
+    }
+    
+    existing.unshift(newTransaction) // 添加到最前面
+    
+    localStorage.setItem(key, JSON.stringify(existing))
+  } catch (e) {
+    console.warn('Failed to save transaction to localStorage:', e)
+  }
+}
+
+// 用户积分存储（按用户ID存储）
+const getUserPointsKey = (userId: number) => `user_points_${userId}`
+
+/**
+ * 获取用户的社区积分
+ * @param userId 用户ID
+ * @param communityId 社区ID
+ */
+export const getUserCommunityPoints = async (userId: number, communityId: number): Promise<number> => {
+  await new Promise(resolve => setTimeout(resolve, 200))
+  
+  if (typeof window === 'undefined') {
+    return 0
+  }
+  
+  try {
+    const key = getUserPointsKey(userId)
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      const points = JSON.parse(saved) as Record<number, number>
+      return points[communityId] || 0
+    }
+  } catch (e) {
+    console.warn('Failed to load user points from localStorage:', e)
+  }
+  
+  return 0
+}
+
+/**
+ * 更新用户的社区积分
+ * @param userId 用户ID
+ * @param communityId 社区ID
+ * @param points 积分数量（正数表示增加，负数表示减少）
+ */
+export const updateUserCommunityPoints = async (userId: number, communityId: number, points: number): Promise<number> => {
+  if (typeof window === 'undefined') {
+    return 0
+  }
+  
+  try {
+    const key = getUserPointsKey(userId)
+    let userPoints: Record<number, number> = {}
+    
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      userPoints = JSON.parse(saved)
+    }
+    
+    const currentPoints = userPoints[communityId] || 0
+    const newPoints = Math.max(0, currentPoints + points) // 确保积分不为负数
+    userPoints[communityId] = newPoints
+    
+    localStorage.setItem(key, JSON.stringify(userPoints))
+    return newPoints
+  } catch (e) {
+    console.warn('Failed to update user points in localStorage:', e)
+    return 0
+  }
+}
+
+/**
+ * 获取用户的所有积分（所有社区）
+ * @param userId 用户ID
+ */
+export const getUserPoints = async (userId: number): Promise<Record<number, number>> => {
+  await new Promise(resolve => setTimeout(resolve, 200))
+  
+  if (typeof window === 'undefined') {
+    return {}
+  }
+  
+  try {
+    const key = getUserPointsKey(userId)
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      return JSON.parse(saved) as Record<number, number>
+    }
+  } catch (e) {
+    console.warn('Failed to load user points from localStorage:', e)
+  }
+  
+  return {}
+}
 
 // ==================== 辅助函数 ====================
 
@@ -224,7 +398,10 @@ export const joinActivity = async (id: number): Promise<{ success: boolean; mess
 export const getTasks = async (activityId: number): Promise<Task[]> => {
   await new Promise(resolve => setTimeout(resolve, 200))
   
-  return mockTasks
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
+  return tasks
     .filter(task => task.activityId === activityId)
     .map(task => ({
       ...task,
@@ -239,7 +416,10 @@ export const getTasks = async (activityId: number): Promise<Task[]> => {
 export const getTaskById = async (id: number): Promise<Task | null> => {
   await new Promise(resolve => setTimeout(resolve, 200))
   
-  const task = mockTasks.find(t => t.id === id)
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
+  const task = tasks.find(t => t.id === id)
   if (!task) {
     return null
   }
@@ -256,25 +436,10 @@ export const getTaskById = async (id: number): Promise<Task | null> => {
 export const getAllTasks = async (): Promise<Task[]> => {
   await new Promise(resolve => setTimeout(resolve, 200))
   
-  // 尝试从 localStorage 恢复任务
-  if (typeof window !== 'undefined') {
-    try {
-      const savedTasks = localStorage.getItem('tasks')
-      if (savedTasks) {
-        const parsed = JSON.parse(savedTasks)
-        // 合并保存的任务到 mockTasks（避免重复）
-        parsed.forEach((savedTask: Task) => {
-          if (!mockTasks.find(t => t.id === savedTask.id)) {
-            mockTasks.push(savedTask)
-          }
-        })
-      }
-    } catch (e) {
-      console.warn('Failed to load tasks from localStorage:', e)
-    }
-  }
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
   
-  return mockTasks.map(task => ({
+  return tasks.map(task => ({
     ...task,
     isClaimed: claimedTaskIds.includes(task.id)
   }))
@@ -289,15 +454,21 @@ export interface CreateTaskParams {
   reward: number
   startDate: string
   deadline: string
+  participantLimit?: number | null
+  rewardDistributionMode?: 'per_person' | 'total'
+  submissionInstructions?: string
   proofConfig?: any
 }
 
 export const createTask = async (params: CreateTaskParams): Promise<Task> => {
   await new Promise(resolve => setTimeout(resolve, 500))
   
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
   // 生成新任务ID（使用当前最大ID + 1）
-  const newId = mockTasks.length > 0 
-    ? Math.max(...mockTasks.map(t => t.id)) + 1 
+  const newId = tasks.length > 0 
+    ? Math.max(...tasks.map(t => t.id)) + 1 
     : 1
   
   const now = new Date().toISOString()
@@ -307,24 +478,23 @@ export const createTask = async (params: CreateTaskParams): Promise<Task> => {
     title: params.title,
     description: params.description,
     reward: params.reward,
+    participantLimit: params.participantLimit ?? null,
+    rewardDistributionMode: params.rewardDistributionMode || 'per_person', // 保存奖励分配模式，默认为每人积分
     isClaimed: false,
     status: 'unclaimed',
     creatorId: 1, // Mock: 当前用户ID，实际应从认证系统获取
     creatorName: '当前用户', // Mock: 当前用户名称
+    proofConfig: params.proofConfig, // 保存证明配置
+    submissionInstructions: params.submissionInstructions,
+    startDate: params.startDate, // 保存开始日期
+    deadline: params.deadline, // 保存截止日期
     createdAt: now,
     updatedAt: now
   }
   
-  mockTasks.push(newTask)
-  
+  tasks.push(newTask)
   // 保存到 localStorage 以便跨页面同步
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('tasks', JSON.stringify(mockTasks))
-    } catch (e) {
-      console.warn('Failed to save tasks to localStorage:', e)
-    }
-  }
+  persistTasks()
   
   return newTask
 }
@@ -336,7 +506,10 @@ export const createTask = async (params: CreateTaskParams): Promise<Task> => {
 export const claimTask = async (taskId: number): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 300))
   
-  const task = mockTasks.find(t => t.id === taskId)
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
+  const task = tasks.find(t => t.id === taskId)
   if (!task) {
     return { success: false, message: '任务不存在' }
   }
@@ -359,16 +532,26 @@ export const claimTask = async (taskId: number): Promise<{ success: boolean; mes
   task.updatedAt = now
   
   claimedTaskIds.push(taskId)
+  // 持久化任务状态变化
+  persistTasks()
   return { success: true, message: '任务领取成功！' }
 }
 
 /**
  * 获取我的任务列表
+ * 返回所有曾经领取过的任务（包括所有状态：进行中、审核中、已完成、已驳回）
  */
 export const getMyTasks = async (): Promise<Task[]> => {
   await new Promise(resolve => setTimeout(resolve, 200))
   
-  return mockTasks.filter(task => claimedTaskIds.includes(task.id))
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
+  // Mock: 当前用户ID为1，实际应从认证系统获取
+  const currentUserId = 1
+  
+  // 根据 claimerId 查找所有曾经领取过的任务（包括所有状态）
+  return tasks.filter(task => task.claimerId === currentUserId)
 }
 
 /**
@@ -379,7 +562,10 @@ export const getMyTasks = async (): Promise<Task[]> => {
 export const submitProof = async (taskId: number, proof: string): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 300))
   
-  const task = mockTasks.find(t => t.id === taskId)
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
+  const task = tasks.find(t => t.id === taskId)
   if (!task) {
     return { success: false, message: '任务不存在' }
   }
@@ -397,6 +583,8 @@ export const submitProof = async (taskId: number, proof: string): Promise<{ succ
   task.status = 'under_review'
   task.submittedAt = now
   task.updatedAt = now
+  // 持久化任务状态变化
+  persistTasks()
   return { success: true, message: '凭证提交成功！' }
 }
 
@@ -406,7 +594,10 @@ export const submitProof = async (taskId: number, proof: string): Promise<{ succ
 export const getReviewTasks = async (): Promise<Task[]> => {
   await new Promise(resolve => setTimeout(resolve, 200))
   
-  return mockTasks.filter(task => task.status === 'under_review')
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
+  return tasks.filter(task => task.status === 'under_review')
 }
 
 /**
@@ -416,7 +607,10 @@ export const getReviewTasks = async (): Promise<Task[]> => {
 export const approveTask = async (taskId: number): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 300))
   
-  const task = mockTasks.find(t => t.id === taskId)
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
+  const task = tasks.find(t => t.id === taskId)
   if (!task) {
     return { success: false, message: '任务不存在' }
   }
@@ -429,6 +623,64 @@ export const approveTask = async (taskId: number): Promise<{ success: boolean; m
   task.status = 'completed'
   task.completedAt = now
   task.updatedAt = now
+  
+  // 如果任务有完成者，添加积分和交易记录
+  if (task.claimerId) {
+    try {
+      // 计算实际奖励（考虑折扣）
+      let points = task.reward // 任务奖励直接就是社区积分
+      if (task.discount && task.discount > 0 && task.discount <= 100) {
+        // 如果有打折，按比例计算：points = reward * (1 - discount / 100)
+        points = task.reward * (1 - task.discount / 100)
+      }
+      
+      // 获取完成者信息
+      const member = await getMemberById(task.claimerId)
+      if (member && member.communities.length > 0) {
+        const communityId = member.communities[0] // 使用第一个社区
+        const community = await getCommunityById(communityId)
+        
+        if (community) {
+          // 更新用户积分
+          await updateUserCommunityPoints(task.claimerId, communityId, points)
+          
+          // 创建交易记录
+          const dateStr = new Date().toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          }).replace(/\//g, '-')
+          
+          // 获取积分缩写
+          let currency = 'CP'
+          if (community.pointName === '零废弃积分') {
+            currency = 'ZWP'
+          } else if (community.pointName === '南塘豆') {
+            currency = 'NTD'
+          }
+          
+          await addTransaction(task.claimerId, {
+            id: 0, // 会在 addTransaction 中自动生成
+            type: 'in',
+            title: task.title,
+            date: dateStr,
+            amount: Math.round(points * 100) / 100, // 保留两位小数
+            currency: currency,
+            taskId: task.id,
+            taskTitle: task.title
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to add points and transaction:', error)
+      // 即使积分添加失败，任务审核仍然成功
+    }
+  }
+  
+  // 持久化任务状态变化
+  persistTasks()
   return { success: true, message: '任务审核通过！' }
 }
 
@@ -440,7 +692,10 @@ export const approveTask = async (taskId: number): Promise<{ success: boolean; m
 export const rejectTask = async (taskId: number, reason: string): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 300))
   
-  const task = mockTasks.find(t => t.id === taskId)
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
+  const task = tasks.find(t => t.id === taskId)
   if (!task) {
     return { success: false, message: '任务不存在' }
   }
@@ -464,6 +719,8 @@ export const rejectTask = async (taskId: number, reason: string): Promise<{ succ
   task.claimerName = undefined
   task.claimedAt = undefined
   task.submittedAt = undefined
+  // 持久化任务状态变化
+  persistTasks()
   return { success: true, message: '任务已驳回！' }
 }
 
@@ -476,7 +733,10 @@ export const rejectTask = async (taskId: number, reason: string): Promise<{ succ
 export const discountTask = async (taskId: number, discount: number, reason: string): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 300))
   
-  const task = mockTasks.find(t => t.id === taskId)
+  // 重新加载任务（确保获取最新数据）
+  tasks = loadTasks()
+  
+  const task = tasks.find(t => t.id === taskId)
   if (!task) {
     return { success: false, message: '任务不存在' }
   }
@@ -484,10 +744,68 @@ export const discountTask = async (taskId: number, discount: number, reason: str
   task.status = 'completed'
   task.discount = discount
   task.discountReason = reason
+  task.completedAt = new Date().toISOString()
+  task.updatedAt = new Date().toISOString()
+  
+  // 如果任务有完成者，添加积分和交易记录
+  if (task.claimerId) {
+    try {
+      // 计算实际奖励（考虑折扣）
+      // 如果有打折，按比例计算：points = reward * (1 - discount / 100)
+      const points = task.reward * (1 - discount / 100)
+      
+      // 获取完成者信息
+      const member = await getMemberById(task.claimerId)
+      if (member && member.communities.length > 0) {
+        const communityId = member.communities[0] // 使用第一个社区
+        const community = await getCommunityById(communityId)
+        
+        if (community) {
+          // 更新用户积分
+          await updateUserCommunityPoints(task.claimerId, communityId, points)
+          
+          // 创建交易记录
+          const dateStr = new Date().toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          }).replace(/\//g, '-')
+          
+          // 获取积分缩写
+          let currency = 'CP'
+          if (community.pointName === '零废弃积分') {
+            currency = 'ZWP'
+          } else if (community.pointName === '南塘豆') {
+            currency = 'NTD'
+          }
+          
+          await addTransaction(task.claimerId, {
+            id: 0, // 会在 addTransaction 中自动生成
+            type: 'in',
+            title: task.title,
+            date: dateStr,
+            amount: Math.round(points * 100) / 100, // 保留两位小数
+            currency: currency,
+            taskId: task.id,
+            taskTitle: task.title
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to add points and transaction:', error)
+      // 即使积分添加失败，任务审核仍然成功
+    }
+  }
+  
+  // 持久化任务状态变化
+  persistTasks()
   return { success: true, message: '任务已打折通过！' }
 }
 
 // ==================== 用户相关 API ====================
+
 // 钱包地址映射表（硬编码，基于手机号）
 const phoneToWalletMap: Record<string, string> = {
   '13800138000': '0x4fc3a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8',
@@ -714,6 +1032,8 @@ export interface Community {
   totalPoints: number            // 总积分
   markdownIntro?: string         // Markdown 格式的介绍
   category?: string              // 社群类别
+  location?: string              // 社群位置 (例如: 上海, 北京)
+  pointName?: string             // 社区积分名称
   createdAt: string              // 创建时间
 }
 
@@ -746,6 +1066,7 @@ export interface NetworkNode {
   participationScore?: number   // 参与度
   activityScore?: number         // 活跃度
   communityId?: number           // 如果是成员，所属社群ID
+  location?: string              // 节点位置（针对社群）
 }
 
 /**
@@ -757,41 +1078,76 @@ export interface NetworkLink {
   weight: number                 // 连接权重（基于参与度和活跃度）
 }
 
-// Mock 社群数据（仅保留一个「高新华社区小菜园」）
+// Mock 社群数据（两个社区）
 const mockCommunities: Community[] = [
   {
     id: 1,
-    name: '高新华社区小菜园',
-    description: '社区共享菜园，一起种植、收获、分享绿色生活。',
+    name: '有种行动队',
+    description: '社区种菜志愿者组织，一起种植、收获、分享绿色生活。',
     memberCount: 68,
     activityCount: 18,
     totalPoints: 18900,
     category: '园艺',
+    location: '上海',
+    pointName: '零废弃积分',
     createdAt: '2024-02-01T00:00:00Z',
-    markdownIntro: `# 高新华社区小菜园
+    markdownIntro: `# 有种行动队
 
-欢迎加入我们的社区菜园！一起体验种植的乐趣。
+欢迎加入我们的社区种菜志愿者组织！一起体验种植的乐趣，践行零废弃生活。
 
 ## 我们的目标
 - 推广绿色生活理念
 - 学习有机种植技术
 - 分享收获的喜悦
+- 践行零废弃生活方式
 
 ## 活动安排
 - 每周六上午：集体种植
 - 每月一次：收获分享会
 - 不定期：种植技术讲座
+- 零废弃积分奖励机制
+    `
+  },
+  {
+    id: 2,
+    name: '南塘',
+    description: '素舍提供乡村村民宿餐饮，体验乡村生活，感受自然之美。',
+    memberCount: 45,
+    activityCount: 12,
+    totalPoints: 12500,
+    category: '乡村生活',
+    location: '安徽',
+    pointName: '南塘豆',
+    createdAt: '2024-03-15T00:00:00Z',
+    markdownIntro: `# 南塘
+
+欢迎来到南塘，素舍提供乡村村民宿餐饮服务。
+
+## 我们的特色
+- 乡村民宿体验
+- 地道乡村餐饮
+- 自然生态体验
+- 南塘豆积分奖励
+
+## 服务内容
+- 民宿住宿服务
+- 乡村特色餐饮
+- 农事体验活动
+- 乡村文化体验
     `
   }
 ]
 
-// Mock 成员数据（仅保留与高新华社区小菜园相关的成员）
+// Mock 成员数据（关联到两个社区）
 const mockMembers: Member[] = [
   { id: 1, name: '赵园丁', title: '资深园丁', reputation: 920, totalContributions: 30, completedTasks: 22, totalReward: 4.0, skills: ['有机种植', '土壤管理', '病虫害防治'], communities: [1], participationScore: 98, activityScore: 95, avatarSeed: 'gardener1' },
   { id: 2, name: '钱农夫', title: '种植专家', reputation: 780, totalContributions: 22, completedTasks: 18, totalReward: 3.0, skills: ['蔬菜种植', '堆肥制作'], communities: [1], participationScore: 88, activityScore: 85, avatarSeed: 'farmer1' },
   { id: 3, name: '孙绿手指', title: '园艺爱好者', reputation: 650, totalContributions: 16, completedTasks: 13, totalReward: 2.2, skills: ['花卉种植', '园艺设计'], communities: [1], participationScore: 75, activityScore: 72, avatarSeed: 'green1' },
   { id: 4, name: '周菜农', title: '菜园管理员', reputation: 580, totalContributions: 12, completedTasks: 10, totalReward: 1.8, skills: ['菜园管理', '收获分享'], communities: [1], participationScore: 68, activityScore: 65, avatarSeed: 'veggie1' },
-  { id: 5, name: '吴新手', title: '种植新手', reputation: 420, totalContributions: 8, completedTasks: 6, totalReward: 1.0, skills: ['基础种植'], communities: [1], participationScore: 58, activityScore: 55, avatarSeed: 'newbie1' }
+  { id: 5, name: '吴新手', title: '种植新手', reputation: 420, totalContributions: 8, completedTasks: 6, totalReward: 1.0, skills: ['基础种植'], communities: [1], participationScore: 58, activityScore: 55, avatarSeed: 'newbie1' },
+  { id: 6, name: '李素舍', title: '民宿主人', reputation: 850, totalContributions: 25, completedTasks: 20, totalReward: 3.5, skills: ['民宿管理', '乡村餐饮', '文化体验'], communities: [2], participationScore: 92, activityScore: 88, avatarSeed: 'host1' },
+  { id: 7, name: '王乡村', title: '乡村体验师', reputation: 720, totalContributions: 18, completedTasks: 15, totalReward: 2.8, skills: ['农事体验', '乡村导览'], communities: [2], participationScore: 82, activityScore: 78, avatarSeed: 'rural1' },
+  { id: 8, name: '张田园', title: '田园生活家', reputation: 600, totalContributions: 14, completedTasks: 11, totalReward: 2.0, skills: ['田园生活', '自然体验'], communities: [2], participationScore: 70, activityScore: 68, avatarSeed: 'field1' }
 ]
 
 /**
@@ -866,7 +1222,8 @@ export const getNetworkData = async (): Promise<{ nodes: NetworkNode[], links: N
       type: 'COMMUNITY',
       value: value,
       participationScore: avgParticipation,
-      activityScore: avgActivity
+      activityScore: avgActivity,
+      location: comm.location
     })
   })
   
@@ -924,4 +1281,50 @@ export const getNetworkData = async (): Promise<{ nodes: NetworkNode[], links: N
   })
   
   return { nodes, links }
+}
+
+/**
+ * 活动日志数据结构
+ */
+export interface ActivityLog {
+  id: number
+  type: 'join' | 'complete_task' | 'create_proposal' | 'new_community'
+  userId?: number
+  userName?: string
+  targetId: number // communityId or taskId
+  targetName: string
+  timestamp: string
+}
+
+/**
+ * 交易记录数据结构
+ */
+export interface Transaction {
+  id: number
+  type: 'in' | 'out'
+  title: string
+  date: string
+  amount: number
+  currency: string  // 'CP', 'ETH', 'ZWP', 'NTD' 等
+  taskId?: number   // 关联的任务ID
+  taskTitle?: string // 任务标题
+}
+
+/**
+ * 获取活动日志（Live Feed）
+ */
+export const getActivityFeed = async (): Promise<ActivityLog[]> => {
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  // Mock 一些动态数据
+  const logs: ActivityLog[] = [
+    { id: 1, type: 'join', userId: 5, userName: '吴新手', targetId: 1, targetName: '有种行动队', timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString() },
+    { id: 2, type: 'complete_task', userId: 1, userName: '赵园丁', targetId: 101, targetName: '修剪灌木', timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString() },
+    { id: 3, type: 'join', userId: 8, userName: '张田园', targetId: 2, targetName: '南塘', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
+    { id: 4, type: 'complete_task', userId: 6, userName: '李素舍', targetId: 102, targetName: '民宿接待', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString() },
+    { id: 5, type: 'create_proposal', userId: 2, userName: '钱农夫', targetId: 1, targetName: '增加堆肥箱', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() },
+    { id: 6, type: 'join', userId: 7, userName: '王乡村', targetId: 2, targetName: '南塘', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString() }
+  ]
+  
+  return logs
 }

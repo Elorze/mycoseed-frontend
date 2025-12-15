@@ -32,6 +32,36 @@
               ></textarea>
             </div>
 
+            <!-- 参与人数配置 -->
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">参与人数 *</label>
+              <div class="flex items-center gap-3">
+                <input
+                  v-model.number="taskForm.participantLimit"
+                  type="number"
+                  min="1"
+                  :disabled="unlimitedParticipants"
+                  placeholder="1"
+                  class="w-32 h-12 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all disabled:bg-gray-100 disabled:text-gray-400"
+                />
+                <label class="relative inline-flex items-center cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    v-model="unlimitedParticipants"
+                    class="sr-only peer"
+                  />
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
+                  <span class="ml-2 font-vt323 text-base text-black">不限人数</span>
+                </label>
+              </div>
+              <p v-if="participantError" class="mt-1 font-vt323 text-xs text-mario-red">
+                {{ participantError }}
+              </p>
+              <p v-if="!participantError && (taskForm.participantLimit || unlimitedParticipants)" class="mt-2 font-vt323 text-sm text-black/70">
+                {{ unlimitedParticipants ? '任务不限制参与人数，所有完成任务的参与者都将获得奖励积分' : `最多 ${taskForm.participantLimit} 人可以参与此任务` }}
+              </p>
+            </div>
+
             <!-- 移动端单列，桌面端双列 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -44,6 +74,39 @@
                   placeholder="100"
                   class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                 />
+                
+                <!-- 奖励分配方式选择器（仅在设置了参与人数上限时显示） -->
+                <div v-if="!unlimitedParticipants && taskForm.participantLimit" class="mt-3 space-y-2">
+                  <label class="block font-pixel text-[10px] uppercase text-black">奖励分配方式</label>
+                  <div class="flex gap-3">
+                    <label class="flex items-center cursor-pointer">
+                      <input 
+                        type="radio" 
+                        v-model="rewardDistributionMode"
+                        value="per_person"
+                        class="sr-only peer"
+                      />
+                      <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
+                        每人积分
+                      </div>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                      <input 
+                        type="radio" 
+                        v-model="rewardDistributionMode"
+                        value="total"
+                        class="sr-only peer"
+                      />
+                      <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
+                        总积分
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                <p v-if="rewardExplanation" class="mt-2 font-vt323 text-sm text-black/70">
+                  {{ rewardExplanation }}
+                </p>
               </div>
 
               <div>
@@ -51,6 +114,7 @@
                 <input 
                   v-model="taskForm.startDate" 
                   type="datetime-local"
+                  :min="minStart"
                   class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                 />
               </div>
@@ -61,8 +125,23 @@
               <input 
                 v-model="taskForm.deadline" 
                 type="datetime-local"
+                :min="taskForm.startDate || minStart"
                 class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
               />
+              <p v-if="dateError" class="mt-1 font-vt323 text-xs text-mario-red">
+                {{ dateError }}
+              </p>
+            </div>
+
+            <!-- 备注（提交说明） -->
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">备注（提交说明）</label>
+              <textarea
+                v-model="taskForm.submissionInstructions"
+                placeholder="可选：补充任务完成后的提交说明，例如需要强调的注意事项等..."
+                rows="3"
+                class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none只有 focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
+              ></textarea>
             </div>
           </div>
 
@@ -213,13 +292,19 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import { createTask } from '~/utils/api'
+import { useToast } from '~/composables/useToast'
 
 definePageMeta({
   layout: 'default'
 })
+
+const router = useRouter()
+const navigateTo = (path: string) => router.push(path)
 
 // 任务表单数据
 const taskForm = ref({
@@ -227,7 +312,9 @@ const taskForm = ref({
   objective: '',
   reward: '',
   startDate: '',
-  deadline: ''
+  deadline: '',
+  participantLimit: 1,
+  submissionInstructions: ''
 })
 
 // 证明配置
@@ -251,6 +338,17 @@ const proofConfig = ref({
 // 加载状态
 const isPublishing = ref(false)
 
+// 参与人数：不限人数开关与错误信息
+const unlimitedParticipants = ref(false)
+const participantError = ref('')
+
+// 奖励积分分配模式：'per_person' 每人积分，'total' 总积分
+const rewardDistributionMode = ref<'per_person' | 'total'>('per_person')
+
+// 日期校验相关
+const minStart = ref('')
+const dateError = ref('')
+
 // 选项数据
 const photoCountOptions = [
   { label: '1张', value: '1' },
@@ -272,16 +370,105 @@ const canPublish = computed(() => {
          taskForm.value.objective && 
          taskForm.value.reward && 
          taskForm.value.startDate && 
-         taskForm.value.deadline
+         taskForm.value.deadline &&
+         // 参与人数校验
+         (
+           unlimitedParticipants.value ||
+           (!!taskForm.value.participantLimit && taskForm.value.participantLimit >= 1)
+         ) &&
+         // 日期关系校验（没有错误信息）
+         !dateError.value
+})
+
+// 奖励积分说明文本
+const rewardExplanation = computed(() => {
+  const reward = parseFloat(taskForm.value.reward) || 0
+  if (reward <= 0) {
+    return ''
+  }
+  
+  // 不限人数时，默认使用每人积分模式
+  if (unlimitedParticipants.value) {
+    return `每个完成任务的参与者将获得 ${reward} 积分（不限人数）`
+  } else {
+    const limit = taskForm.value.participantLimit || 1
+    
+    // 根据分配模式显示不同的说明
+    if (rewardDistributionMode.value === 'per_person') {
+      // 每人积分模式
+      const totalReward = reward * limit
+      return `每个完成任务的参与者将获得 ${reward} 积分（共 ${limit} 人，总奖励 ${totalReward} 积分）`
+    } else {
+      // 总积分模式
+      const perPersonReward = Math.floor(reward / limit)
+      return `总奖励 ${reward} 积分，将根据实际参与人数平均分配（最多 ${limit} 人，每人最多可获得 ${perPersonReward} 积分）`
+    }
+  }
+})
+
+// 校验参与人数
+const validateParticipants = () => {
+  participantError.value = ''
+  if (unlimitedParticipants.value) {
+    // 不限人数时忽略具体数值
+    taskForm.value.participantLimit = null as unknown as number
+    return true
+  }
+  const value = taskForm.value.participantLimit
+  if (!value || value < 1) {
+    participantError.value = '参与人数至少为 1 人'
+    return false
+  }
+  return true
+}
+
+// 日期校验：开始时间不得早于当前时间，截止时间不得早于开始时间
+const validateDates = () => {
+  dateError.value = ''
+  if (!taskForm.value.startDate || !taskForm.value.deadline) {
+    return true
+  }
+
+  const now = new Date()
+  const start = new Date(taskForm.value.startDate)
+  const deadline = new Date(taskForm.value.deadline)
+
+  if (start < now) {
+    dateError.value = '开始时间不能早于当前时间'
+    return false
+  }
+
+  if (deadline < start) {
+    dateError.value = '截止时间不能早于开始时间'
+    return false
+  }
+
+  return true
+}
+
+// 监听字段变化做实时校验
+watch(() => [taskForm.value.participantLimit, unlimitedParticipants.value], () => {
+  validateParticipants()
+})
+
+watch(() => [taskForm.value.startDate, taskForm.value.deadline], () => {
+  validateDates()
 })
 
 // 发布任务
 const publishTask = async () => {
-  if (!canPublish.value) {
+  // 最终前再做一轮校验，给出明确提示
+  const participantsOK = validateParticipants()
+  const datesOK = validateDates()
+
+  if (!participantsOK || !datesOK || !canPublish.value) {
     const toast = useToast()
+    const description = !participantsOK
+      ? (participantError.value || '请检查参与人数配置')
+      : (dateError.value || '请确保所有必填项和时间字段填写正确')
     toast.add({
-      title: '请填写完整信息',
-      description: '请确保所有必填项都已填写',
+      title: '请检查表单信息',
+      description,
       color: 'red'
     })
     return
@@ -300,6 +487,9 @@ const publishTask = async () => {
       reward: parseFloat(taskForm.value.reward),
       startDate: taskForm.value.startDate,
       deadline: taskForm.value.deadline,
+      participantLimit: unlimitedParticipants.value ? null : taskForm.value.participantLimit,
+      rewardDistributionMode: unlimitedParticipants.value ? 'per_person' : rewardDistributionMode.value, // 不限人数时默认使用每人积分模式
+      submissionInstructions: taskForm.value.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
       proofConfig: proofConfig.value
     })
     
@@ -325,6 +515,14 @@ const publishTask = async () => {
     isPublishing.value = false
   }
 }
+
+// 初始化最小开始时间
+onMounted(() => {
+  const now = new Date()
+  now.setSeconds(0, 0)
+  // datetime-local 需要到分钟的字符串：YYYY-MM-DDTHH:MM
+  minStart.value = now.toISOString().slice(0, 16)
+})
 </script>
 
 <style scoped>
