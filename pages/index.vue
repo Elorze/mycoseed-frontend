@@ -36,13 +36,26 @@
 
 <script setup lang="ts">
 import NetworkCanvas from '~/components/graph/NetworkCanvas.vue'
+import { useUserStore } from '~/stores/user'
 
 // Use definePageMeta to ensure layout is applied
 definePageMeta({
-  layout: 'default'
+  layout: 'default',
+  middleware: 'auth'  // 使用 auth 中间件保护页面
 })
 
 const router = useRouter()
+const userStore = useUserStore()
+
+// 在组件挂载时尝试获取用户信息
+onMounted(async () => {
+  try {
+    await userStore.getUser()
+  } catch (error) {
+    console.error('Failed to get user:', error)
+    // 如果获取用户信息失败，中间件会处理重定向
+  }
+})
 
 const handleNodeClick = (node: any) => {
   if (node.type === 'COMMUNITY') {

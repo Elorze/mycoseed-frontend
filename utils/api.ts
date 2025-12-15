@@ -61,98 +61,8 @@ export interface Task {
   completedAt?: string           // 完成时间
 }
 
-// ==================== Mock 数据 ====================
-
-const mockActivities: Activity[] = [
-  {
-    id: 1,
-    name: 'ETH 上海黑客松 2025',
-    location: '上海市浦东新区世纪大道 8 号',
-    startTime: '2025-10-25T09:00:00+08:00',
-    endTime: '2025-10-27T18:00:00+08:00',
-    description: '为期三天的以太坊黑客松活动，汇聚全球优秀开发者，共同探索 Web3 的未来。',
-    image: '/images/eth_logo.png',
-    organizer: 'ETH 上海社区',
-    participants: 156,
-    maxParticipants: 300,
-    status: 'upcoming',
-    tags: ['区块链', '黑客松', 'Web3', 'DeFi']
-  },
-  {
-    id: 2,
-    name: '区块链技术分享会',
-    location: '北京市朝阳区建国门外大街 1 号',
-    startTime: '2025-10-20T14:00:00+08:00',
-    endTime: '2025-10-20T17:00:00+08:00',
-    description: '深入探讨区块链技术的最新发展，包括 Layer2、零知识证明等前沿技术。',
-    image: '/images/eth_logo.png',
-    organizer: '北京区块链协会',
-    participants: 89,
-    maxParticipants: 150,
-    status: 'ongoing',
-    tags: ['技术分享', 'Layer2', '零知识证明']
-  },
-  {
-    id: 3,
-    name: 'DeFi 开发者 Workshop',
-    location: '深圳市南山区科技园南区',
-    startTime: '2025-11-05T10:00:00+08:00',
-    endTime: '2025-11-05T16:00:00+08:00',
-    description: '手把手教你开发 DeFi 应用，从智能合约到前端开发全流程讲解。',
-    image: '/images/eth_logo.png',
-    organizer: '深圳 Web3 开发者社区',
-    participants: 45,
-    maxParticipants: 80,
-    status: 'upcoming',
-    tags: ['DeFi', 'Workshop', '智能合约', 'Solidity']
-  },
-  {
-    id: 4,
-    name: 'NFT 艺术展览',
-    location: '杭州市西湖区文三路 138 号',
-    startTime: '2025-09-15T10:00:00+08:00',
-    endTime: '2025-09-17T20:00:00+08:00',
-    description: '展示优秀的 NFT 艺术作品，探讨数字艺术与区块链的结合。',
-    image: '/images/eth_logo.png',
-    organizer: '杭州数字艺术馆',
-    participants: 234,
-    maxParticipants: 500,
-    status: 'ended',
-    tags: ['NFT', '艺术', '展览']
-  },
-  {
-    id: 5,
-    name: 'Web3 创业路演',
-    location: '成都市高新区天府大道',
-    startTime: '2025-11-12T13:00:00+08:00',
-    endTime: '2025-11-12T18:00:00+08:00',
-    description: '为 Web3 创业项目提供展示机会，与投资人面对面交流。',
-    image: '/images/eth_logo.png',
-    organizer: '成都创投联盟',
-    participants: 67,
-    maxParticipants: 120,
-    status: 'upcoming',
-    tags: ['创业', 'Web3', '投资', '路演']
-  }
-]
-
-// Mock 任务数据
-const now = new Date().toISOString()
-const mockTasks: Task[] = [
-  // 活动1的任务
-  { id: 1, activityId: 1, title: '完成项目提案', description: '提交一份完整的项目提案文档', reward: 0.5, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  { id: 2, activityId: 1, title: '组建团队', description: '招募3-5名团队成员', reward: 0.3, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  { id: 3, activityId: 1, title: '开发 MVP', description: '完成最小可行产品开发', reward: 1.0, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  // 活动2的任务
-  { id: 4, activityId: 2, title: '学习区块链基础', description: '完成区块链基础知识学习', reward: 0.2, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  { id: 5, activityId: 2, title: '参与技术讨论', description: '在讨论会上提出问题或分享见解', reward: 0.15, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  // 活动3的任务
-  { id: 6, activityId: 3, title: '编写智能合约', description: '使用 Solidity 编写一个简单的智能合约', reward: 0.8, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-  { id: 7, activityId: 3, title: '部署合约', description: '将合约部署到测试网', reward: 0.4, isClaimed: false, status: 'unclaimed', creatorId: 1, creatorName: '社区管理员', createdAt: now, updatedAt: now },
-]
-
-// 用户已领取的任务ID列表
-let claimedTaskIds: number[] = []
+// ==================== Mock 数据已删除 ====================
+// 所有数据现在从后端 API 获取
 
 // ==================== 辅助函数 ====================
 
@@ -173,52 +83,31 @@ export const getFinalReward = (task: Task): number => {
 /**
  * 获取所有活动列表
  * @param status 可选：按状态筛选活动
+ * TODO: 等待后端实现活动 API
  */
 export const getActivities = async (status?: Activity['status']): Promise<Activity[]> => {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  if (status) {
-    return mockActivities.filter(activity => activity.status === status)
-  }
-  
-  return mockActivities
+  console.warn('Activities API not implemented yet')
+  return []
 }
 
 /**
  * 根据 ID 获取单个活动详情
  * @param id 活动 ID
+ * TODO: 等待后端实现活动 API
  */
 export const getActivityById = async (id: number): Promise<Activity | null> => {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  const activity = mockActivities.find(activity => activity.id === id)
-  return activity || null
+  console.warn('Activities API not implemented yet')
+  return null
 }
 
 /**
  * 报名参加活动
  * @param id 活动 ID
+ * TODO: 等待后端实现活动 API
  */
 export const joinActivity = async (id: number): Promise<{ success: boolean; message: string }> => {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  const activity = mockActivities.find(activity => activity.id === id)
-  
-  if (!activity) {
-    return { success: false, message: '活动不存在' }
-  }
-  
-  if (activity.participants >= activity.maxParticipants) {
-    return { success: false, message: '活动已满员' }
-  }
-  
-  // Mock: 增加参与人数
-  activity.participants += 1
-  
-  return { success: true, message: '报名成功！' }
+  console.warn('Activities API not implemented yet')
+  return { success: false, message: '活动功能暂未实现，等待后端开发' }
 }
 
 // ==================== 任务相关 API ====================
@@ -442,67 +331,35 @@ export const submitProof = async (taskId: string, proof: string): Promise<{ succ
  * 获取审核中的任务列表
  */
 export const getReviewTasks = async (): Promise<Task[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  return mockTasks.filter(task => task.status === 'under_review')
+  try {
+    // 从后端获取所有任务，然后过滤出审核中的任务
+    const allTasks = await getAllTasks()
+    return allTasks.filter(task => task.status === 'under_review')
+  } catch (error) {
+    console.error('Get review tasks error:', error)
+    return []
+  }
 }
 
 /**
  * 审核通过任务
  * @param taskId 任务 ID (UUID string)
+ * TODO: 等待后端实现审核 API
  */
 export const approveTask = async (taskId: string): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  const task = mockTasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
-  }
-  
-  if (task.status !== 'under_review') {
-    return { success: false, message: '任务状态不正确，无法审核' }
-  }
-  
-  const now = new Date().toISOString()
-  task.status = 'completed'
-  task.completedAt = now
-  task.updatedAt = now
-  return { success: true, message: '任务审核通过！' }
+  console.warn('Task review API not implemented yet')
+  return { success: false, message: '审核功能暂未实现，等待后端开发' }
 }
 
 /**
  * 驳回任务
  * @param taskId 任务 ID (UUID string)
  * @param reason 驳回理由
+ * TODO: 等待后端实现审核 API
  */
 export const rejectTask = async (taskId: string, reason: string): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  const task = mockTasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
-  }
-  
-  if (task.status !== 'under_review') {
-    return { success: false, message: '任务状态不正确，无法驳回' }
-  }
-  
-  const now = new Date().toISOString()
-  task.status = 'rejected'
-  task.rejectReason = reason
-  task.proof = undefined
-  task.updatedAt = now
-  // 重置任务状态，允许重新领取
-  const taskIndex = claimedTaskIds.indexOf(taskId)
-  if (taskIndex > -1) {
-    claimedTaskIds.splice(taskIndex, 1)
-  }
-  task.isClaimed = false
-  task.claimerId = undefined
-  task.claimerName = undefined
-  task.claimedAt = undefined
-  task.submittedAt = undefined
-  return { success: true, message: '任务已驳回！' }
+  console.warn('Task review API not implemented yet')
+  return { success: false, message: '审核功能暂未实现，等待后端开发' }
 }
 
 /**
@@ -510,19 +367,11 @@ export const rejectTask = async (taskId: string, reason: string): Promise<{ succ
  * @param taskId 任务 ID (UUID string)
  * @param discount 打折百分数
  * @param reason 打折理由
+ * TODO: 等待后端实现审核 API
  */
 export const discountTask = async (taskId: string, discount: number, reason: string): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  const task = mockTasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
-  }
-  
-  task.status = 'completed'
-  task.discount = discount
-  task.discountReason = reason
-  return { success: true, message: '任务已打折通过！' }
+  console.warn('Task review API not implemented yet')
+  return { success: false, message: '审核功能暂未实现，等待后端开发' }
 }
 
 // ==================== 用户相关 API ====================
@@ -846,171 +695,61 @@ export interface NetworkLink {
   weight: number                 // 连接权重（基于参与度和活跃度）
 }
 
-// Mock 社群数据（仅保留一个「高新华社区小菜园」）
-const mockCommunities: Community[] = [
-  {
-    id: 1,
-    name: '高新华社区小菜园',
-    description: '社区共享菜园，一起种植、收获、分享绿色生活。',
-    memberCount: 68,
-    activityCount: 18,
-    totalPoints: 18900,
-    category: '园艺',
-    createdAt: '2024-02-01T00:00:00Z',
-    markdownIntro: `# 高新华社区小菜园
-
-欢迎加入我们的社区菜园！一起体验种植的乐趣。
-
-## 我们的目标
-- 推广绿色生活理念
-- 学习有机种植技术
-- 分享收获的喜悦
-
-## 活动安排
-- 每周六上午：集体种植
-- 每月一次：收获分享会
-- 不定期：种植技术讲座
-    `
-  }
-]
-
-// Mock 成员数据（仅保留与高新华社区小菜园相关的成员）
-const mockMembers: Member[] = [
-  { id: 1, name: '赵园丁', title: '资深园丁', reputation: 920, totalContributions: 30, completedTasks: 22, totalReward: 4.0, skills: ['有机种植', '土壤管理', '病虫害防治'], communities: [1], participationScore: 98, activityScore: 95, avatarSeed: 'gardener1' },
-  { id: 2, name: '钱农夫', title: '种植专家', reputation: 780, totalContributions: 22, completedTasks: 18, totalReward: 3.0, skills: ['蔬菜种植', '堆肥制作'], communities: [1], participationScore: 88, activityScore: 85, avatarSeed: 'farmer1' },
-  { id: 3, name: '孙绿手指', title: '园艺爱好者', reputation: 650, totalContributions: 16, completedTasks: 13, totalReward: 2.2, skills: ['花卉种植', '园艺设计'], communities: [1], participationScore: 75, activityScore: 72, avatarSeed: 'green1' },
-  { id: 4, name: '周菜农', title: '菜园管理员', reputation: 580, totalContributions: 12, completedTasks: 10, totalReward: 1.8, skills: ['菜园管理', '收获分享'], communities: [1], participationScore: 68, activityScore: 65, avatarSeed: 'veggie1' },
-  { id: 5, name: '吴新手', title: '种植新手', reputation: 420, totalContributions: 8, completedTasks: 6, totalReward: 1.0, skills: ['基础种植'], communities: [1], participationScore: 58, activityScore: 55, avatarSeed: 'newbie1' }
-]
+// Mock 社群和成员数据已删除
+// TODO: 等待后端实现社群和成员 API
 
 /**
  * 获取所有社群列表
+ * TODO: 等待后端实现社群 API
  */
 export const getCommunities = async (): Promise<Community[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return mockCommunities
+  console.warn('Communities API not implemented yet')
+  return []
 }
 
 /**
  * 根据 ID 获取单个社群详情
+ * TODO: 等待后端实现社群 API
  */
 export const getCommunityById = async (id: number): Promise<Community | null> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  const community = mockCommunities.find(c => c.id === id)
-  return community || null
+  console.warn('Communities API not implemented yet')
+  return null
 }
 
 /**
  * 获取社群成员列表
+ * TODO: 等待后端实现成员 API
  */
 export const getCommunityMembers = async (communityId: number): Promise<Member[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  return mockMembers.filter(m => m.communities.includes(communityId))
+  console.warn('Members API not implemented yet')
+  return []
 }
 
 /**
  * 获取所有成员列表
+ * TODO: 等待后端实现成员 API
  */
 export const getMembers = async (): Promise<Member[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  return mockMembers
+  console.warn('Members API not implemented yet')
+  return []
 }
 
 /**
  * 根据 ID 获取单个成员详情
+ * TODO: 等待后端实现成员 API
  */
 export const getMemberById = async (id: number): Promise<Member | null> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  const member = mockMembers.find(m => m.id === id)
-  return member || null
+  console.warn('Members API not implemented yet')
+  return null
 }
 
 /**
  * 获取网络图数据（包含节点和连接）
  * 根据参与度和活跃度进行加权
+ * TODO: 等待后端实现社群和成员 API 后，基于真实数据生成网络图
  */
 export const getNetworkData = async (): Promise<{ nodes: NetworkNode[], links: NetworkLink[] }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  const nodes: NetworkNode[] = []
-  const links: NetworkLink[] = []
-  
-  // 添加社群节点
-  mockCommunities.forEach(comm => {
-    // 社群的价值基于成员数量和活跃度
-    const memberCount = mockMembers.filter(m => m.communities.includes(comm.id)).length
-    const avgParticipation = mockMembers
-      .filter(m => m.communities.includes(comm.id))
-      .reduce((sum, m) => sum + m.participationScore, 0) / memberCount || 0
-    const avgActivity = mockMembers
-      .filter(m => m.communities.includes(comm.id))
-      .reduce((sum, m) => sum + m.activityScore, 0) / memberCount || 0
-    
-    // 综合权重 = 成员数 * (参与度 + 活跃度) / 2
-    const value = Math.round(memberCount * (avgParticipation + avgActivity) / 2)
-    
-    nodes.push({
-      id: `comm${comm.id}`,
-      name: comm.name,
-      type: 'COMMUNITY',
-      value: value,
-      participationScore: avgParticipation,
-      activityScore: avgActivity
-    })
-  })
-  
-  // 添加成员节点
-  mockMembers.forEach(member => {
-    // 成员的价值基于参与度和活跃度的加权平均
-    const value = Math.round((member.participationScore * 0.6 + member.activityScore * 0.4) * 10)
-    
-    nodes.push({
-      id: `user${member.id}`,
-      name: member.name,
-      type: 'USER',
-      value: value,
-      participationScore: member.participationScore,
-      activityScore: member.activityScore,
-      communityId: member.communities[0] // 主要社群
-    })
-    
-    // 创建成员与社群的连接
-    member.communities.forEach(commId => {
-      // 连接权重基于成员的参与度和活跃度
-      const weight = Math.round((member.participationScore + member.activityScore) / 20)
-      links.push({
-        source: `user${member.id}`,
-        target: `comm${commId}`,
-        weight: Math.max(1, weight) // 最小权重为1
-      })
-    })
-    
-    // 创建成员之间的连接（同一社群的成员）
-    member.communities.forEach(commId => {
-      const sameCommunityMembers = mockMembers.filter(
-        m => m.id !== member.id && m.communities.includes(commId)
-      )
-      
-      // 只连接活跃度相近的成员（避免连接过多）
-      sameCommunityMembers.forEach(otherMember => {
-        const activityDiff = Math.abs(member.activityScore - otherMember.activityScore)
-        if (activityDiff < 20 && Math.random() > 0.7) { // 30%概率连接
-          const weight = Math.round((100 - activityDiff) / 10)
-          // 检查是否已存在反向连接
-          if (!links.find(l => 
-            (l.source === `user${otherMember.id}` && l.target === `user${member.id}`) ||
-            (l.source === `user${member.id}` && l.target === `user${otherMember.id}`)
-          )) {
-            links.push({
-              source: `user${member.id}`,
-              target: `user${otherMember.id}`,
-              weight: Math.max(1, weight)
-            })
-          }
-        }
-      })
-    })
-  })
-  
-  return { nodes, links }
+  console.warn('Network data API not implemented yet')
+  // 返回空数据，等待后端实现
+  return { nodes: [], links: [] }
 }

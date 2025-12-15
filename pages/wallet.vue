@@ -388,7 +388,8 @@ import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import { useToast } from '~/composables/useToast'
 
 definePageMeta({
-  layout: 'default'
+  layout: 'default',
+  middleware: 'auth'
 })
 
 const toast = useToast()

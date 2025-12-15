@@ -258,6 +258,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { getActivities, getAllTasks, getReviewTasks, approveTask, rejectTask, discountTask, getFinalReward, type Activity, type Task } from '~/utils/api'
 
+definePageMeta({
+  layout: 'default',
+  middleware: 'auth'
+})
+
 // 响应式数据
 const activeTab = ref<'management' | 'review'>('management')
 const activities = ref<Activity[]>([])

@@ -238,6 +238,11 @@
 <script setup lang="ts">
 import { getTaskById, claimTask } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
+
+definePageMeta({
+  layout: 'default',
+  middleware: 'auth'
+})
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 

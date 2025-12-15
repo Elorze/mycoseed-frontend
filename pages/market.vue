@@ -88,7 +88,8 @@ import { getAllTasks, claimTask } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 
 definePageMeta({
-  layout: 'default'
+  layout: 'default',
+  middleware: 'auth'
 })
 
 const router = useRouter()

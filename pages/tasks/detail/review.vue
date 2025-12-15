@@ -219,6 +219,11 @@ import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import type { Task } from '~/utils/api'
 
+definePageMeta({
+  layout: 'default',
+  middleware: 'auth'
+})
+
 // 获取路由参数
 const route = useRoute()
 const router = useRouter()

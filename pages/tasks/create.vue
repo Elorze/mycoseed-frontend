@@ -218,7 +218,8 @@ import PixelButton from '~/components/pixel/PixelButton.vue'
 import { createTask } from '~/utils/api'
 
 definePageMeta({
-  layout: 'default'
+  layout: 'default',
+  middleware: 'auth'
 })
 
 // 任务表单数据

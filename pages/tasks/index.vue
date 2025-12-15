@@ -102,7 +102,8 @@ import PixelButton from '~/components/pixel/PixelButton.vue'
 import { getAllTasks } from '~/utils/api'
 
 definePageMeta({
-  layout: 'default'
+  layout: 'default',
+  middleware: 'auth'
 })
 
 // 标签页
