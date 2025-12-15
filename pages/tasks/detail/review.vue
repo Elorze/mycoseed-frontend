@@ -222,7 +222,7 @@ import type { Task } from '~/utils/api'
 // 获取路由参数
 const route = useRoute()
 const router = useRouter()
-const taskId = parseInt((route.query.id || route.params.id) as string)
+const taskId = (route.query.id || route.params.id) as string  // UUID string
 const toast = useToast()
 const loading = ref(true)
 

@@ -387,13 +387,13 @@ const getTaskStatusText = (status: string): string => {
 }
 
 // 跳转到任务详情
-const goToTaskDetail = (taskId: number) => {
+const goToTaskDetail = (taskId: string) => {
   const router = useRouter()
   router.push(`/tasks/${taskId}`)
 }
 
 // 跳转到审核页面
-const goToReview = (taskId: number) => {
+const goToReview = (taskId: string) => {
   const router = useRouter()
   router.push(`/tasks/detail/review?id=${taskId}`)
 }

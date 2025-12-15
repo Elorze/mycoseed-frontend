@@ -161,7 +161,7 @@ const formatTime = (dateString?: string) => {
 }
 
 // 领取任务
-const handleClaimTask = async (taskId: number, event: Event) => {
+const handleClaimTask = async (taskId: string, event: Event) => {
   event.stopPropagation() // 阻止事件冒泡，避免跳转到详情页
   
   try {
@@ -192,7 +192,7 @@ const handleClaimTask = async (taskId: number, event: Event) => {
 }
 
 // 跳转到任务详情
-const goToTaskDetail = (taskId: number) => {
+const goToTaskDetail = (taskId: string) => {
   router.push(`/tasks/${taskId}`)
 }
 

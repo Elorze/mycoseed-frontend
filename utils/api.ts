@@ -34,7 +34,7 @@ export interface Activity {
  * 任务数据结构
  */
 export interface Task {
-  id: number
+  id: string                     // 任务ID (UUID)
   activityId: number             // 所属活动ID
   title: string                  // 任务标题
   description: string            // 任务描述
@@ -45,12 +45,17 @@ export interface Task {
   rejectReason?: string          // 驳回理由
   discount?: number              // 打折百分数
   discountReason?: string        // 打折理由
-  creatorId: number              // 创建者ID
+  startDate?: string             // 开始时间
+  deadline?: string              // 截止时间
+  proofConfig?: any              // 凭证配置
+  allowRepeatClaim?: boolean     // 是否允许重复领取
+  createdAt?: string             // 创建时间
+  updatedAt?: string             // 更新时间
+  // 以下字段为前端兼容字段（后端不返回）
+  creatorId?: number             // 创建者ID
   creatorName?: string           // 创建者名称
   claimerId?: number             // 接单者ID
   claimerName?: string           // 接单者名称
-  createdAt: string              // 创建时间
-  updatedAt: string              // 更新时间
   claimedAt?: string             // 领取时间
   submittedAt?: string           // 提交时间
   completedAt?: string           // 完成时间
@@ -223,31 +228,42 @@ export const joinActivity = async (id: number): Promise<{ success: boolean; mess
  * @param activityId 活动 ID
  */
 export const getTasks = async (activityId: number): Promise<Task[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  return mockTasks
-    .filter(task => task.activityId === activityId)
-    .map(task => ({
-      ...task,
-      isClaimed: claimedTaskIds.includes(task.id)
-    }))
+  try {
+    // 获取所有任务，然后在前端过滤
+    const allTasks = await getAllTasks()
+    return allTasks.filter(task => task.activityId === activityId)
+  } catch (error: any) {
+    console.error('Get tasks error:', error)
+    throw error
+  }
 }
 
 /**
  * 根据 ID 获取单个任务详情
- * @param id 任务 ID
+ * @param id 任务 ID (UUID string)
  */
-export const getTaskById = async (id: number): Promise<Task | null> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  const task = mockTasks.find(t => t.id === id)
-  if (!task) {
-    return null
-  }
-  
-  return {
-    ...task,
-    isClaimed: claimedTaskIds.includes(task.id)
+export const getTaskById = async (id: string): Promise<Task | null> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null
+      }
+      const error = await response.json()
+      throw new Error(error.error || '获取任务失败')
+    }
+
+    const task: Task = await response.json()
+    return task
+  } catch (error: any) {
+    console.error('Get task by id error:', error)
+    throw error
   }
 }
 
@@ -255,30 +271,25 @@ export const getTaskById = async (id: number): Promise<Task | null> => {
  * 获取所有任务列表
  */
 export const getAllTasks = async (): Promise<Task[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  // 尝试从 localStorage 恢复任务
-  if (typeof window !== 'undefined') {
-    try {
-      const savedTasks = localStorage.getItem('tasks')
-      if (savedTasks) {
-        const parsed = JSON.parse(savedTasks)
-        // 合并保存的任务到 mockTasks（避免重复）
-        parsed.forEach((savedTask: Task) => {
-          if (!mockTasks.find(t => t.id === savedTask.id)) {
-            mockTasks.push(savedTask)
-          }
-        })
-      }
-    } catch (e) {
-      console.warn('Failed to load tasks from localStorage:', e)
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || '获取任务列表失败')
     }
+
+    const tasks: Task[] = await response.json()
+    return tasks
+  } catch (error: any) {
+    console.error('Get all tasks error:', error)
+    throw error
   }
-  
-  return mockTasks.map(task => ({
-    ...task,
-    isClaimed: claimedTaskIds.includes(task.id)
-  }))
 }
 
 /**
@@ -291,114 +302,140 @@ export interface CreateTaskParams {
   startDate: string
   deadline: string
   proofConfig?: any
+  allowRepeatClaim?: boolean  // 是否允许重复领取
 }
 
 export const createTask = async (params: CreateTaskParams): Promise<Task> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  // 生成新任务ID（使用当前最大ID + 1）
-  const newId = mockTasks.length > 0 
-    ? Math.max(...mockTasks.map(t => t.id)) + 1 
-    : 1
-  
-  const now = new Date().toISOString()
-  const newTask: Task = {
-    id: newId,
-    activityId: 0, // 独立任务，不关联活动
-    title: params.title,
-    description: params.description,
-    reward: params.reward,
-    isClaimed: false,
-    status: 'unclaimed',
-    creatorId: 1, // Mock: 当前用户ID，实际应从认证系统获取
-    creatorName: '当前用户', // Mock: 当前用户名称
-    createdAt: now,
-    updatedAt: now
-  }
-  
-  mockTasks.push(newTask)
-  
-  // 保存到 localStorage 以便跨页面同步
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('tasks', JSON.stringify(mockTasks))
-    } catch (e) {
-      console.warn('Failed to save tasks to localStorage:', e)
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: params.title,
+        description: params.description,
+        reward: params.reward,
+        startDate: params.startDate,
+        deadline: params.deadline,
+        proofConfig: params.proofConfig || null,
+        allowRepeatClaim: params.allowRepeatClaim || false,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || '创建任务失败')
     }
+
+    const task: Task = await response.json()
+    return task
+  } catch (error: any) {
+    console.error('Create task error:', error)
+    throw error
   }
-  
-  return newTask
 }
 
 /**
  * 领取任务
- * @param taskId 任务 ID
+ * @param taskId 任务 ID (UUID string)
+ * @param userIdentifier 用户标识（可选，如果已登录则从 getMe 获取用户ID）
  */
-export const claimTask = async (taskId: number): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  const task = mockTasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
+export const claimTask = async (taskId: string, userIdentifier?: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    // 如果没有提供 userIdentifier，尝试从当前登录用户获取
+    let userId = userIdentifier
+    if (!userId) {
+      try {
+        const user = await getMe()
+        userId = user.id
+      } catch (e) {
+        // 如果未登录，使用临时标识符（从 localStorage 获取）
+        if (typeof window !== 'undefined') {
+          userId = localStorage.getItem('current_identifier') || undefined
+        }
+      }
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/claim`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({
+        userIdentifier: userId,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      return { success: false, message: error.message || '领取任务失败' }
+    }
+
+    const result = await response.json()
+    return result
+  } catch (error: any) {
+    console.error('Claim task error:', error)
+    return { success: false, message: error.message || '领取任务失败' }
   }
-  
-  if (task.status !== 'unclaimed') {
-    return { success: false, message: '任务已被领取或已完成' }
-  }
-  
-  if (claimedTaskIds.includes(taskId)) {
-    return { success: false, message: '您已经领取过这个任务' }
-  }
-  
-  // 更新任务状态和接单者信息
-  const now = new Date().toISOString()
-  task.status = 'in_progress'
-  task.isClaimed = true
-  task.claimerId = 1 // Mock: 当前用户ID，实际应从认证系统获取
-  task.claimerName = '当前用户' // Mock: 当前用户名称
-  task.claimedAt = now
-  task.updatedAt = now
-  
-  claimedTaskIds.push(taskId)
-  return { success: true, message: '任务领取成功！' }
 }
 
 /**
  * 获取我的任务列表
  */
 export const getMyTasks = async (): Promise<Task[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  return mockTasks.filter(task => claimedTaskIds.includes(task.id))
+  try {
+    // 获取所有任务，然后在前端过滤（需要根据用户ID过滤）
+    // 注意：这个功能需要后端支持，或者前端根据 task_claims 表查询
+    // 目前先返回所有任务，后续可以优化
+    const allTasks = await getAllTasks()
+    
+    // 尝试获取当前用户ID
+    try {
+      const user = await getMe()
+      // TODO: 如果后端提供了根据用户ID获取任务的接口，应该调用那个接口
+      // 目前先返回所有任务，前端可以根据需要进一步过滤
+      return allTasks.filter(task => task.isClaimed)
+    } catch (e) {
+      // 如果未登录，返回空数组
+      return []
+    }
+  } catch (error: any) {
+    console.error('Get my tasks error:', error)
+    throw error
+  }
 }
 
 /**
  * 提交任务完成凭证
- * @param taskId 任务 ID
+ * @param taskId 任务 ID (UUID string)
  * @param proof 凭证内容
  */
-export const submitProof = async (taskId: number, proof: string): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  const task = mockTasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
+export const submitProof = async (taskId: string, proof: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/submit`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({
+        proof,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      return { success: false, message: error.message || '提交凭证失败' }
+    }
+
+    const result = await response.json()
+    return result
+  } catch (error: any) {
+    console.error('Submit proof error:', error)
+    return { success: false, message: error.message || '提交凭证失败' }
   }
-  
-  if (task.status !== 'in_progress') {
-    return { success: false, message: '任务状态不正确，无法提交凭证' }
-  }
-  
-  if (!claimedTaskIds.includes(taskId)) {
-    return { success: false, message: '您还没有领取这个任务' }
-  }
-  
-  const now = new Date().toISOString()
-  task.proof = proof
-  task.status = 'under_review'
-  task.submittedAt = now
-  task.updatedAt = now
-  return { success: true, message: '凭证提交成功！' }
 }
 
 /**
@@ -412,9 +449,9 @@ export const getReviewTasks = async (): Promise<Task[]> => {
 
 /**
  * 审核通过任务
- * @param taskId 任务 ID
+ * @param taskId 任务 ID (UUID string)
  */
-export const approveTask = async (taskId: number): Promise<{ success: boolean; message: string }> => {
+export const approveTask = async (taskId: string): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 300))
   
   const task = mockTasks.find(t => t.id === taskId)
@@ -435,10 +472,10 @@ export const approveTask = async (taskId: number): Promise<{ success: boolean; m
 
 /**
  * 驳回任务
- * @param taskId 任务 ID
+ * @param taskId 任务 ID (UUID string)
  * @param reason 驳回理由
  */
-export const rejectTask = async (taskId: number, reason: string): Promise<{ success: boolean; message: string }> => {
+export const rejectTask = async (taskId: string, reason: string): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 300))
   
   const task = mockTasks.find(t => t.id === taskId)
@@ -470,11 +507,11 @@ export const rejectTask = async (taskId: number, reason: string): Promise<{ succ
 
 /**
  * 打折审核任务
- * @param taskId 任务 ID
+ * @param taskId 任务 ID (UUID string)
  * @param discount 打折百分数
  * @param reason 打折理由
  */
-export const discountTask = async (taskId: number, discount: number, reason: string): Promise<{ success: boolean; message: string }> => {
+export const discountTask = async (taskId: string, discount: number, reason: string): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 300))
   
   const task = mockTasks.find(t => t.id === taskId)
@@ -536,7 +573,7 @@ const mockUser = {
 
 // Mock API 函数
 export const sendSMS = async (phone: string): Promise<{ result: string }> => {
-  const response = await fetch('${API_BASE_URL}/api/auth/send-sms',
+  const response = await fetch(`${API_BASE_URL}/api/auth/send-sms`,
     {
       method:'POST',
       headers:
@@ -562,14 +599,14 @@ export const sendEmailCode = async (email: string): Promise<{ result: string }> 
 }
 
 export const signIn = async (identifier: string, code: string): Promise<{ result: string; auth_token?:string }> => {
-  const response = await fetch('${API_BASE_URL}/api/auth/signin',
+  const response = await fetch(`${API_BASE_URL}/api/auth/signin`,
     {
       method:'POST',
       headers:
       {
         'Content-Type':'application/json',
       },
-      body:JSON.stringify({phone,code}),
+      body:JSON.stringify({phone: identifier, code}),
     }
   )
 
@@ -595,7 +632,7 @@ export const signInWithEmail = async (email: string, code: string, userType?: 'm
 }
 
 export const getMe = async (): Promise<any> => {
-  const response = await fetch('${API+BASE_URL}/api/auth/me',
+  const response = await fetch(`${API_BASE_URL}/api/auth/me`,
     {
       method:'GET',
       headers: getAuthHeaders(),
@@ -614,9 +651,9 @@ export const getMe = async (): Promise<any> => {
 }
 
 export const setEncryptedKeys = async (keys: string): Promise<{ result: string }> => {
-  const response = await fetch('${API_BASE_URL}/api/auth/set-encrypted-keys',
+  const response = await fetch(`${API_BASE_URL}/api/auth/set-encrypted-keys`,
   {
-    method:'PSOT',
+    method:'POST',
     headers: getAuthHeaders(),
     body:JSON.stringify({keys}),
   })
@@ -648,15 +685,15 @@ export const getCookie = (key: string): string | null => {
 export const setCookie = (key:string,value:string,days:number=365)=>
 {
   if (typeof document ==='undefined') return
-  const expires=new Date?()
+  const expires=new Date()
   expires.setTime(expires.getTime()+days*24*60*60*1000)
-  document.cookie='${key}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/'
+  document.cookie=`${key}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/`
 }
 
 export const deleteCookie = (key:string)=>
 {
   if(typeof document ==='undefined') return
-  document.cookie='${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/'
+  document.cookie=`${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
 }
 
 export const clearAuthToken =(): void=>
@@ -674,7 +711,7 @@ function getAuthHeaders():HeadersInit
   const authToken=getCookie(AUTH_TOKEN_KEY)
   if(authToken)
   {
-    headers['Authorization']='Bearer ${authToken}'
+    headers['Authorization']=`Bearer ${authToken}`
   }
   return headers
 }

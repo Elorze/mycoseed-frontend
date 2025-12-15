@@ -244,7 +244,7 @@ import PixelButton from '~/components/pixel/PixelButton.vue'
 // 获取路由参数
 const route = useRoute()
 const router = useRouter()
-const taskId = parseInt(route.params.id as string)
+const taskId = route.params.id as string  // UUID string
 const toast = useToast()
 const loading = ref(false)
 

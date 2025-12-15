@@ -281,7 +281,7 @@ const activitiesWithTasks = computed(() => {
 })
 
 // 同意审核
-const handleApprove = async (taskId: number) => {
+const handleApprove = async (taskId: string) => {
   const result = await approveTask(taskId)
   alert(result.message)
   if (result.success) {
