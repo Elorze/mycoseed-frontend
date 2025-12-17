@@ -188,13 +188,20 @@ import { useToast } from '~/composables/useToast'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import type { Task } from '~/utils/api'
+import {useUserStore} from '~/stores/user'
+import {useGeolocation} from '~/composables/useGeolocation'
+import type {ProofData, GPSPosition} from '~/utils/api'
+
+const userStore = useUserStore()
 
 definePageMeta({
   layout: 'default',
   middleware: 'auth'
 })
 
-const { getTaskById, submitProof } = useApi()
+const { getTaskById, submitProof, uploadProofFile, getMe } = useApi()
+const { apiBaseUrl } = useApi()
+const { getCurrentLocation, validateGPSAccuracy } = useGeolocation()
 
 // 获取路由参数
 const route = useRoute()
@@ -220,21 +227,16 @@ const mainFileInput = ref<HTMLInputElement | null>(null)
 const additionalFileInput = ref<HTMLInputElement | null>(null)
 
 // 任务数据
-const task = ref<{
-  id: number
-  title: string
-  description: string
-  reward: number
-  deadline: string
-  submissionInstructions: string
-}>({
+const task = ref<Task>({
   id: taskId,
   title: '',
   description: '',
   reward: 0,
   deadline: '',
-  submissionInstructions: '请按照任务要求完成并提交相关凭证。'
-})
+  status: 'unclaimed',
+  isClaimed: false,
+  proofConfig: undefined
+} as Task)
 
 // 加载任务详情
 const loadTask = async () => {
@@ -251,15 +253,8 @@ const loadTask = async () => {
       return
     }
     
-    // 转换API数据为页面需要的格式
-    task.value = {
-      id: taskData.id,
-      title: taskData.title,
-      description: taskData.description,
-      reward: taskData.reward,
-      deadline: taskData.createdAt, // 使用创建时间作为截止时间（实际应从任务数据获取）
-      submissionInstructions: taskData.description || '请按照任务要求完成并提交相关凭证。'
-    }
+    // 直接使用 API 返回的任务数据
+    task.value = taskData
   } catch (error) {
     console.error('加载任务失败:', error)
     toast.add({
@@ -338,49 +333,99 @@ const formatDate = (dateString: string): string => {
 }
 
 // 提交表单
-const submitForm = async () => {
+const submitForm = async () => 
+{
   if (!canSubmit.value) return
   
   isSubmitting.value = true
   
-  try {
-    // 创建FormData
-    const formData = new FormData()
-    formData.append('taskId', taskId)
-    formData.append('description', submissionDescription.value)
-    
-    if (selectedFiles.value.main) {
-      formData.append('mainFile', selectedFiles.value.main)
+  try
+  {
+    // 获取当前用户 ID 
+    const user = userStore.user || await getMe()
+    if(!user || !user.id)
+    {
+      throw new Error('请先登录')
     }
-    
-    selectedFiles.value.additional.forEach((file, index) => {
-      formData.append(`additionalFile${index}`, file)
-    })
-    
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    console.log('提交任务:', {
-      taskId,
-      description: submissionDescription.value,
-      files: {
-        main: selectedFiles.value.main?.name,
-        additional: selectedFiles.value.additional.map(f => f.name)
+
+    // 获取GPS位置
+    let gpsData: GPSPosition | undefined
+    if(task.value.proofConfig?.gps?.enabled)
+    {
+      try
+      {
+        gpsData = await getCurrentLocation()
+
+        // 验证GPS精度
+        const requiredAccuracy = task.value.proofConfig.gps.accuracy || 'medium'
+        if(!validateGPSAccuracy(gpsData.accuracy, requiredAccuracy))
+        {
+          toast.add({
+            title: 'GPS精度不足',
+            description: `当前GPS精度为${gpsData.accuracy.toFixed(2)}米，任务要求：${requiredAccuracy}`,
+            color:'red'
+          })
+          return
+        }
+      } catch (error:any)
+      {
+        toast.add({
+          title: '获取GPS位置失败',
+          description: error.message || '无法获取GPS位置，请检查定位权限',
+          color: 'red'
+        })
+        return
       }
-    })
-    
-    // 调用API提交凭证
-    const result = await submitProof(taskId, submissionDescription.value)
-    
-    if (result.success) {
+    }
+
+    // 上传文件到后端
+    const filesToUpload: File[] = []
+    if(selectedFiles.value.main)
+    {
+      filesToUpload.push(selectedFiles.value.main)
+    }
+    filesToUpload.push(...selectedFiles.value.additional)
+
+    let uploadedFiles: ProofFile[] = []
+    if(filesToUpload.length > 0)
+    {
+      try
+      {
+        uploadedFiles = await uploadProofFile(filesToUpload, taskId, apiBaseUrl)
+      } catch(error:any)
+      {
+        toast.add
+        ({
+          title: '文件上传失败',
+          description: error.message || '文件上传失败，请稍后重试',
+          color: 'red'
+        })
+        return
+      }
+    }
+
+    // 构建完整的 proof 数据
+    const proofData: ProofData =
+    {
+      description: submissionDescription.value,
+      files: uploadedFiles,
+      gps: gpsData,
+      submittedAt: new Date().toISOString()
+    }
+
+    // 调用 API 提交凭证
+    const result = await submitProof(taskId, proofData, apiBaseUrl)
+
+    if(result.success)
+    {
       toast.add({
-        title: '提交成功',
+        title:'提交成功',
         description: result.message || '任务提交成功，等待审核',
-        color: 'green'
+        color:'green'
       })
-      // 提交成功后跳转到任务详情页，并更新任务状态
       router.push(`/tasks/${taskId}?submitted=true`)
-    } else {
+    }else
+    {
       toast.add({
         title: '提交失败',
         description: result.message || '任务提交失败，请稍后重试',
@@ -388,16 +433,20 @@ const submitForm = async () => {
       })
     }
     
-  } catch (error) {
-    console.error('提交失败:', error)
-    toast.add({
-      title: '提交失败',
-      description: '网络错误，请稍后重试',
-      color: 'red'
-    })
-  } finally {
-    isSubmitting.value = false
-  }
+  } catch(error:any)
+    {
+      console.error('提交失败：',error)
+      toast.add
+      ({
+        title:'提交失败',
+        description: error.message || '网络错误，请稍后重试',
+        color: 'red'
+      })
+    } finally
+    {
+      isSubmitting.value = false
+    }
+
 }
 
 // 导航函数

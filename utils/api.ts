@@ -1,16 +1,31 @@
-// 导入 semi 的 API 功能 - 已注释，使用mock数据
-// 注意：API_BASE_URL 已移除，现在通过 composables/useApi.ts 使用 useRuntimeConfig() 获取
-// export { 
-//   sendSMS, 
-//   signIn, 
-//   getMe, 
-//   setEncryptedKeys,
-//   AUTH_TOKEN_KEY,
-//   getCookie,
-//   clearAuthToken 
-// } from '../../../semi/semi-app-main/utils/semi_api'
+
 
 // ==================== 数据类型定义 ====================
+
+export interface ProofFile
+{
+  url: string
+  hash:string
+  name:string
+  size:number
+  type:string
+}
+
+export interface GPSData
+{
+  latitude:number
+  longitude:number
+  accuracy:number
+  timestamp:string
+}
+
+export interface ProofData
+{
+  description:string
+  files:ProofFile[]
+  gps?:GPSData
+  submittedAt:string
+}
 
 /**
  * 活动数据结构
@@ -309,10 +324,10 @@ export const getMyTasks = async (baseUrl: string): Promise<Task[]> => {
 /**
  * 提交任务完成凭证
  * @param taskId 任务 ID (UUID string)
- * @param proof 凭证内容
+ * @param proof 凭证数据
  * @param baseUrl API 基础 URL
  */
-export const submitProof = async (taskId: string, proof: string, baseUrl: string): Promise<{ success: boolean; message: string }> => {
+export const submitProof = async (taskId: string, proof: ProofData, baseUrl: string): Promise<{ success: boolean; message: string }> => {
   try {
     const response = await fetch(`${baseUrl}/api/tasks/${taskId}/submit`, {
       method: 'PATCH',
@@ -321,7 +336,7 @@ export const submitProof = async (taskId: string, proof: string, baseUrl: string
         ...getAuthHeaders(),
       },
       body: JSON.stringify({
-        proof,
+        proof: proof, // 直接传递对象，后端会序列化
       }),
     })
 
@@ -611,15 +626,94 @@ export const setCurrentIdentifier = (identifier: string): void => {
   }
 }
 
-// 头像上传API
-export const uploadAvatar = async (file: File): Promise<{ url: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  console.log('[Mock] 上传头像:', file.name)
-  
-  // 模拟上传，返回本地预览URL
-  const url = URL.createObjectURL(file)
-  return { url }
+
+/**
+ * 上传头像
+ * @param file 头像文件
+ * @param baseUrl API 基础 URL
+ */
+export const uploadAvatar = async(file:File,baseUrl:string):Promise<{url:string;hash:string}>=>
+{
+  try
+  {
+    const formData = new FormData()
+    formData.append('file',file)
+
+    const headers = getAuthHeaders()
+    // 移除 content-type,让浏览器自动设置（包含boundary）
+    delete (headers as any)['Content-Type']
+
+    const response = await fetch(`${baseUrl}/api/upload/avatar`,
+      {
+        method:'POST',
+        headers,
+        body:formData
+      }
+    )
+
+    if(!response.ok)
+    {
+      const error =await response.json()
+      throw new Error(error.message || '上传头像失败')
+    }
+
+    const result = await response.json()
+    return {url:result.url,hash:result.hash}
+  } catch(error:any)
+  {
+    console.error('Upload avatar error:',error)
+    throw error
+  }
 }
+
+/**
+ * 上传任务凭证照片
+ * @param files 照片数组
+ * @param taskId 任务 ID
+ * @param baseUrl API 基础 URL
+ */
+export const uploadProofFile = async
+(
+  files:File[],taskId:string,baseUrl:string
+):Promise<ProofFile[]>=>
+{
+  try
+  {
+    const formData = new FormData()
+    files.forEach(file=>
+    {
+      formData.append('files',file)
+    }
+    )
+    formData.append('taskId',taskId)
+
+    const headers = getAuthHeaders()
+    // 移除 content-type,让浏览器自动设置（包含boundary）
+    delete (headers as any)['Content-Type']
+
+    const response = await fetch(`${baseUrl}/api/upload/proof`,
+      {
+        method:'POST',
+        headers,
+        body:formData
+      }
+    )
+
+    if(!response.ok)
+    {
+      const error = await response.json()
+      throw new Error(error.message||'上传文件失败')
+    }
+
+    const result = await response.json()
+    return result.files
+  } catch (error:any)
+  {
+    console.error('Upload proof file error:',error)
+    throw error
+  }
+}
+
 
 // 更新用户信息
 export interface UserProfile {

@@ -27,10 +27,14 @@ export const useApi = () => {
     getTaskById: (id: string) => api.getTaskById(id, apiBaseUrl),
     createTask: (params: api.CreateTaskParams) => api.createTask(params, apiBaseUrl),
     claimTask: (taskId: string, userIdentifier?: string) => api.claimTask(taskId, apiBaseUrl, userIdentifier),
-    submitProof: (taskId: string, proof: string) => api.submitProof(taskId, proof, apiBaseUrl),
+    submitProof: (taskId: string, proof: api.ProofData) => api.submitProof(taskId, proof, apiBaseUrl),
     getTasks: (activityId: number) => api.getTasks(activityId, apiBaseUrl),
     getMyTasks: () => api.getMyTasks(apiBaseUrl),
     getReviewTasks: () => api.getReviewTasks(apiBaseUrl),
+
+    // 文件上传
+    uploadAvatar: (file: File) => api.uploadAvatar(file, apiBaseUrl),
+    uploadProofFile: (files: File[], taskId: string) => api.uploadProofFile(files, taskId, apiBaseUrl),
     
     // 活动相关 API（暂时返回空数据）
     getActivities: api.getActivities,
@@ -58,7 +62,6 @@ export const useApi = () => {
     clearAuthToken: api.clearAuthToken,
     setCurrentIdentifier: api.setCurrentIdentifier,
     getFinalReward: api.getFinalReward,
-    uploadAvatar: api.uploadAvatar,
     updateUserProfile: api.updateUserProfile,
     updateCommunityProfile: api.updateCommunityProfile,
     sendEmailCode: api.sendEmailCode,

@@ -9,7 +9,9 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3001'
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3001',
+      supabaseUrl: Process.env.NUXT_PUBLIC_SUPABASE_URL || '' 
+      supabaseAnonKey: Process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || ''
     }
   },
   // 配置UI主题
