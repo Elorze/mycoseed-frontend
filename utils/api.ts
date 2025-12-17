@@ -159,7 +159,7 @@ export const getTaskById = async (id: string, baseUrl: string): Promise<Task | n
 
     if (!response.ok) {
       if (response.status === 404) {
-        return null
+    return null
       }
       const error = await response.json()
       throw new Error(error.error || '获取任务失败')
@@ -225,9 +225,9 @@ export const createTask = async (params: CreateTaskParams, baseUrl: string): Pro
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        title: params.title,
-        description: params.description,
-        reward: params.reward,
+    title: params.title,
+    description: params.description,
+    reward: params.reward,
         startDate: params.startDate,
         deadline: params.deadline,
         proofConfig: params.proofConfig || null,
@@ -632,36 +632,30 @@ export const setCurrentIdentifier = (identifier: string): void => {
  * @param file 头像文件
  * @param baseUrl API 基础 URL
  */
-export const uploadAvatar = async(file:File,baseUrl:string):Promise<{url:string;hash:string}>=>
-{
-  try
-  {
+export const uploadAvatar = async (file: File, baseUrl: string): Promise<{ url: string; hash: string }> => {
+  try {
     const formData = new FormData()
-    formData.append('file',file)
+    formData.append('file', file)
 
     const headers = getAuthHeaders()
     // 移除 content-type,让浏览器自动设置（包含boundary）
     delete (headers as any)['Content-Type']
 
-    const response = await fetch(`${baseUrl}/api/upload/avatar`,
-      {
-        method:'POST',
-        headers,
-        body:formData
-      }
-    )
+    const response = await fetch(`${baseUrl}/api/upload/avatar`, {
+      method: 'POST',
+      headers,
+      body: formData
+    })
 
-    if(!response.ok)
-    {
-      const error =await response.json()
+    if (!response.ok) {
+      const error = await response.json()
       throw new Error(error.message || '上传头像失败')
     }
 
     const result = await response.json()
-    return {url:result.url,hash:result.hash}
-  } catch(error:any)
-  {
-    console.error('Upload avatar error:',error)
+    return { url: result.url, hash: result.hash }
+  } catch (error: any) {
+    console.error('Upload avatar error:', error)
     throw error
   }
 }
@@ -672,44 +666,37 @@ export const uploadAvatar = async(file:File,baseUrl:string):Promise<{url:string;
  * @param taskId 任务 ID
  * @param baseUrl API 基础 URL
  */
-export const uploadProofFile = async
-(
-  files:File[],taskId:string,baseUrl:string
-):Promise<ProofFile[]>=>
-{
-  try
-  {
+export const uploadProofFile = async (
+  files: File[],
+  taskId: string,
+  baseUrl: string
+): Promise<ProofFile[]> => {
+  try {
     const formData = new FormData()
-    files.forEach(file=>
-    {
-      formData.append('files',file)
-    }
-    )
-    formData.append('taskId',taskId)
+    files.forEach(file => {
+      formData.append('files', file)
+    })
+    formData.append('taskId', taskId)
 
     const headers = getAuthHeaders()
     // 移除 content-type,让浏览器自动设置（包含boundary）
     delete (headers as any)['Content-Type']
 
-    const response = await fetch(`${baseUrl}/api/upload/proof`,
-      {
-        method:'POST',
-        headers,
-        body:formData
-      }
-    )
+    const response = await fetch(`${baseUrl}/api/upload/proof`, {
+      method: 'POST',
+      headers,
+      body: formData
+    })
 
-    if(!response.ok)
-    {
+    if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.message||'上传文件失败')
+      throw new Error(error.message || '上传文件失败')
     }
 
     const result = await response.json()
     return result.files
-  } catch (error:any)
-  {
-    console.error('Upload proof file error:',error)
+  } catch (error: any) {
+    console.error('Upload proof file error:', error)
     throw error
   }
 }
