@@ -1,10 +1,11 @@
 import { ref } from 'vue'
-import { uploadAvatar } from '~/utils/api'
+import { useApi } from './useApi'
 
 export const useFileUpload = () => {
   const uploading = ref(false)
   const previewUrl = ref<string | null>(null)
   const error = ref<string | null>(null)
+  const { uploadAvatar } = useApi()
 
   const handleFileSelect = (file: File) => {
     error.value = null
@@ -41,11 +42,11 @@ export const useFileUpload = () => {
         return null
       }
       
-      // 上传文件
+      // 上传文件到后端
       const result = await uploadAvatar(file)
       return result.url
-    } catch (err) {
-      error.value = '上传失败，请重试'
+    } catch (err: any) {
+      error.value = err.message || '上传失败，请重试'
       console.error('Upload error:', err)
       return null
     } finally {

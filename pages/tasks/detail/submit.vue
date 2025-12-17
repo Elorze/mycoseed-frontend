@@ -187,10 +187,9 @@ import { useApi } from '~/composables/useApi'
 import { useToast } from '~/composables/useToast'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
-import type { Task } from '~/utils/api'
+import type { Task, ProofData, ProofFile } from '~/utils/api'
 import {useUserStore} from '~/stores/user'
-import {useGeolocation} from '~/composables/useGeolocation'
-import type {ProofData, GPSPosition} from '~/utils/api'
+import {useGeolocation, type GPSPosition} from '~/composables/useGeolocation'
 
 const userStore = useUserStore()
 
@@ -199,8 +198,7 @@ definePageMeta({
   middleware: 'auth'
 })
 
-const { getTaskById, submitProof, uploadProofFile, getMe } = useApi()
-const { apiBaseUrl } = useApi()
+const { getTaskById, submitProof, uploadProofFile, getMe, apiBaseUrl } = useApi()
 const { getCurrentLocation, validateGPSAccuracy } = useGeolocation()
 
 // 获取路由参数
@@ -409,7 +407,12 @@ const submitForm = async () =>
     {
       description: submissionDescription.value,
       files: uploadedFiles,
-      gps: gpsData,
+      gps: gpsData ? {
+        latitude: gpsData.latitude,
+        longitude: gpsData.longitude,
+        accuracy: gpsData.accuracy,
+        timestamp: gpsData.timestamp
+      } : undefined,
       submittedAt: new Date().toISOString()
     }
 
