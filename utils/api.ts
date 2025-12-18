@@ -689,8 +689,18 @@ export const uploadProofFile = async (
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || '上传文件失败')
+      // 检查响应内容类型
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json()
+        throw new Error(error.message || error.error || '上传文件失败')
+      } else {
+        // 如果不是 JSON，可能是 HTML 错误页面（如 404）
+        if (response.status === 404) {
+          throw new Error('上传接口不存在，请检查后端服务是否正常运行')
+        }
+        throw new Error(`上传文件失败 (${response.status}): ${response.statusText}`)
+      }
     }
 
     const result = await response.json()
