@@ -402,7 +402,7 @@ const submitReview = async () => {
     
     if (reviewResult.value.decision === 'approved') {
       // 审核通过
-      result = await approveTask(taskId)
+      result = await approveTask(taskId, reviewResult.value.comments || undefined)
     } else {
       // 审核驳回
       result = await rejectTask(taskId, reviewResult.value.comments)

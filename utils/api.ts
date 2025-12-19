@@ -67,7 +67,7 @@ export interface Task {
   createdAt?: string             // 创建时间
   updatedAt?: string             // 更新时间
   // 以下字段为前端兼容字段（后端不返回）
-  creatorId?: number             // 创建者ID
+  creatorId?: string             // 创建者ID (UUID)
   creatorName?: string           // 创建者名称
   claimerId?: number             // 接单者ID
   claimerName?: string           // 接单者名称
@@ -371,22 +371,79 @@ export const getReviewTasks = async (baseUrl: string): Promise<Task[]> => {
 /**
  * 审核通过任务
  * @param taskId 任务 ID (UUID string)
- * TODO: 等待后端实现审核 API
+ * @param baseUrl API 基础 URL
+ * @param comments 可选的审核评语
  */
-export const approveTask = async (taskId: string): Promise<{ success: boolean; message: string }> => {
-  console.warn('Task review API not implemented yet')
-  return { success: false, message: '审核功能暂未实现，等待后端开发' }
+export const approveTask = async (taskId: string, baseUrl: string, comments?: string): Promise<{ success: boolean; message: string }> =>
+{
+  try
+  {
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/approve`,
+      {
+        method: 'PATCH',
+        headers: 
+        {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: comments ? JSON.stringify({ comments }) : undefined,
+      }
+    )
+
+    if (!response.ok)
+    {
+      const error = await response.json()
+      return 
+      {
+        success: false,
+        message: error.message || '审核失败'
+      }
+    }
+
+    const result = await response.json()
+    return result
+  } catch (error: any)
+  {
+    console.error('Approve task error:', error)
+    return { success: false, message: error.message || '审核失败'}
+  }
 }
 
 /**
  * 驳回任务
  * @param taskId 任务 ID (UUID string)
  * @param reason 驳回理由
- * TODO: 等待后端实现审核 API
+ * @param baseUrl API 基础 URL
  */
-export const rejectTask = async (taskId: string, reason: string): Promise<{ success: boolean; message: string }> => {
-  console.warn('Task review API not implemented yet')
-  return { success: false, message: '审核功能暂未实现，等待后端开发' }
+export const rejectTask = async (taskId: string, reason: string, baseUrl: string): Promise<{ success: boolean; message: string }> =>
+{
+  try
+  {
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/reject`,
+      {
+        method: 'PATCH',
+        headers:
+        {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ reason }),
+      }
+    )
+
+    if (!response.ok)
+    {
+      const error = await response.json()
+      return { success: false, message: error.message || '审核失败'}
+    }
+
+    const result = await response.json()
+    return result
+  } catch (error: any)
+  {
+    console.error('Reject task error:', error)
+    return { success: false, message: error.message || '审核失败' }
+  }
 }
 
 /**

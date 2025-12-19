@@ -41,10 +41,9 @@ export const useApi = () => {
     getActivityById: api.getActivityById,
     joinActivity: api.joinActivity,
     
-    // 审核相关 API（暂时返回错误提示）
-    approveTask: api.approveTask,
-    rejectTask: api.rejectTask,
-    discountTask: api.discountTask,
+    // 审核相关 API
+    approveTask: (taskId: string, comments?: string) => api.approveTask(taskId, apiBaseUrl, comments),
+    rejectTask: (taskId: string, reason: string) => api.rejectTask(taskId, reason, apiBaseUrl),
     
     // 社群相关 API（暂时返回空数据）
     getCommunities: api.getCommunities,
