@@ -224,7 +224,7 @@ definePageMeta({
   middleware: 'auth'
 })
 
-const { getTaskById, approveTask, rejectTask } = useApi()
+const { getTaskById, approveTask, rejectTask, apiBaseUrl } = useApi()
 
 // 获取路由参数
 const route = useRoute()
