@@ -46,45 +46,51 @@
             </div>
 
             <!-- 文件上传 -->
-            <div class="pt-4 border-t-2 border-black/20">
-              <h3 class="font-pixel text-xs uppercase text-black mb-4">上传文件</h3>
+            <div v-if="requiresFileUpload || allowsDocuments" class="pt-4 border-t-2 border-black/20">
+              <h3 class="font-pixel text-xs uppercase text-black mb-4">上传凭证</h3>
               <div class="space-y-4">
-                <!-- 主要证明文件 -->
-                <div>
+                <!-- 照片上传区域 -->
+                <div v-if="requiresPhoto">
                   <label class="block font-pixel text-[10px] uppercase text-black mb-2">
-                    主要证明文件 <span class="text-mario-red">*</span>
+                    照片证明 <span class="text-mario-red">*</span>
                   </label>
                   <div 
-                    @click="triggerFileInput('main')"
+                    @click="triggerFileInput('photo')"
                     class="border-2 border-dashed border-black bg-white p-6 md:p-8 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-pixel transition-all"
                     :class="{ 'border-mario-red shadow-pixel': dragOver }"
                     @dragover.prevent="dragOver = true"
                     @dragleave="dragOver = false"
-                    @drop.prevent="handleFileDrop($event, 'main')"
+                    @drop.prevent="handleFileDrop($event, 'photo')"
                   >
-                    <div class="text-4xl mb-3">☁️</div>
-                    <p class="font-vt323 text-base text-black font-medium mb-1">点击上传或拖拽文件到此处</p>
-                    <p class="font-vt323 text-sm text-black/70">支持 PDF, DOC, DOCX, PNG, JPG 格式</p>
+                    <div class="text-4xl mb-3">📷</div>
+                    <p class="font-vt323 text-base text-black font-medium mb-1">点击上传或拖拽照片到此处</p>
+                    <p class="font-vt323 text-sm text-black/70">支持 JPG, PNG, JPEG 格式</p>
                     <p class="font-vt323 text-xs text-black/60 mt-1">最大 10MB</p>
                   </div>
                   <input
-                    ref="mainFileInput"
+                    ref="photoFileInput"
                     type="file"
+                    multiple
                     class="hidden"
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                    @change="handleFileSelect($event, 'main')"
+                    accept="image/*"
+                    @change="handleFileSelect($event, 'photo')"
                   />
                   
-                  <!-- 已选择的文件 -->
-                  <div v-if="selectedFiles.main" class="mt-3 p-3 bg-white border-2 border-black shadow-pixel-sm">
-                    <div class="flex items-center gap-3">
-                      <span class="text-2xl">📄</span>
+                  <!-- 已选择的照片 -->
+                  <div v-if="selectedPhotos.length > 0" class="mt-3 space-y-2">
+                    <div 
+                      v-for="(file, index) in selectedPhotos"
+                      :key="index"
+                      class="p-3 bg-white border-2 border-black shadow-pixel-sm"
+                    >
+                      <div class="flex items-center gap-3">
+                      <span class="text-2xl">📷</span>
                       <div class="flex-1">
-                        <div class="font-vt323 text-sm text-black font-medium">{{ selectedFiles.main.name }}</div>
-                        <div class="font-vt323 text-xs text-black/60">({{ formatFileSize(selectedFiles.main.size) }})</div>
+                        <div class="font-vt323 text-sm text-black font-medium">{{ file.name }}</div>
+                        <div class="font-vt323 text-xs text-black/60">({{ formatFileSize(file.size) }})</div>
                       </div>
                       <PixelButton
-                        @click="removeFile('main')"
+                        @click="removeFile('photo', index)"
                         variant="danger"
                         size="sm"
                       >
@@ -94,31 +100,37 @@
                   </div>
                 </div>
 
-                <!-- 附加文件 -->
-                <div>
+                <!-- 文档上传区域 -->
+                <div v-if="allowsDocuments">
                   <label class="block font-pixel text-[10px] uppercase text-black mb-2">
-                    附加文件 (可选)
+                    文档证明 <span v-if="!requiresPhoto" class="text-mario-red">*</span>
                   </label>
                   <div 
-                    @click="triggerFileInput('additional')"
+                    @click="triggerFileInput('document')"
                     class="border-2 border-dashed border-black bg-white p-4 md:p-6 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-pixel transition-all"
+                    :class="{ 'border-mario-red shadow-pixel': dragOver }"
+                    @dragover.prevent="dragOver = true"
+                    @dragleave="dragOver = false"
+                    @drop.prevent="handleFileDrop($event, 'document')"
                   >
-                    <div class="text-2xl mb-2">➕</div>
-                    <p class="font-vt323 text-sm text-black">添加更多文件</p>
+                    <div class="text-4xl mb-3">📄</div>
+                    <p class="font-vt323 text-base text-black font-medium mb-1">点击上传或拖拽文件到此处</p>
+                    <p class="font-vt323 text-sm text-black/70">支持 PDF, DOC, DOCX 格式</p>
+                    <p class="font-vt323 text-xs text-black/60 mt-1">最大 10MB</p>
                   </div>
                   <input
-                    ref="additionalFileInput"
+                    ref="documentFileInput"
                     type="file"
                     multiple
                     class="hidden"
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                    @change="handleFileSelect($event, 'additional')"
+                    accept=".pdf,.doc,.docx"
+                    @change="handleFileSelect($event, 'document')"
                   />
                   
-                  <!-- 已选择的附加文件 -->
-                  <div v-if="selectedFiles.additional.length > 0" class="mt-3 space-y-2">
+                  <!-- 已选择的文档-->
+                  <div v-if="selectedDocuments.length > 0" class="mt-3 space-y-2">
                     <div
-                      v-for="(file, index) in selectedFiles.additional"
+                      v-for="(file, index) in selectedDocuments"
                       :key="index"
                       class="p-3 bg-white border-2 border-black shadow-pixel-sm"
                     >
@@ -129,7 +141,7 @@
                           <div class="font-vt323 text-xs text-black/60">({{ formatFileSize(file.size) }})</div>
                         </div>
                         <PixelButton
-                          @click="removeFile('additional', index)"
+                          @click="removeFile('document', index)"
                           variant="danger"
                           size="sm"
                         >
@@ -149,10 +161,23 @@
               </label>
               <textarea
                 v-model="submissionDescription"
-                placeholder="请详细描述您完成的任务内容，包括主要工作、技术实现、遇到的问题和解决方案等..."
+                :placeholder="task.proofConfig?.description?.prompt || '请详细描述您完成的任务内容，包括主要工作、技术实现、遇到的问题和解决方案等...'"
                 rows="6"
                 class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
+                :class="{'border-mario-red': requiresDescription && !isValidDescription }"
               />
+              <!-- 字数提示 -->
+              <div v-if="requiresDescription" class="mt-2">
+                <p class="font-vt323 text-xs" :class="isValidDescription ? 'text-black/60' : 'text-mario-red'">
+                  最少字数： {{ minWords }} 字
+                  <span v-if="currentCharCount > 0">
+                    （当前： {{ currentCharCount }} 字）
+                  </span>
+                </p>
+                <p v-if="!isValidDescription && currentCharCount > 0" class="font-vt323 text-xs text-mario-red mt-1">
+                  ⚠️ 字数不足，请至少输入 {{ minWords }} 字
+                </p>
+               </div>
             </div>
 
             <!-- 提交按钮 -->
@@ -209,20 +234,15 @@ const toast = useToast()
 const loading = ref(true)
 
 // 响应式数据
-const selectedFiles = ref<{
-  main: File | null
-  additional: File[]
-}>({
-  main: null,
-  additional: []
-})
+const selectedPhotos = ref<File[]>([])
+const selectedDocuments = ref<File[]>([])
 const submissionDescription = ref('')
 const isSubmitting = ref(false)
 const dragOver = ref(false)
 
 // 文件输入引用
-const mainFileInput = ref<HTMLInputElement | null>(null)
-const additionalFileInput = ref<HTMLInputElement | null>(null)
+const photoFileInput = ref<HTMLInputElement | null>(null)
+const documentFileInput = ref<HTMLInputElement | null>(null)
 
 // 任务数据
 const task = ref<Task>({
@@ -235,6 +255,21 @@ const task = ref<Task>({
   isClaimed: false,
   proofConfig: undefined
 } as Task)
+
+// GPS位置数据
+const gpsLocation = ref
+<{
+  latitude :number | null
+  longitude : number |null
+  accuracy: number | null
+  timestamp: number | null
+}>
+({
+  latitude: null,
+  longitude: null,
+  accuracy: null,
+  timestamp: null
+})
 
 // 加载任务详情
 const loadTask = async () => {
@@ -265,48 +300,163 @@ const loadTask = async () => {
   }
 }
 
-// 计算属性
-const canSubmit = computed(() => {
-  return selectedFiles.value.main && submissionDescription.value.trim().length > 0
+// 检查是否需要文字描述
+const requiresDescription = computed 
+(
+  () => 
+{
+  return task.value.proofConfig?.description?.enabled === true
+}
+)
+
+// 获取最少字数要求
+const minWords = computed 
+(
+  () =>
+{
+  return task.value.proofConfig?.description?.minWords || 20
+}
+)
+
+// 当前输入的字数
+const currentCharCount = computed 
+(
+  () =>
+{
+  return submissionDescription.value.trim().length
+}
+)
+
+// 验证字数是否满足要求
+const isValidDescription = computed 
+(
+  () =>
+{
+  if (!requiresDescription.value) return true
+  return currentCharCount.value >= minWords.value
+}
+)
+
+// 检查是否需要照片上传
+const requiresPhoto = computed(() => {
+  return task.value.proofConfig?.photo?.enabled === true
 })
 
+// 检查是否需要文件上传（照片或文档）
+const requiresFileUpload = computed(() => {
+  return requiresPhoto.value || allowsDocuments.value
+})
+
+// 检查是否允许文档上传
+const allowsDocuments = computed(()=>{
+  // 默认允许文档上传
+  return true
+})
+
+// 检查是否需要GPS定位
+const requiresGPS = computed(() => {
+  return task.value.proofConfig?.gps?.enabled === true
+})
+
+// 计算属性
+const canSubmit = computed 
+(
+  () =>
+{
+  // 如果需要文件上传
+  if (requiresFileUpload.value)
+ {
+    // 如果要求照片，必须至少有一张照片
+    const hasPhoto = requiresPhoto.value ? selectedPhotos.value.length > 0 : true
+    // 如果要求文档（且不要求照片），必须至少有一个文档
+    const hasDocument = (!requiresPhoto.value && allowsDocuments.value)
+      ? selectedDocuments.value.length > 0
+      : true
+    const hasGPS = requiresGPS.value ? (gpsLocation.value.latitude !== null && gpsLocation.value.longitude !== null) : true
+    const hasDescription = requiresDescription.value ? isValidDescription.value : true
+    return hasPhoto && hasDocument && hasGPS && hasDescription
+ }
+
+ // 如果需要GPS定位，必须获取位置
+ if (requiresGPS.value)
+ {
+  const hasGPS = gpsLocation.value.latitude !== null && gpsLocation.value.longitude !== null
+  const hasDescription = requiresDescription.value ? isValidDescription.value : true
+  return hasGPS && hasDescription
+ }
+
+ // 如果需要文字描述，必须填写说明并满足最小字数
+ if (requiresDescription.value)
+ {
+  return isValidDescription.value
+ }
+
+ // 如果没有任何要求，至少需要文件或文字描述中的一种
+ const hasFiles = selectedPhotos.value.length > 0 || selectedDocuments.value.length > 0
+ return hasFiles || submissionDescription.value.trim().length > 0
+}
+)
+
+
 // 触发文件输入
-const triggerFileInput = (type: 'main' | 'additional') => {
-  if (type === 'main') {
-    mainFileInput.value?.click()
+const triggerFileInput = (type: 'photo' | 'document') => {
+  if (type === 'photo') {
+    photoFileInput.value?.click()
   } else {
-    additionalFileInput.value?.click()
+    documentFileInput.value?.click()
   }
 }
 
 // 处理文件选择
-const handleFileSelect = (event: Event, type: 'main' | 'additional') => {
+const handleFileSelect = (event: Event, type: 'photo' | 'document') => {
   const target = event.target as HTMLInputElement
   const files = Array.from(target.files || [])
-  if (type === 'main') {
-    selectedFiles.value.main = files[0] || null
+
+  if (type === 'photo') {
+    // 验证是否为图片
+    const imageFiles = files.filter(file => file.type.startsWith('image/'))
+    selectedPhotos.value = [...selectedPhotos.value, ...imageFiles]
   } else {
-    selectedFiles.value.additional = [...selectedFiles.value.additional, ...files]
+    // 验证是否为文档
+    const docFiles = files.filter
+    (
+      file =>
+      file.type === 'application/pdf' || 
+      file.type.includes('document') ||
+      file.name.match(/\.(pdf|doc|docx)$/i)
+    )
+    selectedDocuments.value = [...selectedDocuments.value, ...docFiles]
   }
+
+  // 清空 input，允许重复选择同一文件
+  target.value = ''
 }
 
 // 处理文件拖拽
-const handleFileDrop = (event: DragEvent, type: 'main' | 'additional') => {
+const handleFileDrop = (event: DragEvent, type: 'photo' | 'document') => {
   dragOver.value = false
   const files = Array.from(event.dataTransfer?.files || [])
-  if (type === 'main') {
-    selectedFiles.value.main = files[0] || null
+  if (type === 'photo') {
+    const imageFiles = files.filter(file => file.type.startsWith('image/'))
+    selectedPhotos.value = [...selectedPhotos.value, ...imageFiles]
   } else {
-    selectedFiles.value.additional = [...selectedFiles.value.additional, ...files]
+    const docFiles = files.filter
+    (
+      file =>
+      file.type === 'application/pdf' ||
+      file.type.includes('document') ||
+      file.name.match(/\.(pdf|doc|docx)$/i)
+    )
+    selectedDocuments.value = [...selectedDocuments.value, ...docFiles]
   }
 }
 
 // 移除文件
-const removeFile = (type: 'main' | 'additional', index?: number) => {
-  if (type === 'main') {
-    selectedFiles.value.main = null
-  } else if (index !== undefined) {
-    selectedFiles.value.additional.splice(index, 1)
+const removeFile = (type: 'photo' | 'document', index: number) => {
+  if (type === 'photo') {
+    selectedPhotos.value.splice(index, 1)
+  } else {
+    selectedDocuments.value.splice(index, 1)
   }
 }
 
@@ -378,11 +528,8 @@ const submitForm = async () =>
 
     // 上传文件到后端
     const filesToUpload: File[] = []
-    if(selectedFiles.value.main)
-    {
-      filesToUpload.push(selectedFiles.value.main)
-    }
-    filesToUpload.push(...selectedFiles.value.additional)
+    filesToUpload.push(...selectedPhotos.value)
+    filesToUpload.push(...selectedDocuments.value)
 
     let uploadedFiles: ProofFile[] = []
     if(filesToUpload.length > 0)
