@@ -46,7 +46,7 @@
             </div>
 
             <!-- 文件上传 -->
-            <div v-if="requiresFileUpload || allowsDocuments" class="pt-4 border-t-2 border-black/20">
+            <div class="pt-4 border-t-2 border-black/20">
               <h3 class="font-pixel text-xs uppercase text-black mb-4">上传凭证</h3>
               <div class="space-y-4">
                 <!-- 照片上传区域 -->
