@@ -54,7 +54,7 @@
                   <label class="block font-pixel text-[10px] uppercase text-black mb-2">
                     照片证明 <span class="text-mario-red">*</span>
                   </label>
-                  <div 
+                  <div
                     @click="triggerFileInput('photo')"
                     class="border-2 border-dashed border-black bg-white p-6 md:p-8 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-pixel transition-all"
                     :class="{ 'border-mario-red shadow-pixel': dragOver }"
@@ -78,7 +78,7 @@
                   
                   <!-- 已选择的照片 -->
                   <div v-if="selectedPhotos.length > 0" class="mt-3 space-y-2">
-                    <div 
+                    <div
                       v-for="(file, index) in selectedPhotos"
                       :key="index"
                       class="p-3 bg-white border-2 border-black shadow-pixel-sm"
@@ -96,6 +96,7 @@
                       >
                         移除
                       </PixelButton>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -105,7 +106,7 @@
                   <label class="block font-pixel text-[10px] uppercase text-black mb-2">
                     文档证明 <span v-if="!requiresPhoto" class="text-mario-red">*</span>
                   </label>
-                  <div 
+                  <div
                     @click="triggerFileInput('document')"
                     class="border-2 border-dashed border-black bg-white p-4 md:p-6 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-pixel transition-all"
                     :class="{ 'border-mario-red shadow-pixel': dragOver }"
