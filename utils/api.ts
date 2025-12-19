@@ -393,8 +393,7 @@ export const approveTask = async (taskId: string, baseUrl: string, comments?: st
     if (!response.ok)
     {
       const error = await response.json()
-      return 
-      {
+      return {
         success: false,
         message: error.message || '审核失败'
       }
