@@ -274,7 +274,7 @@ definePageMeta({
 })
 
 const { getTaskById, submitProof, uploadProofFile, getMe, apiBaseUrl } = useApi()
-const { getCurrentLocation, validateGPSAccuracy } = useGeolocation()
+const { getCurrentLocation } = useGeolocation()
 
 // 获取路由参数
 const route = useRoute()
@@ -333,19 +333,7 @@ const getGPSLocation = async () => {
   try {
     const gpsData = await getCurrentLocation()
 
-    // 验证GPS精度
-    if(task.value.proofConfig?.gps?.accuracy)
-   {
-      const requiredAccuracy = task.value.proofConfig.gps.accuracy || 'medium'
-      if (!validateGPSAccuracy(gpsData.accuracy, requiredAccuracy))
-      {
-        gpsError.value = `GPS精度不足（当前：${gpsData.accuracy.toFixed(2)}米，要求：${requiredAccuracy})`
-        isGettingGPS.value = false
-        return 
-      }
-   }
-
-   // 保存GPS位置
+    // 保存GPS位置
    gpsLocation.value = {
     latitude: gpsData.latitude,
     longitude: gpsData.longitude,
@@ -617,18 +605,7 @@ const submitForm = async () =>
         try
         {
           gpsData = await getCurrentLocation()
-
-          // 验证GPS精度
-          const requiredAccuracy = task.value.proofConfig.gps.accuracy || 'medium'
-          if(!validateGPSAccuracy(gpsData.accuracy, requiredAccuracy))
-          {
-            toast.add({
-              title: 'GPS精度不足',
-              description: `当前GPS精度为${gpsData.accuracy.toFixed(2)}米，任务要求：${requiredAccuracy}`,
-              color:'red'
-            })
-            return
-          }
+          // 使用获取到的GPS数据
         } catch (error:any)
         {
           toast.add({
