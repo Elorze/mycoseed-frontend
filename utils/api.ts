@@ -223,6 +223,7 @@ export const createTask = async (params: CreateTaskParams, baseUrl: string): Pro
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({
     title: params.title,
