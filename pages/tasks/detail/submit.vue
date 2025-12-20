@@ -155,6 +155,55 @@
               </div>
             </div>
 
+            <!-- GPS定位 -->
+            <div v-if="requiresGPS" class="pt-4 border-t-2 border-black/20">
+              <label class="block font-pixel text-xs uppercase text-black mb-2">
+                GPS定位 <span class="text-mario-red">*</span>
+              </label>
+              <div class="bg-white border-2 border-black shadow-pixel-sm p-4">
+                <div v-if="!gpsLocation.latitude || !gpsLocation.longitude" class="space-y-3">
+                  <p class="font-vt323 text-base text-black mb-3">
+                    此任务需要GPS定位验证，请点击按钮获取您的位置
+                  </p>
+                  <PixelButton
+                    @click="getGPSLocation"
+                    variant="primary"
+                    size="md"
+                    :disabled="isGettingGPS"
+                    :block="false"
+                  >
+                    {{ isGettingGPS ? '获取中...' : '📍 获取GPS位置' }}
+                </PixelButton>
+                <p v-if="gpsError" class="font-vt323 text-xs text-mario-red mt-2">
+                  ⚠️ {{ gpsError }}
+                </p>
+                </div>
+                <div v-else class="space-y-2">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-2xl">✅</span>
+                    <span class="font-pixel text-xs uppercase text-black">GPS位置已获取</span>
+                  </div>
+                  <div class="font-vt323 text-sm text-black space-y-1">
+                    <p><span class="font-medium">纬度：</span> {{ gpsLocation.latitude?.toFixed(6) }}</p>
+                    <p><span class="font-medium">经度：</span> {{ gpsLocation.longitude?.toFixed(6) }}</p>
+                    <p v-if="gpsLocation.accuracy !== null">
+                      <span class="font-medium">精度:</span>{{ gpsLocation.accuracy.toFixed(2) }} 米
+                    </p>
+                </div>
+                <PixelButton
+                  @click="getGPSLocation"
+                  variant="secondary"
+                  size="sm"
+                  :disabled="isGettingGPS"
+                  :block="false"
+                  class="mt-2"
+                >
+                  {{ isGettingGPS ? '重新获取中...' : '🔄 重新获取位置' }}
+              </PixelButton>
+              </div>
+            </div> 
+          </div>
+
             <!-- 提交说明输入 -->
             <div class="pt-4 border-t-2 border-black/20">
               <label class="block font-pixel text-xs uppercase text-black mb-2">
@@ -271,6 +320,60 @@ const gpsLocation = ref
   accuracy: null,
   timestamp: null
 })
+
+// GPS获取状态
+const isGettingGPS = ref(false)
+const gpsError = ref<string | null>(null)
+
+// 获取GPS位置
+const getGPSLocation = async () => {
+  isGettingGPS.value = true
+  gpsError.value = null
+
+  try {
+    const gpsData = await getCurrentLocation()
+
+    // 验证GPS精度
+    if(task.value.proofConfig?.gps?.accuracy)
+   {
+      const requiredAccuracy = task.value.proofConfig.gps.accuracy || 'medium'
+      if (!validateGPSAccuracy(gpsData.accuracy, requiredAccuracy))
+      {
+        gpsError.value = `GPS精度不足（当前：${gpsData.accuracy.toFixed(2)}米，要求：${requiredAccuracy})`
+        isGettingGPS.value = false
+        return 
+      }
+   }
+
+   // 保存GPS位置
+   gpsLocation.value = {
+    latitude: gpsData.latitude,
+    longitude: gpsData.longitude,
+    accuracy: gpsData.accuracy,
+    timestamp: Date.now()
+   }
+
+   toast.add
+   ({
+    title: 'GPS位置获取成功',
+    description: '位置信息已保存',
+    color: 'green'
+  })
+} catch (error: any)
+{
+  console.error('获取GPS位置失败:',error)
+  gpsError.value = error.message || '获取GPS位置失败，请检查定位权限'
+  toast.add 
+  ({
+    title: '获取GPS位置失败',
+    description: error.message || '无法获取GPS位置，请检查定位权限',
+    color: 'red'
+  })
+} finally
+{
+  isGettingGPS.value = false
+}
+}
 
 // 加载任务详情
 const loadTask = async () => {
@@ -501,29 +604,40 @@ const submitForm = async () =>
     let gpsData: GPSPosition | undefined
     if(task.value.proofConfig?.gps?.enabled)
     {
-      try
-      {
-        gpsData = await getCurrentLocation()
+      // 如果已经获取过GPS位置，直接使用
+      if (gpsLocation.value.latitude !== null && gpsLocation.value.longitude !== null) {
+        gpsData = {
+          latitude: gpsLocation.value.latitude,
+          longitude: gpsLocation.value.longitude,
+          accuracy: gpsLocation.value.accuracy || 0,
+          timestamp: new Date(gpsLocation.value.timestamp || Date.now()).toISOString()
+        }
+      } else {
+        // 如果没有获取过，则重新获取
+        try
+        {
+          gpsData = await getCurrentLocation()
 
-        // 验证GPS精度
-        const requiredAccuracy = task.value.proofConfig.gps.accuracy || 'medium'
-        if(!validateGPSAccuracy(gpsData.accuracy, requiredAccuracy))
+          // 验证GPS精度
+          const requiredAccuracy = task.value.proofConfig.gps.accuracy || 'medium'
+          if(!validateGPSAccuracy(gpsData.accuracy, requiredAccuracy))
+          {
+            toast.add({
+              title: 'GPS精度不足',
+              description: `当前GPS精度为${gpsData.accuracy.toFixed(2)}米，任务要求：${requiredAccuracy}`,
+              color:'red'
+            })
+            return
+          }
+        } catch (error:any)
         {
           toast.add({
-            title: 'GPS精度不足',
-            description: `当前GPS精度为${gpsData.accuracy.toFixed(2)}米，任务要求：${requiredAccuracy}`,
-            color:'red'
+            title: '获取GPS位置失败',
+            description: error.message || '无法获取GPS位置，请检查定位权限',
+            color: 'red'
           })
           return
         }
-      } catch (error:any)
-      {
-        toast.add({
-          title: '获取GPS位置失败',
-          description: error.message || '无法获取GPS位置，请检查定位权限',
-          color: 'red'
-        })
-        return
       }
     }
 

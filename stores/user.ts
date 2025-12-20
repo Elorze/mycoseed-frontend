@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 import { AUTH_TOKEN_KEY, getCookie, clearAuthToken, getMe } from '~/utils/api'
 
 export interface User {
-    id: number
+    id: string | number  // 后端返回的是UUID string，但前端可能使用number
     identifier: string
     identifierType: 'phone' | 'email'
     evm_chain_address: string

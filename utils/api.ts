@@ -776,7 +776,7 @@ export interface UserProfile {
   avatar?: string
 }
 
-export const updateUserProfile = async (userId: number, profile: UserProfile): Promise<{ success: boolean; message: string }> => {
+export const updateUserProfile = async (userId: string | number, profile: UserProfile): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 500))
   console.log('[Mock] 更新用户信息:', userId, profile)
   

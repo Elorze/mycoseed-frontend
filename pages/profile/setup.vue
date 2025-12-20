@@ -101,6 +101,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user'
 import { useApi } from '~/composables/useApi'
 import { useFileUpload } from '~/composables/useFileUpload'
+import { useToast } from '~/composables/useToast'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 
