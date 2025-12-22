@@ -48,21 +48,36 @@
 
               <div>
                 <label class="block font-pixel text-xs uppercase mb-2 text-black">开始日期 *</label>
-                <input 
-                  v-model="taskForm.startDate" 
-                  type="datetime-local"
-                  class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                <PixelDatePicker
+                  v-model="taskForm.startDate"
+                  placeholder="选择开始日期"
+                  :min="minStartDate"
+                  :error="startDateError"
+                />
+                <PixelTimePicker
+                  v-if="taskForm.startDate"
+                  v-model="taskForm.startTime"
+                  class="mt-2"
                 />
               </div>
             </div>
 
             <div>
               <label class="block font-pixel text-xs uppercase mb-2 text-black">截止日期 *</label>
-              <input 
-                v-model="taskForm.deadline" 
-                type="datetime-local"
-                class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-              />
+            <PixelDatePicker
+              v-model="taskForm.deadline"
+              placeholder="选择截止日期"
+              :min="minDeadlineDate"
+              :error="deadlineError"
+            />
+            <PixelTimePicker
+              v-if="taskForm.deadline"
+              v-model="taskForm.deadlineTime"
+              class="mt-2"
+            /> 
+            <p v-if="deadlineError" class="mt-1 font-vt323 text-xs text-mario-red">
+              {{ deadlineError }}
+            </p>
             </div>
           </div>
 
@@ -215,7 +230,11 @@
 <script setup lang="ts">
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
+import PixelDatePicker from '~/components/pixel/PixelDatePicker.vue'
+import PixelTimePicker from '~/components/pixel/PixelTimePicker.vue'
 import { useApi } from '~/composables/useApi'
+import { useToast } from '~/composables/useToast'
+
 
 definePageMeta({
   layout: 'default',
@@ -230,7 +249,9 @@ const taskForm = ref({
   objective: '',
   reward: '',
   startDate: '',
-  deadline: ''
+  startTime: '00:00',
+  deadline: '',
+  deadlineTime: '23:59'
 })
 
 // 证明配置
@@ -254,6 +275,84 @@ const proofConfig = ref({
 // 加载状态
 const isPublishing = ref(false)
 
+// 最小开始日期（今天）
+const minStartDate = computed(() => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return today.toISOString().split('T')[0]
+})
+
+// 最小截止日期（开始日期或今天，取较晚的）
+const minDeadlineDate = computed(() => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  if (taskForm.value.startDate) {
+    const startDate = new Date(taskForm.value.startDate)
+    startDate.setHours(0, 0, 0, 0)
+    return startDate >= today
+      ? taskForm.value.startDate
+      : today.toISOString().split('T')[0]
+  }
+
+  return today.toISOString().split('T')[0]
+})
+
+// 日期验证错误
+const startDateError = computed(() => {
+  if (!taskForm.value.startDate) return ''
+
+  const start = new Date(taskForm.value.startDate)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  start.setHours(0, 0, 0, 0)
+
+  if (start < today) {
+    return '开始日期不能早于今天'
+  }
+
+  return ''
+})
+
+const deadlineError = computed(() => {
+  if (!taskForm.value.deadline) return ''
+
+  const deadline = new Date(taskForm.value.deadline)
+  deadline.setHours(0, 0, 0, 0)
+
+  // 检查是否早于今天
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (deadline < today) {
+    return '截止日期不能早于今天'
+  }
+
+  // 检查是否早于开始日期
+  if (taskForm.value.startDate) {
+    const start = new Date(taskForm.value.startDate)
+    start.setHours(0, 0, 0, 0)
+
+    if (deadline < start) {
+      return '截止日期必须晚于开始日期'
+    }
+
+    // 如果日期相同，检查时间
+    if (deadline.getTime() === start.getTime()) {
+      const [deadlineHour, deadlineMinute] = taskForm.value.deadlineTime.split(':').map(Number)
+      const [startHour, startMinute] = taskForm.value.startTime.split(':').map(Number)
+
+      const deadlineTime = deadlineHour * 60 + deadlineMinute
+      const startTime = startHour * 60 + startMinute
+
+      if (deadlineTime <= startTime) {
+        return '截止时间必须晚于开始时间'
+      }
+    }
+  }
+
+  return ''
+})
+
 // 选项数据
 const photoCountOptions = [
   { label: '1张', value: '1' },
@@ -271,11 +370,10 @@ const gpsAccuracyOptions = [
 
 // 计算属性
 const canPublish = computed(() => {
-  return taskForm.value.title && 
-         taskForm.value.objective && 
-         taskForm.value.reward && 
-         taskForm.value.startDate && 
-         taskForm.value.deadline
+  const hasBasicInfo = taskForm.value.title && taskForm.value.objective && taskForm.value.reward
+  const hasValidDates = taskForm.value.startDate && taskForm.value.deadline && !startDateError.value && !deadlineError.value
+
+  return hasBasicInfo && hasValidDates
 })
 
 // 发布任务
@@ -284,7 +382,7 @@ const publishTask = async () => {
     const toast = useToast()
     toast.add({
       title: '请填写完整信息',
-      description: '请确保所有必填项都已填写',
+      description: startDateError.value || deadlineError.value || '请确保所有必填项都已填写',
       color: 'red'
     })
     return
@@ -296,13 +394,17 @@ const publishTask = async () => {
     // 模拟钱包签名和发布
     await new Promise(resolve => setTimeout(resolve, 2000))
     
+    // 组合日期和时间
+    const startDateTime = `${taskForm.value.startDate}T${taskForm.value.startTime}`
+    const deadlineDateTime = `${taskForm.value.deadline}T${taskForm.value.deadlineTime}`
+    
     // 创建任务
     const newTask = await createTask({
       title: taskForm.value.title,
       description: taskForm.value.objective,
       reward: parseFloat(taskForm.value.reward),
-      startDate: taskForm.value.startDate,
-      deadline: taskForm.value.deadline,
+      startDate: startDateTime,
+      deadline: deadlineDateTime,
       proofConfig: proofConfig.value
     })
     
