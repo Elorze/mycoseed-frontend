@@ -9,7 +9,8 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      // 这里放一些公共配置
+      // 高德地图API Key（占位符，需要替换为实际的API Key）
+      amapApiKey: process.env.AMAP_API_KEY || 'YOUR_AMAP_API_KEY_HERE'
     }
   },
   // 配置UI主题

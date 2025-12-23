@@ -65,14 +65,11 @@
                   </div>
                 </div>
 
-                <!-- GPS定位 -->
+                <!-- 位置定位 -->
                 <div v-if="task.proofConfig.gps?.enabled" class="p-3 bg-gray-50 border-2 border-black shadow-pixel-sm">
                   <div class="flex items-center gap-2 mb-2">
                     <span class="text-xl">📍</span>
-                    <h4 class="font-pixel text-xs uppercase text-black">GPS 定位</h4>
-                  </div>
-                  <div class="font-vt323 text-base text-black">
-                    <div>定位精度：{{ getGpsAccuracyLabel(task.proofConfig.gps.accuracy) }}</div>
+                    <h4 class="font-pixel text-xs uppercase text-black">位置定位</h4>
                   </div>
                 </div>
 
@@ -83,7 +80,7 @@
                     <h4 class="font-pixel text-xs uppercase text-black">文字描述</h4>
                   </div>
                   <div class="font-vt323 text-base text-black space-y-1">
-                    <div>最少字数：{{ task.proofConfig.description.minWords || 50 }}字</div>
+                    <div>最少字数：{{ task.proofConfig.description.minWords || 10 }}字</div>
                     <div v-if="task.proofConfig.description.prompt" class="mt-2">
                       <span class="font-pixel text-[10px] uppercase text-black/70">提示语：</span>
                       <p class="mt-1">{{ task.proofConfig.description.prompt }}</p>
@@ -101,23 +98,23 @@
             <div class="pt-4 border-t-2 border-black/20">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-vt323 text-base">
                 <div class="flex justify-between items-center pb-2 border-b border-black/10">
-                  <span class="text-black/70">创建人:</span>
+                  <span class="text-black/70">发布者:</span>
                   <span class="text-black font-medium">{{ task.creator }}</span>
                 </div>
                 <div class="flex justify-between items-center pb-2 border-b border-black/10">
-                  <span class="text-black/70">开始时间:</span>
+                  <span class="text-black/70">报名开始时间:</span>
                   <span class="text-black font-medium">
                     {{ task.claimedAt ? formatDate(task.claimedAt) : (task.startDate ? formatDate(task.startDate) : '未开始') }}
                   </span>
                 </div>
                 <div class="flex justify-between items-center pb-2 border-b border-black/10">
-                  <span class="text-black/70">截止时间:</span>
+                  <span class="text-black/70">提交截止时间:</span>
                   <span class="text-black font-medium">{{ formatDate(task.deadline) }}</span>
                 </div>
               </div>
             </div>
             
-            <div class="pt-4 border-t-2 border-black/20">
+            <div v-if="task.submissionInstructions && task.submissionInstructions.trim()" class="pt-4 border-t-2 border-black/20">
               <h3 class="font-pixel text-xs uppercase text-black mb-2">提交说明</h3>
               <p class="font-vt323 text-lg text-black leading-relaxed">
                 {{ task.submissionInstructions }}
@@ -139,7 +136,7 @@
             >
               <!-- 时间线连接线 -->
               <div 
-                v-if="index < task.updates.length - 1"
+                v-if="Number(index) < task.updates.length - 1"
                 class="absolute left-3 top-6 w-0.5 h-8 bg-mario-blue"
               ></div>
               
@@ -186,9 +183,9 @@
               variant="primary"
               size="lg"
               :block="true"
-              :disabled="loading"
+              :disabled="loading || !isTaskStarted || isTaskExpired"
             >
-              {{ loading ? '领取中...' : '领取任务' }}
+              {{ loading ? '领取中...' : (isTaskExpired ? '已过期' : (isTaskStarted ? '领取任务' : '待任务开始')) }}
             </PixelButton>
             
             <PixelButton
@@ -263,21 +260,34 @@ const task = ref<any>({
   reward: 0,
   status: 'unclaimed',
   deadline: '',
+  startDate: '',
   creator: '',
   creatorId: 0,
-  participants: 0,
-  maxParticipants: 5,
-  difficulty: '中等',
-  communityId: 1,
   participantsList: [],
-  requirements: [],
-  submissionInstructions: '请按照任务要求完成并提交相关凭证。',
+  submissionInstructions: '',
+  proofConfig: null,
   updates: []
 })
 
 // 权限检查：判断当前用户是否是任务创建者
 const canReview = computed(() => {
   return userStore.user?.id === task.value.creatorId
+})
+
+// 检查任务是否已开始
+const isTaskStarted = computed(() => {
+  if (!task.value.startDate) return true // 如果没有开始时间，默认认为已开始（向后兼容）
+  const now = new Date()
+  const startDate = new Date(task.value.startDate)
+  return now >= startDate
+})
+
+// 检查任务是否已过期
+const isTaskExpired = computed(() => {
+  if (!task.value.deadline) return false // 如果没有截止时间，认为未过期
+  const now = new Date()
+  const deadline = new Date(task.value.deadline)
+  return now > deadline
 })
 
 // 状态类型
@@ -328,16 +338,6 @@ const formatDate = (dateString: string | undefined) => {
     hour: '2-digit',
     minute: '2-digit'
   })
-}
-
-// 获取GPS精度标签
-const getGpsAccuracyLabel = (accuracy: string) => {
-  const accuracyMap: Record<string, string> = {
-    'high': '高精度 (±5米)',
-    'medium': '中精度 (±50米)',
-    'low': '低精度 (±500米)'
-  }
-  return accuracyMap[accuracy] || accuracy
 }
 
 // 检查是否有任何证明配置
@@ -447,17 +447,12 @@ const loadTask = async () => {
       startDate: taskData.startDate, // 保存开始日期
       creator: taskData.creatorName || '发布者',
       creatorId: taskData.creatorId,
-      participants: taskData.claimerId ? 1 : 0,
-      maxParticipants: 5,
-      difficulty: '中等',
-      communityId: taskData.activityId || 1,
       participantsList: taskData.claimerId ? [{
         id: taskData.claimerId,
         name: taskData.claimerName || '接单者',
         role: '参与者'
       }] : [],
-      requirements: taskData.description.split('\n').filter(r => r.trim()),
-      submissionInstructions: taskData.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
+      submissionInstructions: taskData.submissionInstructions || '',
       proofConfig: taskData.proofConfig || null, // 获取证明配置
       updates: [],
       // 保存原始API数据字段用于时间线

@@ -13,52 +13,61 @@
           <!-- 基本信息 -->
           <div class="space-y-4">
             <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务标题 *</label>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务名称 *</label>
               <input 
                 v-model="taskForm.title" 
                 type="text"
-                placeholder="输入任务标题..."
+                placeholder="输入任务名称"
                 class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
               />
             </div>
 
             <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务目标 *</label>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务内容 *</label>
               <textarea 
                 v-model="taskForm.objective" 
-                placeholder="描述任务的具体目标..."
+                placeholder="描述任务的具体目标，开始、结束时间，地点等信息..."
                 rows="4"
                 class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
               ></textarea>
             </div>
 
             <!-- 参与人数配置 -->
-            <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">参与人数 *</label>
-              <div class="flex items-center gap-3">
-                <input
-                  v-model.number="taskForm.participantLimit"
-                  type="number"
-                  min="1"
-                  :disabled="unlimitedParticipants"
-                  placeholder="1"
-                  class="w-32 h-12 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all disabled:bg-gray-100 disabled:text-gray-400"
-                />
-                <label class="relative inline-flex items-center cursor-pointer select-none">
+            <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <h4 class="font-pixel text-xs uppercase text-black">限制参与人数</h4>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
-                    v-model="unlimitedParticipants"
+                    v-model="limitParticipants"
                     class="sr-only peer"
                   />
                   <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
-                  <span class="ml-2 font-vt323 text-base text-black">不限人数</span>
                 </label>
               </div>
-              <p v-if="participantError" class="mt-1 font-vt323 text-xs text-mario-red">
-                {{ participantError }}
-              </p>
-              <p v-if="!participantError && (taskForm.participantLimit || unlimitedParticipants)" class="mt-2 font-vt323 text-sm text-black/70">
-                {{ unlimitedParticipants ? '任务不限制参与人数，所有完成任务的参与者都将获得奖励积分' : `最多 ${taskForm.participantLimit} 人可以参与此任务` }}
+              
+              <div v-if="limitParticipants" class="space-y-3 mt-3">
+                <div>
+                  <label class="block font-pixel text-[10px] uppercase mb-1 text-black">参与人数</label>
+                  <input
+                    v-model.number="taskForm.participantLimit"
+                    type="number"
+                    min="1"
+                    placeholder="1"
+                    class="w-32 h-12 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                  />
+                </div>
+                <p v-if="participantError" class="mt-1 font-vt323 text-xs text-mario-red">
+                  {{ participantError }}
+                </p>
+                <p v-if="!participantError && taskForm.participantLimit" class="mt-2 font-vt323 text-sm text-black/70">
+                  最多 {{ taskForm.participantLimit }} 人可以参与此任务
+                </p>
+              </div>
+              <p v-else class="mt-2 font-vt323 text-sm text-black/70">
+                默认不限报名人数
               </p>
             </div>
 
@@ -76,7 +85,7 @@
                 />
                 
                 <!-- 奖励分配方式选择器（仅在设置了参与人数上限时显示） -->
-                <div v-if="!unlimitedParticipants && taskForm.participantLimit" class="mt-3 space-y-2">
+                <div v-if="limitParticipants && taskForm.participantLimit" class="mt-3 space-y-2">
                   <label class="block font-pixel text-[10px] uppercase text-black">奖励分配方式</label>
                   <div class="flex gap-3">
                     <label class="flex items-center cursor-pointer">
@@ -110,44 +119,64 @@
               </div>
 
               <div>
-                <label class="block font-pixel text-xs uppercase mb-2 text-black">开始日期 *</label>
-                <input 
-                  v-model="taskForm.startDate" 
-                  type="datetime-local"
-                  :min="minStart"
-                  class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-                />
+                <label class="block font-pixel text-xs uppercase mb-2 text-black">报名开始时间 *</label>
+                <div class="relative">
+                  <input 
+                    v-model="taskForm.startDate" 
+                    type="datetime-local"
+                    :min="minStart"
+                    ref="startDateInput"
+                    class="w-full h-12 px-4 pr-12 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                  />
+                  <div 
+                    class="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer z-10"
+                    @click.stop="openStartDatePicker"
+                  >
+                    <Icon name="heroicons:calendar" class="w-6 h-6 text-black" />
+                  </div>
+                </div>
               </div>
             </div>
 
             <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">截止日期 *</label>
-              <input 
-                v-model="taskForm.deadline" 
-                type="datetime-local"
-                :min="taskForm.startDate || minStart"
-                class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-              />
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">提交截止时间 *</label>
+              <div class="relative">
+                <input 
+                  v-model="taskForm.deadline" 
+                  type="datetime-local"
+                  :min="taskForm.startDate || minStart"
+                  ref="deadlineInput"
+                  class="w-full h-12 px-4 pr-12 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                />
+                <div 
+                  class="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer z-10"
+                  @click.stop="openDeadlinePicker"
+                >
+                  <Icon name="heroicons:calendar" class="w-6 h-6 text-black" />
+                </div>
+              </div>
               <p v-if="dateError" class="mt-1 font-vt323 text-xs text-mario-red">
                 {{ dateError }}
               </p>
             </div>
+          </div>
 
-            <!-- 备注（提交说明） -->
+          <!-- 提交说明（展示给报名者的信息补充） -->
+          <div class="border-t-2 border-black pt-4 md:pt-6">
             <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">备注（提交说明）</label>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">提交说明（可选）</label>
               <textarea
                 v-model="taskForm.submissionInstructions"
-                placeholder="可选：补充任务完成后的提交说明，例如需要强调的注意事项等..."
+                placeholder="补充任务完成后的提交说明，如需要强调的注意事项等..."
                 rows="3"
-                class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none只有 focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
+                class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
               ></textarea>
             </div>
           </div>
 
-          <!-- 证明要求配置 -->
+          <!-- 提交格式 -->
           <div class="border-t-2 border-black pt-4 md:pt-6">
-            <h3 class="font-pixel text-sm uppercase mb-4 text-black">证明要求配置</h3>
+            <h3 class="font-pixel text-sm uppercase mb-4 text-black">提交格式</h3>
             <div class="space-y-3 md:space-y-4">
               <!-- 照片证据 -->
               <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
@@ -193,7 +222,7 @@
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center gap-3">
                     <span class="text-xl md:text-2xl">📍</span>
-                    <h4 class="font-pixel text-xs uppercase text-black">GPS 定位</h4>
+                    <h4 class="font-pixel text-xs uppercase text-black">位置定位</h4>
                   </div>
                   <label class="relative inline-flex items-center cursor-pointer">
                     <input 
@@ -203,16 +232,6 @@
                     />
                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
                   </label>
-                </div>
-                
-                <div v-if="proofConfig.gps.enabled" class="mt-3">
-                  <label class="block font-pixel text-[10px] uppercase mb-1 text-black">定位精度</label>
-                  <select 
-                    v-model="proofConfig.gps.accuracy"
-                    class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-                  >
-                    <option v-for="opt in gpsAccuracyOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                  </select>
                 </div>
               </div>
 
@@ -240,7 +259,7 @@
                       <input 
                         v-model="proofConfig.description.minWords"
                         type="number"
-                        placeholder="50"
+                        placeholder="10"
                         class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                       />
                     </div>
@@ -306,6 +325,35 @@ definePageMeta({
 const router = useRouter()
 const navigateTo = (path: string) => router.push(path)
 
+// 时间输入框引用
+const startDateInput = ref<HTMLInputElement | null>(null)
+const deadlineInput = ref<HTMLInputElement | null>(null)
+
+// 打开日期选择器的方法
+const openStartDatePicker = () => {
+  if (startDateInput.value) {
+    startDateInput.value.focus()
+    // 优先使用 showPicker()（现代浏览器支持），否则使用 click()
+    if (typeof startDateInput.value.showPicker === 'function') {
+      startDateInput.value.showPicker()
+    } else {
+      startDateInput.value.click()
+    }
+  }
+}
+
+const openDeadlinePicker = () => {
+  if (deadlineInput.value) {
+    deadlineInput.value.focus()
+    // 优先使用 showPicker()（现代浏览器支持），否则使用 click()
+    if (typeof deadlineInput.value.showPicker === 'function') {
+      deadlineInput.value.showPicker()
+    } else {
+      deadlineInput.value.click()
+    }
+  }
+}
+
 // 任务表单数据
 const taskForm = ref({
   title: '',
@@ -330,7 +378,7 @@ const proofConfig = ref({
   },
   description: {
     enabled: false,
-    minWords: 50,
+    minWords: 10,
     prompt: ''
   }
 })
@@ -338,12 +386,13 @@ const proofConfig = ref({
 // 加载状态
 const isPublishing = ref(false)
 
-// 参与人数：不限人数开关与错误信息
-const unlimitedParticipants = ref(false)
+// 参与人数：限制人数开关、不限人数开关与错误信息
+const limitParticipants = ref(false)
+const unlimitedParticipants = computed(() => !limitParticipants.value)
 const participantError = ref('')
 
 // 奖励积分分配模式：'per_person' 每人积分，'total' 总积分
-const rewardDistributionMode = ref<'per_person' | 'total'>('per_person')
+const rewardDistributionMode = ref<'per_person' | 'total'>('total')
 
 // 日期校验相关
 const minStart = ref('')
@@ -358,11 +407,6 @@ const photoCountOptions = [
   { label: '5张', value: '5' }
 ]
 
-const gpsAccuracyOptions = [
-  { label: '高精度 (±5米)', value: 'high' },
-  { label: '中精度 (±50米)', value: 'medium' },
-  { label: '低精度 (±500米)', value: 'low' }
-]
 
 // 计算属性
 const canPublish = computed(() => {
@@ -371,9 +415,9 @@ const canPublish = computed(() => {
          taskForm.value.reward && 
          taskForm.value.startDate && 
          taskForm.value.deadline &&
-         // 参与人数校验
+         // 参与人数校验：如果限制人数，则必须填写有效的人数
          (
-           unlimitedParticipants.value ||
+           !limitParticipants.value ||
            (!!taskForm.value.participantLimit && taskForm.value.participantLimit >= 1)
          ) &&
          // 日期关系校验（没有错误信息）
@@ -387,9 +431,9 @@ const rewardExplanation = computed(() => {
     return ''
   }
   
-  // 不限人数时，默认使用每人积分模式
-  if (unlimitedParticipants.value) {
-    return `每个完成任务的参与者将获得 ${reward} 积分（不限人数）`
+  // 不限制人数时，使用总积分模式（默认）
+  if (!limitParticipants.value) {
+    return `总奖励 ${reward} 积分，将根据实际参与人数平均分配（不限人数）`
   } else {
     const limit = taskForm.value.participantLimit || 1
     
@@ -409,8 +453,8 @@ const rewardExplanation = computed(() => {
 // 校验参与人数
 const validateParticipants = () => {
   participantError.value = ''
-  if (unlimitedParticipants.value) {
-    // 不限人数时忽略具体数值
+  if (!limitParticipants.value) {
+    // 不限制人数时忽略具体数值
     taskForm.value.participantLimit = null as unknown as number
     return true
   }
@@ -447,7 +491,7 @@ const validateDates = () => {
 }
 
 // 监听字段变化做实时校验
-watch(() => [taskForm.value.participantLimit, unlimitedParticipants.value], () => {
+watch(() => [taskForm.value.participantLimit, limitParticipants.value], () => {
   validateParticipants()
 })
 
@@ -487,8 +531,8 @@ const publishTask = async () => {
       reward: parseFloat(taskForm.value.reward),
       startDate: taskForm.value.startDate,
       deadline: taskForm.value.deadline,
-      participantLimit: unlimitedParticipants.value ? null : taskForm.value.participantLimit,
-      rewardDistributionMode: unlimitedParticipants.value ? 'per_person' : rewardDistributionMode.value, // 不限人数时默认使用每人积分模式
+      participantLimit: !limitParticipants.value ? null : taskForm.value.participantLimit,
+      rewardDistributionMode: !limitParticipants.value ? 'total' : rewardDistributionMode.value, // 不限制人数时默认使用总积分模式
       submissionInstructions: taskForm.value.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
       proofConfig: proofConfig.value
     })

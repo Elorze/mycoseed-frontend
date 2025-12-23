@@ -194,25 +194,6 @@
                 </div>
 
                 <div>
-                  <label class="block font-pixel text-[10px] uppercase text-black mb-2">
-                    审核评分 (1-10分)
-                  </label>
-                  <div class="flex items-center gap-4">
-                    <input
-                      v-model.number="reviewResult.score"
-                      type="range"
-                      min="1"
-                      max="10"
-                      class="flex-1 h-2 bg-white border-2 border-black accent-mario-yellow"
-                      :disabled="!canReview"
-                    />
-                    <span class="font-pixel text-sm text-black border-2 border-black bg-white px-3 py-1 shadow-pixel-sm">
-                      {{ reviewResult.score }}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
                   <label class="block font-pixel text-xs uppercase text-black mb-2">
                     审核意见 <span class="text-mario-red">*</span>
                   </label>
@@ -264,6 +245,110 @@
         </PixelCard>
       </div>
     </div>
+
+    <!-- 拒绝选项弹窗 -->
+    <div
+      v-if="showRejectModal"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      @click="showRejectModal = false"
+    >
+      <div
+        class="bg-white border-2 border-black shadow-pixel-lg max-w-lg w-full"
+        @click.stop
+      >
+        <div class="p-6">
+          <h3 class="font-pixel text-sm uppercase text-black mb-4">选择拒绝选项</h3>
+          
+          <div class="space-y-4 mb-6">
+            <!-- 重新提交证明 -->
+            <label class="block p-4 bg-gray-50 border-2 border-black shadow-pixel-sm cursor-pointer hover:bg-gray-100 transition-colors" :class="{ 'bg-mario-green/20 border-mario-green': rejectOption === 'resubmit' }">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">🔄</span>
+                  <span class="font-vt323 text-base text-black">重新提交证明</span>
+                </div>
+                <div class="relative inline-flex items-center">
+                  <input 
+                    type="radio" 
+                    v-model="rejectOption"
+                    value="resubmit"
+                    class="w-4 h-4 border-2 border-black accent-mario-green"
+                  />
+                </div>
+              </div>
+            </label>
+
+            <!-- 重新发布任务 -->
+            <label class="block p-4 bg-gray-50 border-2 border-black shadow-pixel-sm cursor-pointer hover:bg-gray-100 transition-colors" :class="{ 'bg-mario-green/20 border-mario-green': rejectOption === 'reclaim' }">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">📋</span>
+                  <span class="font-vt323 text-base text-black">重新发布任务</span>
+                </div>
+                <div class="relative inline-flex items-center">
+                  <input 
+                    type="radio" 
+                    v-model="rejectOption"
+                    value="reclaim"
+                    class="w-4 h-4 border-2 border-black accent-mario-green"
+                  />
+                </div>
+              </div>
+            </label>
+
+            <!-- 结束任务 -->
+            <label class="block p-4 bg-gray-50 border-2 border-black shadow-pixel-sm cursor-pointer hover:bg-gray-100 transition-colors" :class="{ 'bg-mario-red/20 border-mario-red': rejectOption === 'end' }">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">❌</span>
+                  <span class="font-vt323 text-base text-black">结束任务</span>
+                </div>
+                <div class="relative inline-flex items-center">
+                  <input 
+                    type="radio" 
+                    v-model="rejectOption"
+                    value="end"
+                    class="w-4 h-4 border-2 border-black accent-mario-red"
+                  />
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div class="mb-6">
+            <label class="block font-pixel text-xs uppercase text-black mb-2">
+              审核意见 <span class="text-mario-red">*</span>
+            </label>
+            <textarea
+              v-model="reviewResult.comments"
+              placeholder="请详细说明审核意见..."
+              rows="4"
+              class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
+            />
+          </div>
+
+          <div class="flex gap-4">
+            <PixelButton
+              @click="showRejectModal = false"
+              variant="secondary"
+              size="lg"
+              :block="false"
+            >
+              取消
+            </PixelButton>
+            <PixelButton
+              @click="confirmReject"
+              variant="danger"
+              size="lg"
+              :block="false"
+              :disabled="!rejectOption || !reviewResult.comments.trim() || isSubmitting"
+            >
+              {{ isSubmitting ? '提交中...' : '确认拒绝' }}
+            </PixelButton>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -287,15 +372,17 @@ const userStore = useUserStore()
 // 响应式数据
 const reviewResult = ref<{
   decision: string
-  score: number
   comments: string
 }>({
   decision: '',
-  score: 5,
   comments: ''
 })
 const isSubmitting = ref(false)
 const taskRewardSymbol = ref('积分') // 任务奖励的积分符号
+
+// 拒绝选项弹窗相关状态
+const showRejectModal = ref(false)
+const rejectOption = ref<'resubmit' | 'reclaim' | 'end' | ''>('')
 
 // 任务数据
 const task = ref<{
@@ -583,18 +670,17 @@ const loadTask = async () => {
 const submitReview = async () => {
   if (!canSubmit.value) return
   
+  // 如果选择拒绝，显示拒绝选项弹窗
+  if (reviewResult.value.decision === 'rejected') {
+    showRejectModal.value = true
+    return
+  }
+  
+  // 审核通过，直接提交
   isSubmitting.value = true
   
   try {
-    let result
-    
-    if (reviewResult.value.decision === 'approved') {
-      // 审核通过
-      result = await approveTask(taskId)
-    } else {
-      // 审核驳回
-      result = await rejectTask(taskId, reviewResult.value.comments)
-    }
+    const result = await approveTask(taskId)
     
     if (result.success) {
       toast.add({
@@ -602,6 +688,48 @@ const submitReview = async () => {
         description: result.message,
         color: 'green'
       })
+      
+      // 提交成功后跳转到任务详情页
+      router.push(`/tasks/${taskId}?reviewed=true`)
+    } else {
+      toast.add({
+        title: '审核失败',
+        description: result.message,
+        color: 'red'
+      })
+    }
+    
+  } catch (error) {
+    console.error('审核提交失败:', error)
+    toast.add({
+      title: '审核失败',
+      description: '网络错误，请稍后重试',
+      color: 'red'
+    })
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// 确认拒绝
+const confirmReject = async () => {
+  if (!rejectOption.value || !reviewResult.value.comments.trim()) return
+  
+  isSubmitting.value = true
+  
+  try {
+    const result = await rejectTask(taskId, reviewResult.value.comments, rejectOption.value as 'resubmit' | 'reclaim' | 'end')
+    
+    if (result.success) {
+      toast.add({
+        title: '审核成功',
+        description: result.message,
+        color: 'green'
+      })
+      
+      // 关闭弹窗
+      showRejectModal.value = false
+      rejectOption.value = ''
       
       // 提交成功后跳转到任务详情页
       router.push(`/tasks/${taskId}?reviewed=true`)

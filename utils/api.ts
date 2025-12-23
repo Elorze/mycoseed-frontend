@@ -688,8 +688,9 @@ export const approveTask = async (taskId: number): Promise<{ success: boolean; m
  * 驳回任务
  * @param taskId 任务 ID
  * @param reason 驳回理由
+ * @param rejectOption 拒绝选项：'resubmit' 重新提交证明, 'reclaim' 重新发布任务, 'end' 结束任务
  */
-export const rejectTask = async (taskId: number, reason: string): Promise<{ success: boolean; message: string }> => {
+export const rejectTask = async (taskId: number, reason: string, rejectOption: 'resubmit' | 'reclaim' | 'end' = 'end'): Promise<{ success: boolean; message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 300))
   
   // 重新加载任务（确保获取最新数据）
@@ -705,23 +706,73 @@ export const rejectTask = async (taskId: number, reason: string): Promise<{ succ
   }
   
   const now = new Date().toISOString()
-  task.status = 'rejected'
   task.rejectReason = reason
   task.proof = undefined
   task.updatedAt = now
-  // 重置任务状态，允许重新领取
-  const taskIndex = claimedTaskIds.indexOf(taskId)
-  if (taskIndex > -1) {
-    claimedTaskIds.splice(taskIndex, 1)
+  
+  if (rejectOption === 'resubmit') {
+    // 重新提交证明：状态回到进行中，保留领取者信息
+    task.status = 'in_progress'
+    task.submittedAt = undefined
+    // 保留 claimerId, claimerName, claimedAt
+  } else if (rejectOption === 'reclaim') {
+    // 重新发布任务：只清除当前审核的领取者信息
+    // 获取当前审核的领取者ID（用于后续可能的清理操作）
+    const currentClaimerId = task.claimerId
+    
+    // 清除当前审核的领取者信息（只清除当前审核的这个领取者）
+    task.claimerId = undefined
+    task.claimerName = undefined
+    task.claimedAt = undefined
+    task.submittedAt = undefined
+    task.proof = undefined
+    
+    // 判断任务类型：多人报名 vs 单人任务
+    // 如果是多人报名的活动（participantLimit > 1），保留其他领取者信息，状态保持为进行中
+    // 如果是单人任务（participantLimit === 1 或 null），清除所有信息，状态设为未领取
+    if (task.participantLimit && task.participantLimit > 1) {
+      // 多人报名任务：只清除当前审核的领取者信息
+      // 其他领取者的信息保持不变（在其他地方存储，不在这里的task对象中）
+      // 任务状态保持为进行中，让其他领取者可以继续
+      task.status = 'in_progress'
+      // 注意：由于当前Task数据结构只存储单个claimerId，其他领取者的信息可能在别处存储
+      // 这里只清除当前审核的领取者信息，不影响其他领取者
+    } else {
+      // 单人任务：清除所有领取者信息，任务状态设为未领取
+      task.status = 'unclaimed'
+      task.isClaimed = false
+      // 从claimedTaskIds中移除当前任务
+      // 注意：如果是多人报名，claimedTaskIds应该按用户区分，这里只移除当前用户的任务
+      const taskIndex = claimedTaskIds.indexOf(taskId)
+      if (taskIndex > -1) {
+        claimedTaskIds.splice(taskIndex, 1)
+      }
+    }
+  } else {
+    // 结束任务：状态设为已拒绝，任务结束
+    task.status = 'rejected'
+    const taskIndex = claimedTaskIds.indexOf(taskId)
+    if (taskIndex > -1) {
+      claimedTaskIds.splice(taskIndex, 1)
+    }
+    task.isClaimed = false
+    task.claimerId = undefined
+    task.claimerName = undefined
+    task.claimedAt = undefined
+    task.submittedAt = undefined
   }
-  task.isClaimed = false
-  task.claimerId = undefined
-  task.claimerName = undefined
-  task.claimedAt = undefined
-  task.submittedAt = undefined
+  
   // 持久化任务状态变化
   persistTasks()
-  return { success: true, message: '任务已驳回！' }
+  
+  let message = '任务已驳回！'
+  if (rejectOption === 'resubmit') {
+    message = '任务已退回，需要重新提交证明'
+  } else if (rejectOption === 'reclaim') {
+    message = '任务已重新发布，可以重新领取'
+  }
+  
+  return { success: true, message }
 }
 
 /**

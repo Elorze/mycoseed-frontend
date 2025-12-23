@@ -247,6 +247,14 @@ import PixelButton from '~/components/pixel/PixelButton.vue'
 import { getTaskRewardSymbol } from '~/utils/display'
 import type { Task } from '~/utils/api'
 
+// 高德地图类型声明
+declare global {
+  interface Window {
+    AMap: any
+    initAmap?: () => void
+  }
+}
+
 // 获取路由参数
 const route = useRoute()
 const router = useRouter()
@@ -375,34 +383,76 @@ const gpsLocation = ref<{
 const isGettingLocation = ref(false)
 const locationError = ref('')
 
-// 获取GPS位置
-const getGPSLocation = async () => {
-  if (!navigator.geolocation) {
-    locationError.value = '您的浏览器不支持地理位置服务'
-    return
-  }
+// 加载高德地图API
+const loadAmapScript = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    // 检查是否已经加载
+    if (window.AMap) {
+      resolve()
+      return
+    }
 
+    const config = useRuntimeConfig()
+    const apiKey = config.public.amapApiKey || 'YOUR_AMAP_API_KEY_HERE'
+    const script = document.createElement('script')
+    script.src = `https://webapi.amap.com/maps?v=2.0&key=${apiKey}&callback=initAmap`
+    script.async = true
+    script.defer = true
+
+    // 设置全局回调
+    ;(window as any).initAmap = () => {
+      resolve()
+      delete (window as any).initAmap
+    }
+
+    script.onerror = () => {
+      reject(new Error('加载高德地图API失败'))
+    }
+
+    document.head.appendChild(script)
+  })
+}
+
+// 获取GPS位置（使用高德地图API）
+const getGPSLocation = async () => {
   isGettingLocation.value = true
   locationError.value = ''
 
   try {
-    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        resolve,
-        reject,
-        {
-          enableHighAccuracy: task.value.proofConfig?.gps?.accuracy === 'high',
-          timeout: 10000,
-          maximumAge: 0
-        }
-      )
+    // 加载高德地图API
+    await loadAmapScript()
+
+    // 使用高德地图定位
+    const geolocation = new (window as any).AMap.Geolocation({
+      enableHighAccuracy: task.value.proofConfig?.gps?.accuracy === 'high',
+      timeout: 10000,
+      maximumAge: 0,
+      convert: true, // 自动偏移坐标，偏移后的坐标为高德坐标
+      showButton: false, // 不显示定位按钮
+      buttonDom: '', // 定位按钮的停靠位置
+      showMarker: false, // 不显示定位标记
+      showCircle: false, // 不显示定位精度圆圈
+      panToLocation: false, // 定位成功后将定位到的位置作为地图中心点
+      zoomToAccuracy: false // 定位成功后调整地图视野范围使定位位置及精度范围视野内可见
     })
 
+    // 获取当前位置
+    const position = await new Promise<any>((resolve, reject) => {
+      geolocation.getCurrentPosition((status: string, result: any) => {
+        if (status === 'complete') {
+          resolve(result)
+        } else {
+          reject(new Error(result.message || '定位失败'))
+        }
+      })
+    })
+
+    // 保存位置信息
     gpsLocation.value = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      accuracy: position.coords.accuracy,
-      timestamp: position.timestamp
+      latitude: position.position.lat,
+      longitude: position.position.lng,
+      accuracy: position.accuracy || null,
+      timestamp: Date.now()
     }
   } catch (error: any) {
     console.error('获取位置失败:', error)
