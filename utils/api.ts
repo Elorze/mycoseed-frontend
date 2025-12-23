@@ -93,6 +93,21 @@ export const getFinalReward = (task: Task): number => {
   return task.reward
 }
 
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  }
+
+  if (typeof window !== 'undefined') {
+    const token = getCookie(AUTH_TOKEN_KEY)
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+  }
+
+  return headers
+}
+
 // ==================== 活动相关 API ====================
 
 /**
@@ -661,20 +676,7 @@ export const clearAuthToken =(): void=>
   deleteCookie(AUTH_TOKEN_KEY)
 }
 
-// 获取认证头
-function getAuthHeaders():HeadersInit
-{
-  const headers: HeadersInit=
-  {
-    'Content-Type':'application/json',
-  }
-  const authToken=getCookie(AUTH_TOKEN_KEY)
-  if(authToken)
-  {
-    headers['Authorization']=`Bearer ${authToken}`
-  }
-  return headers
-}
+// getAuthHeaders 函数已在上面定义（第 96 行），这里删除重复定义
 
 // 保存当前登录标识符
 export const setCurrentIdentifier = (identifier: string): void => {
@@ -776,25 +778,35 @@ export interface UserProfile {
   avatar?: string
 }
 
-export const updateUserProfile = async (userId: string | number, profile: UserProfile): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  console.log('[Mock] 更新用户信息:', userId, profile)
-  
-  // 更新用户数据库
-  if (typeof window !== 'undefined') {
-    const currentIdentifier = localStorage.getItem('current_identifier')
-    if (currentIdentifier && userDatabase[currentIdentifier]) {
-      userDatabase[currentIdentifier] = {
-        ...userDatabase[currentIdentifier],
-        name: profile.name,
-        bio: profile.bio,
-        avatar: profile.avatar,
-        isProfileSetup: true
-      }
+export const updateUserProfile = async (userId: string | number, profile: UserProfile, baseUrl: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const headers = getAuthHeaders()
+
+    const response = await fetch(`${baseUrl}/api/auth/me`, {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(profile)
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || '更新用户信息失败')
     }
+
+    const result = await response.json()
+
+    if (result.result === 'ok') {
+      return { success: true, message: '用户信息更新成功'}
+    } else {
+      throw new Error(result.message || '更新用户信息失败')
+    }
+  } catch (error: any) {
+    console.error('Update user profile error:', error)
+    throw error
   }
-  
-  return { success: true, message: '用户信息更新成功' }
 }
 
 // 更新社区信息

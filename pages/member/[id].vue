@@ -17,13 +17,13 @@
         <!-- 头像与等级 -->
         <div class="relative">
           <div v-if="!isEditing" class="relative">
-            <PixelAvatar :seed="member?.name || 'user'" size="xl" />
+            <PixelAvatar :src="member?.avatar" :seed="member?.name || 'user'" size="xl" />
             <div class="absolute -bottom-2 -right-2 bg-black text-white text-xs font-pixel px-2 py-1 border-2 border-white">
               LV. {{ memberLevel }}
             </div>
           </div>
           <div v-else class="relative">
-            <PixelAvatar :seed="editingForm.name || 'user'" size="xl" />
+            <PixelAvatar :src="editingForm.avatar || member?.avatar" :seed="editingForm.name || member?.name || 'user'" size="xl" />
             <button
               @click="changeAvatar"
               class="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs font-pixel hover:bg-black/70 transition-colors"
@@ -223,10 +223,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
-import PixelButton from '~/components/pixel/PixelButton.vue'
+import { useFileUpload } from '~/composables/useFileUpload'
 import { useApi } from '~/composables/useApi'
 import type { Task } from '~/utils/api'
+import { useToast } from '~/composables/useToast'
+
+import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
+import PixelButton from '~/components/pixel/PixelButton.vue'
+
+
 
 definePageMeta({
   layout: 'default'
@@ -247,6 +252,14 @@ const tabs = [
   { id: 'BADGES', label: '徽章' }
 ]
 
+// 头像
+const { uploadFile, previewUrl, uploading, error: uploadError } = useFileUpload()
+const { updateUserProfile, getMe } = useApi()
+const toast = useToast()
+const fileInput = ref<HTMLInputElement | null>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
+
 // Mock Data
 const member = ref<any>(null)
 const history = ref<any[]>([])
@@ -260,7 +273,7 @@ const editingForm = ref({
   name: '',
   title: '',
   skills: [] as string[],
-  avatarSeed: ''
+  avatar: ''
 })
 
 const memberLevel = computed(() => {
@@ -279,7 +292,7 @@ const startEdit = () => {
       name: member.value.name || '',
       title: member.value.title || '',
       skills: [...(member.value.skills || [])],
-      avatarSeed: member.value.name || 'user'
+      avatar: member.value.avatar || ''
     }
   }
   isEditing.value = true
@@ -291,28 +304,67 @@ const cancelEdit = () => {
   newSkill.value = ''
 }
 
-// 保存编辑
-const saveProfile = () => {
+// 保存资料
+const saveProfile = async () => {
   if (!member.value) return
   
-  // 更新成员信息
-  member.value.name = editingForm.value.name
-  member.value.title = editingForm.value.title
-  member.value.skills = [...editingForm.value.skills]
-  
-  // 显示成功提示
-  const toast = useToast()
-  toast.add({
-    title: '保存成功',
-    description: '个人信息已更新',
-    color: 'green'
-  })
-  
-  isEditing.value = false
-  newSkill.value = ''
-  
-  // TODO: 这里应该调用 API 保存到服务器
-  // await updateMemberProfile(memberId, editingForm.value)
+  loading.value = true
+  error.value = null
+
+  try {
+    // 获取当前用户信息
+    const user = await getMe()
+    if (!user) {
+      error.value = '用户信息获取失败，请重新登录'
+      loading.value = false
+      return
+    }
+
+    // 准备要更新的资料
+    const profileData: any = {
+      name: editingForm.value.name.trim()
+    }
+    
+    // 如果有新头像，添加头像
+    if (editingForm.value.avatar && editingForm.value.avatar !== member.value.avatar) {
+      profileData.avatar = editingForm.value.avatar
+    }
+
+    // 调用 API 更新用户资料
+    const result = await updateUserProfile(user.id, profileData)
+    
+    if (result.success) {
+      // 更新本地成员信息
+      member.value.name = editingForm.value.name
+      member.value.title = editingForm.value.title
+      member.value.skills = [...editingForm.value.skills]
+      if (editingForm.value.avatar) {
+        member.value.avatar = editingForm.value.avatar
+      }
+
+      // 显示成功提示
+      toast.add({
+        title: '保存成功',
+        description: '个人信息已更新',
+        color: 'green'
+      })
+      
+      isEditing.value = false
+      newSkill.value = ''
+    } else {
+      throw new Error(result.message || '保存失败')
+    }
+  } catch (err: any) {
+    console.error('保存失败:', err)
+    error.value = err.message || '保存失败，请稍后重试'
+    toast.add({
+      title: '保存失败',
+      description: err.message || '请稍后重试',
+      color: 'red'
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 // 添加技能标签
@@ -330,14 +382,27 @@ const removeSkill = (index: number) => {
 
 // 更换头像
 const changeAvatar = () => {
-  // 由于 PixelAvatar 是基于 seed 生成的，我们可以通过改变 seed 来改变头像
-  // 这里可以弹出一个头像选择器，或者让用户输入一个 seed 字符串
-  const newSeed = prompt('输入头像种子（可以是任意文字）:', editingForm.value.avatarSeed || editingForm.value.name)
-  if (newSeed) {
-    editingForm.value.avatarSeed = newSeed
-    // 更新 member 的 name 也会更新头像（因为 PixelAvatar 使用 name 作为 seed）
-    editingForm.value.name = newSeed
+  // 创建隐藏的文件输入
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  input.onchange = async (e: Event) => {
+    const target = e.target as HTMLInputElement
+    const file = target.files?.[0]
+    if (!file) return 
+
+    // 上传头像
+    const url = await uploadFile(file)
+    if (url) {
+      editingForm.value.avatar = url 
+      toast.add({
+        title: '头像上传成功',
+        description: '保存后生效',
+        color: 'green'
+      })
+    }
   }
+  input.click()
 }
 
 // 监听编辑按钮点击

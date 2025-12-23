@@ -42,7 +42,11 @@
           @click="navigateTo('profile')"
           title="个人主页"
         >
-           <PixelAvatar seed="Alice" size="md" />
+           <PixelAvatar 
+            :src="currentUser?.avatar"
+            :seed="currentUser?.name || 'user'"
+            size="md"
+           />
         </div>
       </nav>
     </div>

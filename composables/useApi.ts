@@ -1,5 +1,6 @@
 // composables/useApi.ts
 import * as api from '~/utils/api'
+import type { UserProfile } from '~/utils/api'
 
 /**
  * API Composable - 使用运行时配置获取 API URL
@@ -61,7 +62,7 @@ export const useApi = () => {
     clearAuthToken: api.clearAuthToken,
     setCurrentIdentifier: api.setCurrentIdentifier,
     getFinalReward: api.getFinalReward,
-    updateUserProfile: api.updateUserProfile,
+    updateUserProfile: (userId: string | number, profile: UserProfile) => api.updateUserProfile(userId, profile, apiBaseUrl),
     updateCommunityProfile: api.updateCommunityProfile,
     sendEmailCode: api.sendEmailCode,
   }
