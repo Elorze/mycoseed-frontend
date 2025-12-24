@@ -44,7 +44,7 @@
                     v-model="limitParticipants"
                     class="sr-only peer"
                   />
-                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:bg-white after:border-2 after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
                 </label>
               </div>
 
@@ -63,7 +63,7 @@
                   {{ participantError }}
                 </p>
                 <p v-if="!participantError && taskForm.participantLimit" class="mt-2 font-vt323 text-sm text-black/70">
-                  最多 {{ taskForm.partifcipantLimit }} 人可以参与此任务
+                  最多 {{ taskForm.participantLimit }} 人可以参与此任务
                 </p>
 
                 <!-- 奖励分配方式选择器 -->
@@ -93,11 +93,16 @@
                     </div>
                   </label>
                 </div>
+                
+                <p v-if="rewardExplanation" class="mt-2 font-vt323 text-sm text-black/70">
+                  {{ rewardExplanation }}
+                </p>
               </div>
-
-              <p v-if="rewardExplanation" class="mt-2 font-vt323 text-sm text-black/70">
+              <p v-else class="mt-2 font-vt323 text-sm text-black/70">
                 默认不限报名人数
               </p>
+            </div>
+            
             <!-- 移动端单列，桌面端双列 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -130,32 +135,33 @@
 
             <div>
               <label class="block font-pixel text-xs uppercase mb-2 text-black">截止日期 *</label>
-            <PixelDatePicker
-              v-model="taskForm.deadline"
-              placeholder="选择截止日期"
-              :min="minDeadlineDate"
-              :error="deadlineError"
-            />
+              <PixelDatePicker
+                v-model="taskForm.deadline"
+                placeholder="选择截止日期"
+                :min="minDeadlineDate"
+                :error="deadlineError"
+              />
+              <PixelTimePicker
+                v-if="taskForm.deadline"
+                v-model="taskForm.deadlineTime"
+                class="mt-2"
+              /> 
+              <p v-if="deadlineError" class="mt-1 font-vt323 text-xs text-mario-red">
+                {{ deadlineError }}
+              </p>
+            </div>
+            
             <!-- 提交说明 -->
-             <div class="border-t-2 border-black pt-4 md:pt-6">
+            <div class="border-t-2 border-black pt-4 md:pt-6">
               <div>
                 <label class="block font-pixel text-xs uppercase mb-2 text-black">提交说明（可选）</label>
                 <textarea
                   v-model="submissionInstructions"
-                  placehoder="补充任务完成后的提交说明，如需要强调的注意事项等..."
+                  placeholder="补充任务完成后的提交说明，如需要强调的注意事项等..."
                   rows="3"
                   class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
-                  ></textarea>
+                ></textarea>
               </div>
-             </div>
-            <PixelTimePicker
-              v-if="taskForm.deadline"
-              v-model="taskForm.deadlineTime"
-              class="mt-2"
-            /> 
-            <p v-if="deadlineError" class="mt-1 font-vt323 text-xs text-mario-red">
-              {{ deadlineError }}
-            </p>
             </div>
           </div>
 

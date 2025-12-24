@@ -23,6 +23,7 @@ export const useApi = () => {
     getMe: () => api.getMe(apiBaseUrl),
     setEncryptedKeys: (keys: string) => api.setEncryptedKeys(keys, apiBaseUrl),
     
+    getActivityFeed: () => api.getActivityFeed(),
     // 任务相关 API
     getAllTasks: () => api.getAllTasks(apiBaseUrl),
     getTaskById: (id: string) => api.getTaskById(id, apiBaseUrl),
