@@ -89,15 +89,6 @@ const checkMobile = () => {
     }
 }
 
-onMounted(() => {
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-})
-
-onUnmounted(() => {
-    window.removeEventListener('resize', checkMobile)
-})
-
 const filteredCommunities = computed(() => {
     let result = [...communities.value]
 
@@ -127,7 +118,7 @@ const updateSearchQuery = (val: string) => {
 
 const emitFilter = () => {
     emit('filter', {
-        location:selectedLocation.value,
+        location: selectedLocation.value,
         query: searchQuery.value
     })
 }
@@ -158,8 +149,14 @@ const toggleSidebar = () => {
 }
 
 onMounted(async () => {
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
     communities.value = await getCommunities()
     activityLogs.value = await getActivityFeed()
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', checkMobile)
 })
 </script>
 

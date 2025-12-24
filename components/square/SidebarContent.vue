@@ -32,7 +32,7 @@
                     <option v-for="loc in locations" :key="loc" :value="loc">{{ loc }}</option>
                 </select>
              </div>
-             <div v-if="communities.length" class="space-y-2"
+             <div v-if="communities.length" class="space-y-2">
              <div 
                 v-for="comm in communities"
                 :key="comm.id"
@@ -45,13 +45,13 @@
                 @blur="$emit('clear-preview')"
                 >
              <div class="flex flex-col gap-0.5 max-w-[140px]">
-                <span class="font-bold truncate">{{  comm.name }}</span>
+                <span class="font-bold truncate">{{ comm.name }}</span>
                 <span class="text-[10px] text-gray-500 truncate">
                     {{ comm.location || '位置待补充' }}
                 </span>
              </div>
              <div class="text-right text-[10px] text-gray-700 font-vt323 leading-tight">
-                <div>{{ formatNUmber(comm.memberCount) }} 人</div>
+                <div>{{ formatNumber(comm.memberCount) }} 人</div>
                 <div>{{ formatNumber(comm.totalPoints) }} pts</div>
              </div>
             </div>
@@ -59,7 +59,7 @@
             <div v-else class="text-xs text-gray-400 bg-gray-50 border-2 border-dashed border-gray-300 p-3">
                 暂无符合条件的社区
             </div>
-    </div>
+        </div>
 
     <!-- Live Feed Section -->
      <div>
@@ -67,27 +67,27 @@
             <span class="mr-2">⚡</span> 实时动态
         </h3>
         <div class="h-48 overflow-hidden relative bg-gray-50 border-2 border-black p-2">
-            <div class="space-y-2"
+            <div class="space-y-2">
             <div 
                 v-for="log in activityLogs"
-                :key="log.in"
+                :key="log.id"
                 class="text-xs flex flex-col border-b border-gray-200 pb-2 mb-1 last:border-0 cursor-pointer hover:bg-green-50 transition-colors"
                 @click="$emit('activity-click', log)"
             >
             <div class="flex items-center gap-1 mb-1 justify-between">
-                <div class="flex items-center gpa-1 flex-wrap">
-                    <span class="font-bold text-blue-700">{{  log.userName || '有人' }}</span>
-                    <span class="text-gray-600 scale-90 origin-left"> {{ getActionText(log.type) }}</span>
+                <div class="flex items-center gap-1 flex-wrap">
+                    <span class="font-bold text-blue-700">{{ log.userName || '有人' }}</span>
+                    <span class="text-gray-600 scale-90 origin-left">{{ getActionText(log.type) }}</span>
                 </div>
-                <span class="text-gray-400 text-[10px] font-vt323"> {{ formatTime(log.timestamp) }}</span>
+                <span class="text-gray-400 text-[10px] font-vt323">{{ formatTime(log.timestamp) }}</span>
             </div>
             <div class="text-gray-800 truncate pl-2 border-l-2 border-green-400 bg-green-50 p-1">
                 {{ log.targetName }}
+            </div>
+        </div>
+            </div>
         </div>
     </div>
-    </div>
-</div>
-</div>
 </div>
 </template>
 
