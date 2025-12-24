@@ -18,8 +18,8 @@
 const router = useRouter()
 
 const navItems = [
-  { label: '首页', path: '/', icon: '🗺️' },
-  { label: '市集', path: '/market', icon: '📜' },
+  { label: '广场', path: '/', icon: '🗺️' },
+  { label: '任务', path: '/tasks', icon: '📋' },
   { label: '钱包', path: '/wallet', icon: '💰' },
   { label: '我的', path: '/member/1', icon: '👤' }
 ]

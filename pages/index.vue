@@ -1,8 +1,17 @@
 <template>
   <div class="relative h-[calc(100vh-140px)] -mx-4 -my-8 overflow-hidden">
+    <!-- Sidebar -->
+    <SquareSidebar
+      @filter="handleFilter"
+      @select-community="handleCommunitySelect"
+      @preview-community="handleCommunityPreview"
+      @clear-preview="handleClearPreview"
+      @activity-click="handleActivityClick"
+    />
+
     <!-- Graph Layer -->
     <ClientOnly>
-      <NetworkCanvas @nodeClick="handleNodeClick" />
+      <NetworkCanvas ref="networkCanvas" @nodeClick="handleNodeClick" />
       <template #fallback>
         <div class="w-full h-full flex items-center justify-center bg-mario-sky">
           <div class="text-center">
@@ -35,8 +44,64 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import NetworkCanvas from '~/components/graph/NetworkCanvas.vue'
+import SquareSidebar from '~/components/square/SquareSidebar.vue'
 import { useUserStore } from '~/stores/user'
+
+const router = useRouter()
+const networkCanvas = ref<any>(null)
+
+const handleFilter = (filter: any) => {
+  if (networkCanvas.value) {
+    networkCanvas.value.filterNodes(filter)
+  }
+}
+
+const handleCommunitySelect = (id: number) => {
+  router.push(`/community/${id}`)
+}
+
+const handleCommunityPreview = (id: number) => {
+  if (networkCanvas.value && typeof networkCanvas.value.highlightCommunity === 'function') {
+    networkCanvas.value.highlightCommunity(id)
+  }
+}
+
+const handleClearPreview = () => {
+  if (networkCanvas.value && typeof networkCanvas.value.clearHighlight === 'function') {
+    networkCanvas.value.clearHighlight()
+  }
+}
+
+const inferCommunityIdFromLog = (log: any): number | null => {
+  if (log.type === 'join' || log.type === 'new_community') {
+    return log.targetId
+  }
+ 
+  return null
+}
+
+const handleActivityClick = async (log: any) => {
+  const communityId = inferCommunityIdFromLog(log)
+
+  if (communityId && networkCanvas.value && typeof networkCanvas.value.highlightCommunity === 'function') {
+    networkCanvas.value.highlightCommunity(communityId)
+  }
+
+  if (log.type === 'join' || log.type === 'new_community') {
+    await router.push(`/community/${log.targetId}`)
+  } else if (log.type === 'complete_task') {
+    await router.push('/tasks')
+  } else if (log.type === 'create_proposal') {
+    if (communityId) {
+      await router.push(`/community/${communityId}`)
+    }
+  } else {
+    await router.push('/activities')
+  }
+}
 
 // Use definePageMeta to ensure layout is applied
 definePageMeta({
@@ -44,7 +109,6 @@ definePageMeta({
   middleware: 'auth'  // 使用 auth 中间件保护页面
 })
 
-const router = useRouter()
 const userStore = useUserStore()
 
 // 在组件挂载时尝试获取用户信息

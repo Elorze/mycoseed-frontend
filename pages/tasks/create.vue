@@ -32,6 +32,72 @@
               ></textarea>
             </div>
 
+            <!-- 参与人数配置 -->
+             <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <h4 class="font-pixel text-xs uppercase text-black">限制参与人数</h4>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox"
+                    v-model="limitParticipants"
+                    class="sr-only peer"
+                  />
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:bg-white after:border-2 after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
+                </label>
+              </div>
+
+              <div v-if="limitParticipants" class="space-y-3 mt-3">
+                <div>
+                  <label class="block font-pixel text-[10px] uppercase mb-1 text-black">参与人数</label>
+                  <input 
+                    v-model.number="taskForm.participantLimit"
+                    type="number"
+                    min="1"
+                    placeholder="1"
+                    class="w-32 h-12 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                  />
+                </div>
+                <p v-if="participantError" class="mt-1 font-vt323 text-xs text-mario-red">
+                  {{ participantError }}
+                </p>
+                <p v-if="!participantError && taskForm.participantLimit" class="mt-2 font-vt323 text-sm text-black/70">
+                  最多 {{ taskForm.partifcipantLimit }} 人可以参与此任务
+                </p>
+
+                <!-- 奖励分配方式选择器 -->
+                 <div v-if="limitParticipants && taskForm.participantLimit" class="mt-3 space-y-2">
+                  <label class="block font-pixel text-[10px] uppercase text-black">奖励分配方式</label>
+                 <div class="flex gap-3">
+                  <label class="flex items-center cursor-pointer">
+                    <input 
+                      type="radio"
+                      v-model="rewardDistributionMode"
+                      value="per_person"
+                      class="sr-only peer"
+                    />
+                    <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
+                      每人积分
+                    </div>
+                  </label>
+                  <label class="flex items-center cursor-pointer">
+                    <input 
+                      type="radio"
+                      v-model="rewardDistributionMode"
+                      value="total"
+                      class="sr-only peer"
+                    />
+                    <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
+                      总积分
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <p v-if="rewardExplanation" class="mt-2 font-vt323 text-sm text-black/70">
+                默认不限报名人数
+              </p>
             <!-- 移动端单列，桌面端双列 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -70,6 +136,18 @@
               :min="minDeadlineDate"
               :error="deadlineError"
             />
+            <!-- 提交说明 -->
+             <div class="border-t-2 border-black pt-4 md:pt-6">
+              <div>
+                <label class="block font-pixel text-xs uppercase mb-2 text-black">提交说明（可选）</label>
+                <textarea
+                  v-model="submissionInstructions"
+                  placehoder="补充任务完成后的提交说明，如需要强调的注意事项等..."
+                  rows="3"
+                  class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
+                  ></textarea>
+              </div>
+             </div>
             <PixelTimePicker
               v-if="taskForm.deadline"
               v-model="taskForm.deadlineTime"
@@ -235,6 +313,14 @@ import PixelTimePicker from '~/components/pixel/PixelTimePicker.vue'
 import { useApi } from '~/composables/useApi'
 import { useToast } from '~/composables/useToast'
 
+// 参与人数限制
+const limitParticipants = ref(false)
+const participantError = ref<string | null>(null)
+const rewardDistributionMode = ref<'per_person' | 'total'>('total')
+
+// 提交说明
+const submissionInstructions = ref('')
+
 
 definePageMeta({
   layout: 'default',
@@ -251,7 +337,8 @@ const taskForm = ref({
   startDate: '',
   startTime: '00:00',
   deadline: '',
-  deadlineTime: '23:59'
+  deadlineTime: '23:59',
+  participantLimit: 1
 })
 
 // 证明配置
@@ -271,6 +358,35 @@ const proofConfig = ref({
     prompt: ''
   }
 })
+
+
+// 计算属性
+const rewardExplanation = computed(() => {
+  if (!limitParticipants.value || !taskForm.value.participantLimit) return ''
+
+  const limit = taskForm.value.participantLimit || 1
+  if (rewardDistributionMode.value === 'per_person') {
+    return `每人将获得 ${taskForm.value.reward} 积分，将由 ${limit} 人平分，每人约 ${Math.floor(taskForm.value.reward / limit)} 积分`
+  }
+})
+
+// 监听器
+watch(() => [taskForm.value.participantLimit, limitParticipants.value], () => {
+      validatePArticipantLimit()
+})
+
+const validatePArticipantLimit = () => {
+  if (limitParticipants.value) {
+    const value = taskForm.value.participantLimit
+    if (!value || value<1 ) {
+      participantError.value = '参与人数必须至少为1'
+      return false
+    }
+    participantError.value = null
+  }
+  return true
+}
+
 
 // 加载状态
 const isPublishing = ref(false)
@@ -388,6 +504,10 @@ const publishTask = async () => {
     return
   }
 
+  if (!validatePArticipantLimit()) {
+    return
+  }
+
   isPublishing.value = true
   
   try {
@@ -398,6 +518,7 @@ const publishTask = async () => {
     const startDateTime = `${taskForm.value.startDate}T${taskForm.value.startTime}`
     const deadlineDateTime = `${taskForm.value.deadline}T${taskForm.value.deadlineTime}`
     
+    
     // 创建任务
     const newTask = await createTask({
       title: taskForm.value.title,
@@ -405,8 +526,12 @@ const publishTask = async () => {
       reward: parseFloat(taskForm.value.reward),
       startDate: startDateTime,
       deadline: deadlineDateTime,
-      proofConfig: proofConfig.value
+      proofConfig: proofConfig.value,
+      participantLimit: !limitParticipants.value ? null : taskForm.value.participantLimit,
+      rewardDistributionMode: !limitParticipants.value ? 'total' :rewardDistributionMode.value,
+      submissionInstructions: submissionInstructions.value || undefined,
     })
+
     
     // 显示成功消息
     const toast = useToast()

@@ -66,6 +66,9 @@ export interface Task {
   allowRepeatClaim?: boolean     // 是否允许重复领取
   createdAt?: string             // 创建时间
   updatedAt?: string             // 更新时间
+  participantLimit?: number | null // 参与人数上限
+  rewardDistributionMode?: 'per_person' | 'total' // 奖励分配模式
+  submissionInstructions?: string // 提交说明
   // 以下字段为前端兼容字段（后端不返回）
   creatorId?: string             // 创建者ID (UUID)
   creatorName?: string           // 创建者名称
@@ -76,8 +79,17 @@ export interface Task {
   completedAt?: string           // 完成时间
 }
 
-// ==================== Mock 数据已删除 ====================
-// 所有数据现在从后端 API 获取
+export interface ActivityLog {
+  id: number
+  type: 'join' | 'complete_task' | 'create_proposal' | 'new_community'
+  userId?: number
+  userName?: string
+  targetId: number // communityId or taskId
+  targetName: string
+  timestamp: string
+}
+
+
 
 // ==================== 辅助函数 ====================
 
@@ -225,6 +237,9 @@ export interface CreateTaskParams {
   deadline: string
   proofConfig?: any
   allowRepeatClaim?: boolean  // 是否允许重复领取
+  participantLimit?: number | null
+  rewardDistributionMode?: 'per_person' | 'total'
+  submissionInstructions?: string
 }
 
 /**
@@ -248,6 +263,9 @@ export const createTask = async (params: CreateTaskParams, baseUrl: string): Pro
         deadline: params.deadline,
         proofConfig: params.proofConfig || null,
         allowRepeatClaim: params.allowRepeatClaim || false,
+        participantLimit: params.participantLimit ?? null,
+        rewardDistributionMode: params.rewardDistributionMode || 'per_person',
+        submissionInstructions: params.submissionInstructions,
       }),
     })
 
@@ -951,4 +969,12 @@ export const getNetworkData = async (): Promise<{ nodes: NetworkNode[], links: N
   console.warn('Network data API not implemented yet')
   // 返回空数据，等待后端实现
   return { nodes: [], links: [] }
+}
+
+
+// 获取活动日志（Live Feed)
+export const getActivityFeed = async (): Promise<ActivityLog[]> => {
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  return logs
 }
