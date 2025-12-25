@@ -39,6 +39,13 @@
               </div>
             </div>
 
+            <!-- 过期提示 -->
+            <div v-if="isTaskExpired" class="bg-mario-red/20 border-2 border-mario-red shadow-pixel-sm p-4 mb-6">
+              <p class="font-vt323 text-base text-mario-red">
+                <span class="font-pixel text-xs">⚠️</span> 任务已过期，无法提交凭证
+              </p>
+            </div>
+
             <!-- 提交说明 -->
             <div class="pt-4 border-t-2 border-black/20">
               <h3 class="font-pixel text-xs uppercase text-black mb-2">提交说明</h3>
@@ -245,9 +252,9 @@
                 variant="primary"
                 size="lg"
                 :block="false"
-                :disabled="!canSubmit || isSubmitting"
+                :disabled="!canSubmit || isSubmitting || isTaskExpired"
               >
-                {{ isSubmitting ? '提交中...' : '提交任务' }}
+                {{ isSubmitting ? '提交中...' : (isTaskExpired ? '已过期，无法提交' : '提交任务') }}
               </PixelButton>
             </div>
           </form>
@@ -392,6 +399,14 @@ const loadTask = async () => {
   }
 }
 
+// 检查任务是否已过期
+const isTaskExpired = computed(() => {
+  if (!task.value.deadline) return false // 如果没有截止时间，认为未过期
+  const now = new Date()
+  const deadline = new Date(task.value.deadline)
+  return now > deadline
+})
+
 // 检查是否需要文字描述
 const requiresDescription = computed 
 (
@@ -455,6 +470,9 @@ const canSubmit = computed
 (
   () =>
 {
+  // 如果任务已过期，不能提交
+  if (isTaskExpired.value) return false
+
   // 如果需要文件上传
   if (requiresFileUpload.value)
  {
@@ -577,6 +595,15 @@ const submitForm = async () =>
 {
   if (!canSubmit.value) return
   
+  // 检查是否过期
+  if (isTaskExpired.value) {
+    toast.add({
+      title:'提交失败',
+      description: '任务已过期，无法提交凭证',
+      color: 'red'
+    })
+    return
+  }
   isSubmitting.value = true
   
   try

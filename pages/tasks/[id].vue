@@ -124,7 +124,13 @@
             </template>
             <div class="space-y-3 font-vt323 text-base">
               <div class="flex justify-between items-center pb-2 border-b border-black/10">
-                <span class="text-black/70">截止时间:</span>
+                <span class="text-black/70">报名开始时间:</span>
+                <span class="text-black font-medium">
+                  {{ task.claimedAt ? formatDate(task.claimedAt) : (task.startDate ? formatDate(task.startDate) : '未开始') }}
+                </span>
+              </div>
+              <div class="flex justify-between items-center pb-2 border-b border-black/10">
+                <span class="text-black/70">提交截止时间:</span>
                 <span class="text-black font-medium">{{ formatDate(task.deadline) }}</span>
               </div>
               <div class="flex justify-between items-center pb-2 border-b border-black/10">
@@ -134,7 +140,10 @@
               <div class="pb-2 border-b border-black/10">
                 <div class="flex justify-between items-center mb-2">
                   <span class="text-black/70">参与者:</span>
-                  <span class="text-black font-medium">{{ task.participants }}/{{ task.maxParticipants }} 人</span>
+                  <span class="text-black font-medium">{{ task.participants !== null 
+                    ? `${task.participants}/${task.maxParticipants} 人`
+                    : `${task.participants} 人（不限）`}}
+                  </span>
                 </div>
                 <div class="mt-2 space-y-2">
                   <div v-if="task.participantsList && task.participantsList.length > 0">
@@ -178,9 +187,9 @@
                 variant="primary"
                 size="lg"
                 :block="true"
-                :disabled="loading"
+                :disabled="loading || !isTaskStarted || isTaskExpired"
               >
-                {{ loading ? '领取中...' : '领取任务' }}
+                {{ loading ? '领取中...' : (isTaskExpired ? '已过期': (isTaskStarted ? '领取任务' : '待任务开始')) }}
               </PixelButton>
               
               <PixelButton
@@ -189,8 +198,9 @@
                 variant="success"
                 size="lg"
                 :block="true"
+                :disabled="isTaskExpired"
               >
-                提交任务
+                {{ isTaskExpired ? '已过期，无法提交' : '提交任务' }}
               </PixelButton>
               
               <PixelButton
@@ -262,19 +272,35 @@ const task = ref<any>({
   reward: 0,
   status: 'unclaimed',
   deadline: '',
+  startDate:'',
   creator: '',
   participants: 0,
-  maxParticipants: 5,
-  difficulty: '中等',
+  maxParticipants: null,
   communityId: 1,
   participantsList: [],
   requirements: [],
-  submissionInstructions: '请按照任务要求完成并提交相关凭证。',
+  submissionInstructions: '请按照任务要求并提交相关凭证。',
   updates: []
 })
 
 // 状态类型
 type TaskStatus = 'unclaimed' | 'in_progress' | 'completed' | 'under_review' | 'rejected'
+
+// 检查任务是否已开始
+const isTaskStarted = computed(() => {
+  if (!task.value.startDate) return true // 如果没有开始时间，默认已经开始
+  const now = new Date()
+  const startDate = new Date(task.value.startDate)
+  return now >= startDate
+})
+
+// 检查任务是否已过期{
+const isTaskExpired = computed(() => {
+  if (!task.value.deadline) return false 
+  const now = new Date()
+  const deadline = new Date(task.value.deadline)
+  return now > deadline
+})
 
 // 状态文本
 const getStatusText = (status: string): string => {
@@ -415,11 +441,11 @@ const loadTask = async () => {
       description: taskData.description,
       reward: taskData.reward,
       status: taskData.status,
-      deadline: taskData.createdAt, // 使用创建时间作为截止时间（实际应从任务数据获取）
+      deadline: taskData.deadline || taskData.createdAt, 
+      startDate: taskData.startDate,
       creator: taskData.creatorName || '发布者',
       participants: taskData.claimerId ? 1 : 0,
-      maxParticipants: 5,
-      difficulty: '中等',
+      maxParticipants: taskData.participantLimit ?? null, 
       communityId: taskData.activityId || 1,
       participantsList: taskData.claimerId ? [{
         id: taskData.claimerId,
@@ -427,7 +453,7 @@ const loadTask = async () => {
         role: '参与者'
       }] : [],
       requirements: taskData.description.split('\n').filter(r => r.trim()),
-      submissionInstructions: '请按照任务要求完成并提交相关凭证。',
+      submissionInstructions: taskData.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
       updates: [],
       // 保存原始API数据字段用于时间线
       createdAt: taskData.createdAt,

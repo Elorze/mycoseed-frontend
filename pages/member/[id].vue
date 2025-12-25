@@ -325,8 +325,8 @@ const saveProfile = async () => {
       name: editingForm.value.name.trim()
     }
     
-    // 如果有新头像，添加头像
-    if (editingForm.value.avatar && editingForm.value.avatar !== member.value.avatar) {
+    // 如果有头像 URL，总是添加到更新数据中
+    if (editingForm.value.avatar) {
       profileData.avatar = editingForm.value.avatar
     }
 
@@ -334,13 +334,26 @@ const saveProfile = async () => {
     const result = await updateUserProfile(user.id, profileData)
     
     if (result.success) {
-      // 更新本地成员信息
-      member.value.name = editingForm.value.name
-      member.value.title = editingForm.value.title
-      member.value.skills = [...editingForm.value.skills]
-      if (editingForm.value.avatar) {
-        member.value.avatar = editingForm.value.avatar
+      // 重新获取最新用户信息
+      const updatedUser = await getMe()
+      if (updatedUser) {
+        // 更新本地成员信息
+        member.value.name = updatedUser.name || editingForm.value.name
+        member.value.avatar = updatedUser.avatar || editingForm.value.avatar || ''
+        member.value.title = editingForm.value.title
+        member.value.skills = [...editingForm.value.skills]
+      } else {
+        // 如果获取失败，至少更新本地数据
+        member.value.name = editingForm.value.name
+        member.value.title = editingForm.value.title
+        member.value.skills = [...editingForm.value.skills]
+        if (editingForm.value.avatar) {
+          member.value.avatar = editingForm.value.avatar
+        }
       }
+           
+      // 更新编辑表单中的头像，确保下次编辑时显示最新头像
+      editingForm.value.avatar = member.value.avatar || ''
 
       // 显示成功提示
       toast.add({

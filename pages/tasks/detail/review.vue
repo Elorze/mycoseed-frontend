@@ -352,7 +352,7 @@ const loadTask = async () => {
       title: taskData.title,
       description: taskData.description,
       reward: taskData.reward,
-      deadline: taskData.createdAt // 使用创建时间作为截止时间（实际应从任务数据获取）
+      deadline: taskData.deadline || taskData.createdAt, // 使用截止日期，如果没有则使用创建时间作为后备
     }
     
     // 从任务数据中获取提交信息
