@@ -208,8 +208,8 @@ onMounted(async () => {
     return
   }
 
-  // 如果已完成设置，跳转到主页
-  if (user.isProfileSetup) {
+  // 如果已完成设置（有 name），跳转到主页
+  if (user.name) {
     router.push('/')
     return
   }

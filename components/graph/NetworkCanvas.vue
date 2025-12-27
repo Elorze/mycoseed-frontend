@@ -20,12 +20,6 @@
           <div class="w-2 h-2 bg-mario-coin rounded-full"></div>
           {{ hoveredNode.value }} 权重
         </div>
-        <div v-if="hoveredNode.participationScore" class="text-xs text-blue-600">
-          参与度: {{ Math.round(hoveredNode.participationScore) }}%
-        </div>
-        <div v-if="hoveredNode.activityScore" class="text-xs text-green-600">
-          活跃度: {{ Math.round(hoveredNode.activityScore) }}%
-        </div>
       </div>
     </div>
   </div>
@@ -105,15 +99,14 @@ const initGraph = (data: any) => {
     .attr("fill", "#000")
 
   // 2. Simulation Setup
-  // 根据节点的参与度和活跃度调整距离和电荷强度
+  // 根据节点类型调整距离和电荷强度
   const getNodeStrength = (node: any) => {
     if (node.type === 'COMMUNITY') {
       // 社群节点：根据价值调整电荷强度
       return -500 - (node.value || 0) * 0.5
     } else {
-      // 用户节点：根据参与度和活跃度调整
-      const score = (node.participationScore || 0) + (node.activityScore || 0)
-      return -200 - score * 2
+      // 用户节点：使用固定值
+      return -200
     }
   }
   
@@ -131,10 +124,9 @@ const initGraph = (data: any) => {
     .force("charge", d3.forceManyBody().strength(getNodeStrength))
     .force("center", d3.forceCenter(width / 2, height / 2))
     .force("collide", d3.forceCollide().radius((d: any) => {
-      // 根据节点类型和活跃度调整碰撞半径
+      // 根据节点类型调整碰撞半径
       if (d.type === 'COMMUNITY') return 40
-      const score = (d.participationScore || 0) + (d.activityScore || 0)
-      return 20 + score * 0.1
+      return 20
     }))
 
   // 3. Draw Links (Vines)
@@ -181,7 +173,7 @@ const initGraph = (data: any) => {
     })
 
   // Draw Node Shape (Square for pixel art feel)
-  // 根据参与度和活跃度调整节点大小
+  // 根据节点类型调整节点大小
   node.append("rect")
     .attr("width", (d: any) => {
       if (d.type === 'COMMUNITY') {
@@ -189,10 +181,8 @@ const initGraph = (data: any) => {
         const size = 30 + (d.value || 0) / 100
         return Math.min(60, Math.max(30, size))
       } else {
-        // 用户节点：根据参与度和活跃度调整大小
-        const score = (d.participationScore || 0) + (d.activityScore || 0)
-        const size = 15 + score * 0.15
-        return Math.min(30, Math.max(15, size))
+        // 用户节点：固定大小
+        return 20
       }
     })
     .attr("height", (d: any) => {
@@ -200,41 +190,35 @@ const initGraph = (data: any) => {
         const size = 30 + (d.value || 0) / 100
         return Math.min(60, Math.max(30, size))
       } else {
-        const score = (d.participationScore || 0) + (d.activityScore || 0)
-        const size = 15 + score * 0.15
-        return Math.min(30, Math.max(15, size))
+        // 用户节点：固定大小
+        return 20
       }
     })
     .attr("x", (d: any) => {
       const width = d.type === 'COMMUNITY' 
         ? Math.min(60, Math.max(30, 30 + (d.value || 0) / 100))
-        : Math.min(30, Math.max(15, 15 + ((d.participationScore || 0) + (d.activityScore || 0)) * 0.15))
+        : 20
       return -width / 2
     })
     .attr("y", (d: any) => {
       const height = d.type === 'COMMUNITY' 
         ? Math.min(60, Math.max(30, 30 + (d.value || 0) / 100))
-        : Math.min(30, Math.max(15, 15 + ((d.participationScore || 0) + (d.activityScore || 0)) * 0.15))
+        : 20
       return -height / 2
     })
     .attr("fill", (d: any) => {
       if (d.type === 'COMMUNITY') {
         return '#ff3844' // Red house
       } else {
-        // 用户节点：根据活跃度调整颜色亮度
-        const activityScore = d.activityScore || 0
-        if (activityScore >= 90) return '#fff' // 高活跃度：白色
-        if (activityScore >= 70) return '#f0f0f0' // 中高活跃度：浅灰
-        if (activityScore >= 50) return '#e0e0e0' // 中等活跃度：灰色
-        return '#d0d0d0' // 低活跃度：深灰
+        // 用户节点：固定颜色
+        return '#e0e0e0'
       }
     })
     .attr("stroke", "#000")
     .attr("stroke-width", (d: any) => {
-      // 根据活跃度调整边框粗细
+      // 根据节点类型调整边框粗细
       if (d.type === 'COMMUNITY') return 3
-      const activityScore = d.activityScore || 0
-      return activityScore >= 80 ? 3 : 2
+      return 2
     })
     
   // Add Icon/Emoji inside
@@ -247,9 +231,8 @@ const initGraph = (data: any) => {
         const size = 20 + (d.value || 0) / 200
         return Math.min(32, Math.max(20, size))
       } else {
-        const score = (d.participationScore || 0) + (d.activityScore || 0)
-        const size = 10 + score * 0.08
-        return Math.min(18, Math.max(10, size))
+        // 用户节点：固定大小
+        return 14
       }
     })
     .style("pointer-events", "none")

@@ -170,7 +170,8 @@ const onSubmit = async () => {
       return
     }
 
-    if (user.userType !== 'community') {
+    const userType = user.userType || 'member'  // 默认 member
+    if (userType !== 'community') {
       loading.value = false
       error.value = '当前账号不是社区账号'
       return
@@ -214,13 +215,14 @@ onMounted(async () => {
   }
 
   // 检查用户类型
-  if (user.userType !== 'community') {
+  const userType = user.userType || 'member'  // 默认 member
+  if (userType !== 'community') {
     router.push('/')
     return
   }
 
-  // 如果已完成设置，跳转到主页
-  if (user.isProfileSetup) {
+  // 如果已完成设置（有 name），跳转到主页
+  if (user.name) {
     router.push('/')
     return
   }

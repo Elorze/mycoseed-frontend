@@ -530,8 +530,6 @@ const mockUser = {
   id: 1,
   phone: '13800138000',
   email: null,
-  evm_chain_address: '0x4fc3a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8',
-  encrypted_keys: null,
   userType: 'member' as 'member' | 'community',
   isProfileSetup: false,
   created_at: '2025-01-01T00:00:00Z'
@@ -638,26 +636,6 @@ export const getMe = async (baseUrl: string): Promise<any> => {
   return response.json()
 }
 
-/**
- * 设置加密密钥
- * @param keys 加密密钥
- * @param baseUrl API 基础 URL
- */
-export const setEncryptedKeys = async (keys: string, baseUrl: string): Promise<{ result: string }> => {
-  const response = await fetch(`${baseUrl}/api/auth/set-encrypted-keys`,
-  {
-    method:'POST',
-    headers: getAuthHeaders(),
-    body:JSON.stringify({keys}),
-  })
-
-  if(!response.ok)
-  {
-    const error = await response.json()
-    throw new Error(error.message || 'Failed to set encrypted keys')
-  }
-  return response.json()
-}
 
 export const AUTH_TOKEN_KEY = 'auth_token'
 
@@ -878,16 +856,8 @@ export interface Community {
 export interface Member {
   id: number
   name: string                   // 成员名称
-  title?: string                 // 头衔
-  reputation: number             // 声誉值
-  totalContributions: number     // 总贡献数
-  completedTasks: number         // 完成任务数
-  totalReward: number            // 总奖励
-  skills: string[]               // 技能标签
-  communities: number[]          // 所属社群ID列表
-  participationScore: number    // 参与度分数 (0-100)
-  activityScore: number          // 活跃度分数 (0-100)
-  avatarSeed?: string            // 头像种子
+  avatar?: string                // 头像URL
+  bio?: string                   // 个人简介
 }
 
 /**
@@ -898,8 +868,6 @@ export interface NetworkNode {
   name: string
   type: 'COMMUNITY' | 'USER'
   value: number                  // 用于显示的权重值
-  participationScore?: number   // 参与度
-  activityScore?: number         // 活跃度
   communityId?: number           // 如果是成员，所属社群ID
 }
 
@@ -976,5 +944,5 @@ export const getNetworkData = async (): Promise<{ nodes: NetworkNode[], links: N
 export const getActivityFeed = async (): Promise<ActivityLog[]> => {
   await new Promise(resolve => setTimeout(resolve, 100))
 
-  return logs
+  return []
 }

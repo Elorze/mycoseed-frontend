@@ -222,10 +222,11 @@ const onSubmit = async () => {
       // 设置用户信息到store
       userStore.setUser(user)
 
-      // 检查是否是新用户且未完成设置
-      if (response.isNewUser || !user.isProfileSetup) {
+      // 检查是否是新用户且未完成设置（使用 name 判断是否完成设置）
+      if (response.isNewUser || !user.name) {
         // 根据用户类型跳转到对应的设置页面
-        if (user.userType === 'community') {
+        const userType = user.userType || 'member'  // 默认 member
+        if (userType === 'community') {
           await router.push('/community/setup')
         } else {
           await router.push('/profile/setup')

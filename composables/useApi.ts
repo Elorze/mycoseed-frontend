@@ -21,7 +21,6 @@ export const useApi = () => {
     signInWithEmail: (email: string, code: string, userType?: 'member' | 'community') => 
       api.signInWithEmail(email, code, apiBaseUrl, userType),
     getMe: () => api.getMe(apiBaseUrl),
-    setEncryptedKeys: (keys: string) => api.setEncryptedKeys(keys, apiBaseUrl),
     
     getActivityFeed: () => api.getActivityFeed(),
     // 任务相关 API

@@ -14,13 +14,10 @@
           </button>
         </div>
 
-        <!-- 头像与等级 -->
+        <!-- 头像 -->
         <div class="relative">
           <div v-if="!isEditing" class="relative">
             <PixelAvatar :src="member?.avatar" :seed="member?.name || 'user'" size="xl" />
-            <div class="absolute -bottom-2 -right-2 bg-black text-white text-xs font-pixel px-2 py-1 border-2 border-white">
-              LV. {{ memberLevel }}
-            </div>
           </div>
           <div v-else class="relative">
             <PixelAvatar :src="editingForm.avatar || member?.avatar" :seed="editingForm.name || member?.name || 'user'" size="xl" />
@@ -33,11 +30,10 @@
           </div>
         </div>
 
-        <!-- 姓名与头衔 -->
+        <!-- 姓名 -->
         <div class="text-center w-full max-w-xs">
           <div v-if="!isEditing">
             <h1 class="font-pixel text-2xl mb-1">{{ member?.name }}</h1>
-            <div class="text-sm text-gray-500 font-vt323 uppercase tracking-wider">{{ member?.title }}</div>
           </div>
           <div v-else class="space-y-3">
             <div>
@@ -48,62 +44,6 @@
                 class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                 placeholder="输入名字"
               />
-            </div>
-            <div>
-              <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">头衔</label>
-              <input
-                v-model="editingForm.title"
-                type="text"
-                class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-                placeholder="输入头衔"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- 技能标签 -->
-        <div class="w-full max-w-xs">
-          <div v-if="!isEditing" class="flex flex-wrap gap-2 justify-center">
-            <span 
-              v-for="skill in member?.skills" 
-              :key="skill" 
-              class="bg-gray-100 border border-gray-300 px-3 py-1 text-xs font-pixel rounded-full"
-            >
-              {{ skill }}
-            </span>
-          </div>
-          <div v-else class="space-y-2">
-            <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">技能标签</label>
-            <div class="flex flex-wrap gap-2 mb-2">
-              <span
-                v-for="(skill, index) in editingForm.skills"
-                :key="index"
-                class="bg-mario-green text-white border-2 border-black px-3 py-1 text-xs font-pixel flex items-center gap-1"
-              >
-                {{ skill }}
-                <button
-                  @click="removeSkill(index)"
-                  class="hover:text-red-300"
-                >
-                  ×
-                </button>
-              </span>
-            </div>
-            <div class="flex gap-2">
-              <input
-                v-model="newSkill"
-                type="text"
-                @keyup.enter="addSkill"
-                class="flex-1 h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-                placeholder="输入新标签"
-              />
-              <PixelButton
-                @click="addSkill"
-                variant="secondary"
-                size="sm"
-              >
-                添加
-              </PixelButton>
             </div>
           </div>
         </div>
@@ -194,18 +134,6 @@
           </div>
         </div>
 
-        <!-- COMMUNITIES TAB -->
-        <div v-else-if="activeTab === 'COMMUNITIES'" class="space-y-3">
-          <div v-for="comm in communities" :key="comm.id" class="bg-white border-2 border-black p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" @click="navigateTo(`/community/${comm.id}`)">
-            <div class="w-12 h-12 bg-mario-red border-2 border-black flex-shrink-0"></div>
-            <div class="flex-1">
-              <div class="font-pixel text-sm">{{ comm.name }}</div>
-              <div class="font-vt323 text-gray-500 text-sm mt-1">积分: {{ comm.points }}</div>
-            </div>
-            <div class="text-gray-400">›</div>
-          </div>
-        </div>
-
         <!-- BADGES TAB -->
         <div v-else-if="activeTab === 'BADGES'" class="grid grid-cols-3 gap-3">
           <div v-for="i in 8" :key="i" class="aspect-square bg-white border-2 border-black flex flex-col items-center justify-center p-2 hover:-translate-y-1 transition-transform">
@@ -237,18 +165,16 @@ definePageMeta({
   layout: 'default'
 })
 
-const { getMemberById, getCommunities, getMyTasks } = useApi()
+const { getMemberById, getMyTasks } = useApi()
 
 const route = useRoute()
 const router = useRouter()
 const memberId = parseInt(route.params.id as string)
 const activeTab = ref('HISTORY')
 const isEditing = ref(false)
-const newSkill = ref('')
 
 const tabs = [
   { id: 'HISTORY', label: '动态' },
-  { id: 'COMMUNITIES', label: '社区' },
   { id: 'BADGES', label: '徽章' }
 ]
 
@@ -262,8 +188,6 @@ const error = ref<string | null>(null)
 
 // Mock Data
 const member = ref<any>(null)
-const history = ref<any[]>([])
-const communities = ref<any[]>([])
 const claimedTasks = ref<Task[]>([])
 const loadingTasks = ref(false)
 let refreshInterval: ReturnType<typeof setInterval> | null = null
@@ -271,14 +195,7 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null
 // 编辑表单数据
 const editingForm = ref({
   name: '',
-  title: '',
-  skills: [] as string[],
   avatar: ''
-})
-
-const memberLevel = computed(() => {
-  if (!member.value) return 1
-  return Math.floor(member.value.reputation / 100) + 1
 })
 
 const navigateTo = (path: string) => {
@@ -290,8 +207,6 @@ const startEdit = () => {
   if (member.value) {
     editingForm.value = {
       name: member.value.name || '',
-      title: member.value.title || '',
-      skills: [...(member.value.skills || [])],
       avatar: member.value.avatar || ''
     }
   }
@@ -301,12 +216,10 @@ const startEdit = () => {
 // 取消编辑
 const cancelEdit = () => {
   isEditing.value = false
-  newSkill.value = ''
 }
 
 // 保存资料
 const saveProfile = async () => {
-  if (!member.value) return
   
   loading.value = true
   error.value = null
@@ -338,17 +251,26 @@ const saveProfile = async () => {
       const updatedUser = await getMe()
       if (updatedUser) {
         // 更新本地成员信息
-        member.value.name = updatedUser.name || editingForm.value.name
-        member.value.avatar = updatedUser.avatar || editingForm.value.avatar || ''
-        member.value.title = editingForm.value.title
-        member.value.skills = [...editingForm.value.skills]
+        if (member.value) {
+          member.value.name = updatedUser.name || editingForm.value.name
+          member.value.avatar = updatedUser.avatar || editingForm.value.avatar || ''
+        } else {
+          member.value = {
+            ...updatedUser
+          }
+        }
       } else {
         // 如果获取失败，至少更新本地数据
-        member.value.name = editingForm.value.name
-        member.value.title = editingForm.value.title
-        member.value.skills = [...editingForm.value.skills]
-        if (editingForm.value.avatar) {
-          member.value.avatar = editingForm.value.avatar
+        if (member.value) {
+          member.value.name = editingForm.value.name
+          if (editingForm.value.avatar) {
+            member.value.avatar = editingForm.value.avatar
+          }
+        } else {
+          member.value = {
+            name: editingForm.value.name,
+            avatar: editingForm.value.avatar || ''
+          }
         }
       }
            
@@ -363,7 +285,6 @@ const saveProfile = async () => {
       })
       
       isEditing.value = false
-      newSkill.value = ''
     } else {
       throw new Error(result.message || '保存失败')
     }
@@ -378,19 +299,6 @@ const saveProfile = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// 添加技能标签
-const addSkill = () => {
-  if (newSkill.value.trim() && !editingForm.value.skills.includes(newSkill.value.trim())) {
-    editingForm.value.skills.push(newSkill.value.trim())
-    newSkill.value = ''
-  }
-}
-
-// 移除技能标签
-const removeSkill = (index: number) => {
-  editingForm.value.skills.splice(index, 1)
 }
 
 // 更换头像
@@ -533,37 +441,17 @@ onMounted(async () => {
   try {
     member.value = await getMemberById(memberId)
     
+    if (!member.value) {
+      const currentUser = await getMe()
+      if (currentUser && (currentUser.id === memberId || String(currentUser.id) === String(memberId))) {
+        // 初始化 member.value 为当前用户信息
+        member.value = {
+          ...currentUser
+        }
+      }
+    }
+    
     if (member.value) {
-      // 获取成员所属的社群信息
-      const allCommunities = await getCommunities()
-      communities.value = allCommunities
-        .filter(c => member.value.communities.includes(c.id))
-        .map(c => ({
-          id: c.id,
-          name: c.name,
-          points: member.value.reputation // 使用成员的声誉值作为在该社群的积分
-        }))
-      
-      // 生成历史记录（基于成员的贡献）
-      history.value = [
-        { 
-          id: 1, 
-          title: `完成了 ${member.value.completedTasks} 个任务`, 
-          date: '最近', 
-          community: communities.value[0]?.name || '社群', 
-          points: member.value.totalReward * 100, 
-          icon: '✅' 
-        },
-        { 
-          id: 2, 
-          title: `贡献了 ${member.value.totalContributions} 次`, 
-          date: '最近', 
-          community: communities.value[0]?.name || '社群', 
-          points: member.value.totalContributions * 10, 
-          icon: '🌟' 
-        },
-      ]
-      
       // 如果当前是动态tab，加载任务列表
       if (activeTab.value === 'HISTORY') {
         loadClaimedTasks()

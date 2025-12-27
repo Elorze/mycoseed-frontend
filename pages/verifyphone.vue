@@ -139,11 +139,6 @@ const onSubmit = async () => {
         const user = await getMe()
         console.log('[user]:', user)
 
-        if (!user.encrypted_keys) {
-          router.replace('/paymentcode')
-          return
-        }
-
         userStore.setUser(user)
         await router.push('/')
         return
