@@ -225,6 +225,18 @@ const saveProfile = async () => {
   error.value = null
 
   try {
+    // 验证姓名不能为空
+    if (!editingForm.value.name || !editingForm.value.name.trim()) {
+      error.value = '姓名不能为空'
+      toast.add({
+        title: '保存失败',
+        description: '姓名不能为空',
+        color: 'red'
+      })
+      loading.value = false
+      return
+    }
+
     // 获取当前用户信息
     const user = await getMe()
     if (!user) {
@@ -247,20 +259,23 @@ const saveProfile = async () => {
     const result = await updateUserProfile(user.id, profileData)
     
     if (result.success) {
+      console.log('更新成功，重新获取用户信息')
       // 重新获取最新用户信息
       const updatedUser = await getMe()
+      console.log('获取到更新后的用户信息:', updatedUser)
+
       if (updatedUser) {
         // 更新本地成员信息
-        if (member.value) {
-          member.value.name = updatedUser.name || editingForm.value.name
-          member.value.avatar = updatedUser.avatar || editingForm.value.avatar || ''
-        } else {
-          member.value = {
-            ...updatedUser
-          }
+        member.value = {
+          id: updatedUser.id,
+          name: updatedUser.name || editingForm.value.name || '',
+          avatar: updatedUser.avatar || editingForm.value.avatar || '',
+          bio: updatedUser.bio || ''
         }
+        console.log('更新后的 member.value:', member.value)
       } else {
         // 如果获取失败，至少更新本地数据
+        console.warn('获取更新后的用户信息失败，使用本地数据')
         if (member.value) {
           member.value.name = editingForm.value.name
           if (editingForm.value.avatar) {
@@ -268,6 +283,7 @@ const saveProfile = async () => {
           }
         } else {
           member.value = {
+            id: user.id,
             name: editingForm.value.name,
             avatar: editingForm.value.avatar || ''
           }
@@ -439,19 +455,41 @@ watch(() => activeTab.value, (newTab) => {
 onMounted(async () => {
   // 从 API 获取成员数据
   try {
-    member.value = await getMemberById(memberId)
+    console.log('开始加载用户数据, memberId:', memberId, 'type:',typeof memberId)
     
-    if (!member.value) {
-      const currentUser = await getMe()
-      if (currentUser && (currentUser.id === memberId || String(currentUser.id) === String(memberId))) {
-        // 初始化 member.value 为当前用户信息
+    // 获取当前用户信息
+    const currentUser = await getMe()
+    console.log('获取到当前用户：', currentUser)
+
+    if (currentUser) {
+      // 检查 ID 是否匹配
+      const currentUserId = String(currentUser.id)
+      const targetMemberId = String(memberId)
+
+      if (currentUserId === targetMemberId) {
+        // 设置 member.value
         member.value = {
-          ...currentUser
+          id: currentUser.id,
+          name: currentUser.name || '',
+          avatar: currentUser.avatar || '',
+          bio: currentUser.bio || ''
         }
+        console.log('设置 member.value:', member.value)
+      } else {
+        // ID 不匹配，可能是访问别人的页面（暂时不支持）
+        console.warn('访问的用户 ID 不匹配，当前用户 ID:', currentUserId, '目标 ID:', targetMemberId)
       }
+    } else {
+      console.warn('无法获取当前用户信息')
+      toast.add({
+        title: '错误',
+        description: '无法获取用户信息，请重新登陆',
+        color: 'red'
+      })
     }
     
     if (member.value) {
+      console.log('最终 member.value:', member.value)
       // 如果当前是动态tab，加载任务列表
       if (activeTab.value === 'HISTORY') {
         loadClaimedTasks()
@@ -463,9 +501,16 @@ onMounted(async () => {
           loadClaimedTasks()
         }
       }, 30000)
+    } else {
+      console.error('member.value 未设置，无法显示用户信息')
     }
   } catch (error) {
     console.error('Failed to load member data:', error)
+    toast.add({
+      title: '加载失败',
+      description: '无法加载用户数据，请稍后重试',
+      color: 'red'
+    })
   }
 })
 
