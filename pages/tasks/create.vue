@@ -13,20 +13,20 @@
           <!-- 基本信息 -->
           <div class="space-y-4">
             <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务标题 *</label>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务名称 *</label>
               <input 
                 v-model="taskForm.title" 
                 type="text"
-                placeholder="输入任务标题..."
+                placeholder="输入任务名称"
                 class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
               />
             </div>
 
             <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务目标 *</label>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">任务内容 *</label>
               <textarea 
                 v-model="taskForm.objective" 
-                placeholder="描述任务的具体目标..."
+                placeholder="描述任务的具体目标，开始、结束时间，地点等信息..."
                 rows="4"
                 class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
               ></textarea>
@@ -178,9 +178,9 @@
             </div>
           </div>
 
-          <!-- 证明要求配置 -->
+          <!-- 提交格式 -->
           <div class="border-t-2 border-black pt-4 md:pt-6">
-            <h3 class="font-pixel text-sm uppercase mb-4 text-black">证明要求配置</h3>
+            <h3 class="font-pixel text-sm uppercase mb-4 text-black">提交格式</h3>
             <div class="space-y-3 md:space-y-4">
               <!-- 照片证据 -->
               <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
@@ -226,7 +226,7 @@
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center gap-3">
                     <span class="text-xl md:text-2xl">📍</span>
-                    <h4 class="font-pixel text-xs uppercase text-black">GPS 定位</h4>
+                    <h4 class="font-pixel text-xs uppercase text-black">位置定位</h4>
                   </div>
                   <label class="relative inline-flex items-center cursor-pointer">
                     <input 
@@ -273,7 +273,7 @@
                       <input 
                         v-model="proofConfig.description.minWords"
                         type="number"
-                        placeholder="50"
+                        placeholder="10"
                         class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                       />
                     </div>
