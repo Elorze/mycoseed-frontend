@@ -4,7 +4,7 @@
       <!-- Logo -->
       <div 
         class="flex items-center gap-3 cursor-pointer group"
-        @click="navigateTo('hub')"
+        @click="handleNavigate('hub')"
       >
         <div class="w-12 h-12 bg-mario-red border-4 border-black flex items-center justify-center shadow-pixel group-hover:-translate-y-1 transition-transform">
           <img src="/images/icons/myco-seed-logo.svg" alt="MycoSeed" class="w-8 h-8" style="image-rendering: pixelated;" />
@@ -22,7 +22,7 @@
         <PixelButton
            variant="warning"
            size="sm"
-           @click="navigateTo('tasks')"
+           @click="handleNavigate('tasks')"
         >
            🛒 商城
         </PixelButton>
@@ -31,7 +31,7 @@
         <PixelButton
           :variant="currentPage === 'wallet' ? 'primary' : 'secondary'"
           size="sm"
-          @click="navigateTo('wallet')"
+          @click="handleNavigate('wallet')"
         >
           👛 钱包
         </PixelButton>
@@ -39,7 +39,7 @@
         <!-- User Avatar (Replacing Address) -->
         <div 
           class="cursor-pointer hover:scale-110 transition-transform"
-          @click="navigateTo('profile')"
+          @click="handleNavigate('profile')"
           title="个人主页"
         >
            <PixelAvatar 
@@ -72,13 +72,17 @@ const emit = defineEmits<{
   navigate: [page: string]
 }>()
 
-const navigateTo = (page: string) => {
+const handleNavigate = (page: string) => {
   if (page === 'profile') {
     const userId = currentUser.value?.id
     if (userId) {
       emit('navigate', `member/${userId}`)
     } else {
       console.warn('无法获取用户ID, 请先登录')
+      // 跳转到登录页面 - 使用 window.location 因为这是组件，不直接使用 Nuxt 路由
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
     }
   } else {
     emit('navigate', page)
