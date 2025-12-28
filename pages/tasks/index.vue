@@ -136,7 +136,7 @@ const loadTasksFromAPI = async () => {
       reward: task.reward,
       deadline: task.deadline || '',
       status: task.status,
-      creator: '系统'
+      creator: task.creatorName || '发布者'
     }))
   } catch (error) {
     console.error('加载任务失败:', error)

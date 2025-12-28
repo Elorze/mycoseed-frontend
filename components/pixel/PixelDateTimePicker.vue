@@ -219,12 +219,21 @@ const firstDayOfMonth = computed(() => {
 
 const displayDateTime = computed(() => {
   if (!props.modelValue) return ''
-  const date = new Date(props.modelValue)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
+  // 统一处理本地时间格式 YYYY-MM-DDTHH:mm，直接解析字符串
+  const [datePart, timePart] = props.modelValue.split('T')
+  if (!datePart || !timePart) {
+    // 如果不是标准格式，尝试用 Date 对象解析（兼容 ISO 格式）
+    const date = new Date(props.modelValue)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hour = String(date.getHours()).padStart(2, '0')
+    const minute = String(date.getMinutes()).padStart(2, '0')
+    return `${year} / ${month} / ${day} ${hour}:${minute}`
+  }
+  // 直接解析本地时间格式 YYYY-MM-DDTHH:mm
+  const [year, month, day] = datePart.split('-')
+  const [hour, minute] = timePart.split(':')
   return `${year} / ${month} / ${day} ${hour}:${minute}`
 })
 

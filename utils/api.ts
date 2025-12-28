@@ -72,8 +72,6 @@ export interface Task {
   rewardDistributionMode?: 'per_person' | 'total' // 奖励分配模式
   submissionInstructions?: string // 提交说明
   // 以下字段为前端兼容字段（后端不返回）
-  creatorId?: string             // 创建者ID (UUID)
-  creatorName?: string           // 创建者名称
   claimerId?: number             // 接单者ID
   claimerName?: string           // 接单者名称
   claimedAt?: string             // 领取时间
