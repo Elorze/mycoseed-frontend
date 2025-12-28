@@ -66,6 +66,8 @@ export interface Task {
   allowRepeatClaim?: boolean     // 是否允许重复领取
   createdAt?: string             // 创建时间
   updatedAt?: string             // 更新时间
+  creatorId?: string             // 创建者ID (UUID)
+  creatorName?: string | null     // 创建者昵称
   participantLimit?: number | null // 参与人数上限
   rewardDistributionMode?: 'per_person' | 'total' // 奖励分配模式
   submissionInstructions?: string // 提交说明
