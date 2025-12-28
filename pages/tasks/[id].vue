@@ -125,15 +125,15 @@
 
         <!-- 任务进度 -->
         <PixelCard v-if="task.updates && task.updates.length > 0">
-            <template #header>
-              任务进度
-            </template>
-            <div class="space-y-4">
-              <div
-                v-for="(update, index) in task.updates"
-                :key="update.id"
-                class="relative pl-8"
-              >
+          <template #header>
+            任务进度
+          </template>
+          <div class="space-y-4">
+            <div
+              v-for="(update, index) in task.updates"
+              :key="update.id"
+              class="relative pl-8"
+            >
               <!-- 时间线连接线 -->
               <div 
                 v-if="Number(index) < task.updates.length - 1"
@@ -167,9 +167,9 @@
                   </div>
                 </div>
               </div>
-              </div>
             </div>
-          </PixelCard>
+          </div>
+        </PixelCard>
         
         <!-- 操作按钮 -->
         <PixelCard>
@@ -230,6 +230,7 @@
           </div>
         </PixelCard>
       </div>
+    </div>
   </div>
 </template>
 
