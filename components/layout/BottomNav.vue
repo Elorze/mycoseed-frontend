@@ -19,9 +19,9 @@ const router = useRouter()
 
 const navItems = [
   // 与桌面端 Header 保持一致：任务页作为主要入口
-  { label: '广场', path: '/', icon: '🗺️' },
+  { label: '社区广场', path: '/', icon: '🗺️' },
   { label: '任务', path: '/tasks', icon: '📋' },
-  { label: '钱包', path: '/wallet', icon: '💰' },
+  { label: '活动', path: '/activities-feed', icon: '📅' },
   { label: '我的', path: '/member/1', icon: '👤' }
 ]
 

@@ -591,3 +591,6 @@ onUnmounted(() => {
   stopProgressPolling()
 })
 </script>
+
+<style scoped>
+</style>

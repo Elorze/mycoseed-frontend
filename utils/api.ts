@@ -1244,6 +1244,30 @@ export const getMemberById = async (id: number): Promise<Member | null> => {
 }
 
 /**
+ * 根据成员ID获取钱包地址
+ * 由于member对象中没有identifier，我们基于member ID生成确定性钱包地址
+ */
+export const getWalletAddressByMemberId = async (id: number): Promise<string> => {
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  // 基于member ID生成确定性钱包地址
+  // 使用ID作为种子，生成一个看起来像真实地址的字符串
+  const seed = `member_${id}`
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  
+  // 生成40个字符的十六进制地址（去掉0x前缀后）
+  const hexString = Math.abs(hash).toString(16).padStart(8, '0')
+  const address = `0x${hexString.repeat(5).slice(0, 40)}`
+  
+  return address
+}
+
+/**
  * 获取网络图数据（包含节点和连接）
  * 根据参与度和活跃度进行加权
  */
@@ -1362,6 +1386,23 @@ export interface Transaction {
 }
 
 /**
+ * 社区交易记录数据结构（包含用户信息）
+ */
+export interface CommunityTransaction {
+  id: number
+  userId: number
+  userName: string
+  userAvatarSeed?: string
+  type: 'in' | 'out'
+  title: string
+  date: string
+  amount: number
+  currency: string
+  taskId?: number
+  taskTitle?: string
+}
+
+/**
  * 获取活动日志（Live Feed）
  */
 export const getActivityFeed = async (): Promise<ActivityLog[]> => {
@@ -1378,4 +1419,47 @@ export const getActivityFeed = async (): Promise<ActivityLog[]> => {
   ]
   
   return logs
+}
+
+/**
+ * 获取社区所有成员的交易记录
+ * @param communityId 社区ID
+ */
+export const getCommunityTransactions = async (communityId: number): Promise<CommunityTransaction[]> => {
+  await new Promise(resolve => setTimeout(resolve, 300))
+  
+  try {
+    // 获取该社区的所有成员
+    const members = mockMembers.filter(m => m.communities.includes(communityId))
+    
+    // 获取所有成员的交易记录
+    const allTransactions: CommunityTransaction[] = []
+    
+    for (const member of members) {
+      const userTransactions = await getTransactions(member.id)
+      
+      // 转换为社区交易记录格式
+      for (const tx of userTransactions) {
+        allTransactions.push({
+          id: tx.id,
+          userId: member.id,
+          userName: member.name,
+          userAvatarSeed: member.avatarSeed,
+          type: tx.type,
+          title: tx.title,
+          date: tx.date,
+          amount: tx.amount,
+          currency: tx.currency,
+          taskId: tx.taskId,
+          taskTitle: tx.taskTitle
+        })
+      }
+    }
+    
+    // 按时间倒序排列（最新的在前）
+    return allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  } catch (error) {
+    console.error('Failed to load community transactions:', error)
+    return []
+  }
 }

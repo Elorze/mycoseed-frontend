@@ -1,7 +1,10 @@
 <template>
   <div class="space-y-8">
     <!-- Village Header -->
-    <div class="relative h-48 md:h-64 w-full bg-mario-sky overflow-hidden border-4 border-black shadow-pixel">
+    <div 
+      class="relative h-48 md:h-64 w-full bg-mario-sky overflow-hidden border-4 border-black shadow-pixel cursor-pointer hover:opacity-90 transition-opacity"
+      @click="isIntroExpanded = !isIntroExpanded"
+    >
       <!-- Parallax Background Layers (Simulated) -->
       <div class="absolute bottom-0 w-full h-16 bg-mario-ground"></div>
       <div class="absolute bottom-16 left-10 w-20 h-20 bg-red-500 pixel-house"></div>
@@ -9,13 +12,26 @@
       <div class="absolute top-4 left-1/2 -translate-x-1/2 font-pixel text-white text-shadow-pixel text-2xl md:text-4xl uppercase text-center">
         {{ community?.name || '正在加载...' }}
       </div>
-      
-      <!-- Stats Bar -->
-      <div class="absolute top-0 left-0 bg-black/50 p-2 text-white font-pixel text-xs flex gap-4">
-        <span>人口: {{ community?.memberCount || 0 }}</span>
-        <span>等级: {{ Math.floor((community?.activityCount || 0) / 10) + 1 }}</span>
+      <!-- 展开/收起箭头 -->
+      <div 
+        class="absolute bottom-2 left-1/2 -translate-x-1/2 text-white text-shadow-pixel transition-all duration-300 hover:scale-110"
+        :class="{ 'rotate-180': isIntroExpanded }"
+      >
+        <svg class="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path>
+        </svg>
       </div>
     </div>
+
+    <!-- Community Intro Card -->
+    <Transition name="intro-slide">
+      <div v-show="isIntroExpanded" class="bg-white border-b-4 border-black p-6 pb-8 overflow-hidden">
+        <div class="prose font-vt323 text-lg max-w-none">
+          <h3 class="font-pixel text-sm uppercase border-b-2 border-black pb-2 mb-4">欢迎来到 {{ community?.name }}</h3>
+          <div class="whitespace-pre-wrap">{{ community?.markdownIntro || '正在加载...' }}</div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Village Content Grid -->
     <div class="space-y-6">
@@ -41,86 +57,92 @@
         <!-- QUESTS TAB -->
         <div v-if="activeTab === 'QUESTS'" class="space-y-6">
           <div class="flex items-center justify-between bg-white border-2 border-black p-2">
-            <div class="font-pixel text-sm">当前任务: {{ activeTasksCount }}</div>
+            <div class="font-pixel text-sm">当前任务: {{ activeTasksCount }} | 当前活动: {{ activeEventsCount }}</div>
           </div>
 
-          <div v-if="tasks.length === 0" class="text-center py-12 bg-white border-2 border-black p-4">
-            <p class="font-vt323 text-lg text-gray-600">暂无任务</p>
+          <div v-if="mergedItems.length === 0" class="text-center py-12 bg-white border-2 border-black p-4">
+            <p class="font-vt323 text-lg text-gray-600">暂无任务和活动</p>
           </div>
           
           <div v-else class="grid gap-4">
-            <PixelCard v-for="task in tasks" :key="task.id" hover class="cursor-pointer" @click="navigateTo(`/tasks/${task.id}`)">
-              <template #header>
-                <div class="flex justify-between items-start">
-                  <span class="text-gray-600 text-xs">任务 #{{ task.id }}</span>
-                  <span class="text-xs text-gray-400">{{ formatTimeAgo(task.createdAt) }}</span>
-                </div>
-              </template>
-              
-              <div class="flex gap-4">
-                <PixelAvatar :seed="task.creatorName || `user${task.creatorId}`" size="md" />
-                <div class="flex-1">
-                  <h3 class="font-bold text-lg">{{ task.title }}</h3>
-                  <p class="text-gray-600 text-sm line-clamp-2">{{ task.description }}</p>
-                </div>
-              </div>
-
-              <template #footer>
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <div class="text-mario-coin font-bold flex items-center gap-1">
-                      <div class="w-3 h-3 bg-mario-coin rounded-sm"></div>
-                      {{ task.reward }} 积分
-                    </div>
-                    <span class="text-xs bg-gray-200 px-2 py-1 font-pixel uppercase">{{ getStatusLabel(task.status) }}</span>
+            <template v-for="item in mergedItems" :key="`${item.type}-${item.data.id}`">
+              <!-- 任务卡片 -->
+              <PixelCard 
+                v-if="item.type === 'task'"
+                hover 
+                class="cursor-pointer" 
+                @click="navigateTo(`/tasks/${item.data.id}`)"
+              >
+                <template #header>
+                  <div class="flex justify-between items-start">
+                    <span class="text-gray-600 text-xs">任务 #{{ item.data.id }}</span>
+                    <span class="text-xs text-gray-400">{{ formatTimeAgo(item.data.createdAt) }}</span>
                   </div>
-                  <PixelButton 
-                    v-if="task.status === 'unclaimed'"
-                    size="sm" 
-                    variant="secondary"
-                    @click.stop="navigateTo(`/tasks/${task.id}`)"
-                  >
-                    查看详情
-                  </PixelButton>
+                </template>
+                
+                <div class="flex gap-4">
+                  <PixelAvatar :seed="item.data.creatorName || `user${item.data.creatorId}`" size="md" />
+                  <div class="flex-1">
+                    <h3 class="font-bold text-lg">{{ item.data.title }}</h3>
+                    <p class="text-gray-600 text-sm line-clamp-2">{{ item.data.description }}</p>
+                  </div>
                 </div>
-              </template>
-            </PixelCard>
-          </div>
-        </div>
 
-        <!-- EVENTS TAB -->
-        <div v-else-if="activeTab === 'EVENTS'" class="space-y-4">
-           <PixelCard v-for="event in events" :key="event.id">
-             <div class="flex gap-4">
-               <div class="w-20 h-20 bg-black/10 flex items-center justify-center text-4xl border-2 border-black">
-                 📅
-               </div>
-               <div class="flex-1">
-                 <div class="font-pixel text-xs text-mario-red mb-1">{{ event.date }}</div>
-                 <h3 class="font-bold text-xl font-vt323">{{ event.title }}</h3>
-                 <p class="text-sm text-gray-600 mt-1">{{ event.description }}</p>
-                 <div class="mt-2 flex gap-2">
-                   <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 border border-green-600">
-                     {{ event.participants }} 人已报名
-                   </span>
-                 </div>
-               </div>
-               <div class="flex flex-col justify-center">
-                 <PixelButton size="sm" variant="success">报名参加</PixelButton>
-               </div>
-             </div>
-           </PixelCard>
+                <template #footer>
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <div class="text-mario-coin font-bold flex items-center gap-1">
+                        <div class="w-3 h-3 bg-mario-coin rounded-sm"></div>
+                        {{ item.data.reward }} 积分
+                      </div>
+                      <span class="text-xs bg-gray-200 px-2 py-1 font-pixel uppercase">{{ getStatusLabel(item.data.status) }}</span>
+                    </div>
+                    <PixelButton 
+                      v-if="item.data.status === 'unclaimed'"
+                      size="sm" 
+                      variant="secondary"
+                      @click.stop="navigateTo(`/tasks/${item.data.id}`)"
+                    >
+                      查看详情
+                    </PixelButton>
+                  </div>
+                </template>
+              </PixelCard>
+
+              <!-- 活动卡片 -->
+              <PixelCard v-else-if="item.type === 'event'">
+                <template #header>
+                  <div class="flex justify-between items-start">
+                    <span class="text-gray-600 text-xs">活动 #{{ item.data.id }}</span>
+                    <span class="text-xs text-gray-400">{{ formatTimeAgo(item.data.createdAt) }}</span>
+                  </div>
+                </template>
+                
+                <div class="flex gap-4">
+                  <div class="w-20 h-20 bg-black/10 flex items-center justify-center text-4xl border-2 border-black">
+                    📅
+                  </div>
+                  <div class="flex-1">
+                    <div class="font-pixel text-xs text-mario-red mb-1">{{ item.data.date }}</div>
+                    <h3 class="font-bold text-xl font-vt323">{{ item.data.title }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">{{ item.data.description }}</p>
+                    <div class="mt-2 flex gap-2">
+                      <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 border border-green-600">
+                        {{ item.data.participants }} 人已报名
+                      </span>
+                    </div>
+                  </div>
+                  <div class="flex flex-col justify-center">
+                    <PixelButton size="sm" variant="success">报名参加</PixelButton>
+                  </div>
+                </div>
+              </PixelCard>
+            </template>
+          </div>
         </div>
 
         <!-- INTRO TAB -->
         <div v-else-if="activeTab === 'INTRO'" class="space-y-6">
-          <PixelCard>
-            <div class="prose font-vt323 text-lg max-w-none p-4">
-              <h3 class="font-pixel text-sm uppercase border-b-2 border-black pb-2 mb-4">欢迎来到 {{ community?.name }}</h3>
-              <div class="whitespace-pre-wrap">{{ community?.markdownIntro }}</div>
-            </div>
-          </PixelCard>
-
           <!-- Town Hall (Governance & Members) -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <PixelCard>
@@ -174,6 +196,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user'
+import { useCommunityStore } from '~/stores/community'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
@@ -184,6 +207,10 @@ const router = useRouter()
 const communityId = parseInt(route.params.id as string)
 const activeTab = ref('INTRO')
 const userStore = useUserStore()
+const communityStore = useCommunityStore()
+
+// 简介卡片展开/收起状态
+const isIntroExpanded = ref(false)
 
 // 判断是否是当前用户自己的社区
 const isMyCommunity = computed(() => {
@@ -192,7 +219,6 @@ const isMyCommunity = computed(() => {
 
 const tabs = [
   { id: 'INTRO', label: '简介' },
-  { id: 'EVENTS', label: '社区活动' },
   { id: 'QUESTS', label: '社区动态' }
 ]
 
@@ -207,6 +233,48 @@ const activeTasksCount = computed(() => {
   return tasks.value.filter(task => 
     task.status === 'unclaimed' || task.status === 'in_progress'
   ).length
+})
+
+// 计算当前活动数量（即将开始和进行中的活动）
+const activeEventsCount = computed(() => {
+  return events.value.filter(event => 
+    event.status === 'upcoming' || event.status === 'ongoing'
+  ).length
+})
+
+// 计算当前任务和活动的总数
+const activeItemsCount = computed(() => {
+  return activeTasksCount.value + activeEventsCount.value
+})
+
+// 合并任务和活动，按时间排序
+const mergedItems = computed(() => {
+  const items: Array<{ type: 'task' | 'event', data: any, createdAt: string }> = []
+  
+  // 添加任务
+  tasks.value.forEach(task => {
+    items.push({
+      type: 'task',
+      data: task,
+      createdAt: task.createdAt
+    })
+  })
+  
+  // 添加活动
+  events.value.forEach(event => {
+    items.push({
+      type: 'event',
+      data: event,
+      createdAt: event.createdAt
+    })
+  })
+  
+  // 按创建时间倒序排序（最新的在前）
+  return items.sort((a, b) => {
+    const timeA = new Date(a.createdAt).getTime()
+    const timeB = new Date(b.createdAt).getTime()
+    return timeB - timeA
+  })
 })
 
 // 格式化时间差
@@ -275,6 +343,9 @@ onMounted(async () => {
   // 确保用户信息已加载
   await userStore.getUser()
   
+  // 更新 community store 中的当前选择
+  await communityStore.setCurrentCommunity(communityId)
+  
   // 从 API 获取社群数据
   try {
     community.value = await getCommunityById(communityId)
@@ -288,9 +359,10 @@ onMounted(async () => {
   }
   
   // Mock events (可以后续从 API 获取)
+  const now = new Date()
   events.value = [
-     { id: 1, title: '每周管道检查', date: '2024-11-30', description: '检查所有绿色管道是否有食人花。', participants: 12 },
-     { id: 2, title: '卡丁车锦标赛', date: '2024-12-05', description: '彩虹之路聚会。自带香蕉皮。', participants: 64 }
+     { id: 1, title: '每周管道检查', date: '2024-11-30', description: '检查所有绿色管道是否有食人花。', participants: 12, createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(), status: 'upcoming' as const },
+     { id: 2, title: '卡丁车锦标赛', date: '2024-12-05', description: '彩虹之路聚会。自带香蕉皮。', participants: 64, createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(), status: 'ongoing' as const }
   ]
 })
 </script>
@@ -307,5 +379,38 @@ onMounted(async () => {
     0% 100%, 0% 30%, 20% 30%, 20% 0%, 40% 0%, 40% 30%, 
     60% 30%, 60% 0%, 80% 0%, 80% 30%, 100% 30%, 100% 100%
   );
+}
+
+/* 简介卡片展开/收起动画 */
+.intro-slide-enter-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.intro-slide-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.intro-slide-enter-from {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+
+.intro-slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+
+.intro-slide-enter-to,
+.intro-slide-leave-from {
+  max-height: 2000px;
+  opacity: 1;
 }
 </style>

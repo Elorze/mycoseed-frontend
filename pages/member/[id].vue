@@ -1,18 +1,27 @@
 <template>
   <div class="min-h-screen pb-24">
     <!-- 顶部个人信息区域 -->
-    <div class="bg-white border-b-4 border-black p-6 pb-8 relative">
-      <div class="flex flex-col items-center gap-4">
-        <!-- 编辑按钮（仅「我的」页面显示） -->
-        <div v-if="isMyProfile" class="absolute top-4 right-4">
-          <button
-            @click="isEditing = !isEditing"
-            class="w-10 h-10 bg-gray-100 border-2 border-black flex items-center justify-center hover:bg-gray-200 transition-colors"
-          >
-            <span v-if="!isEditing" class="text-xl">✏️</span>
-            <span v-else class="text-xl">❌</span>
-          </button>
-        </div>
+    <div class="mx-4 mt-4">
+      <!-- 翻转卡片容器 -->
+      <div 
+        class="flip-card-container"
+        :class="{ 'is-flipped': isFlipped && !isEditing }"
+        @click="!isEditing && toggleFlip()"
+      >
+        <div class="flip-card-inner">
+          <!-- 卡片正面 -->
+          <div class="flip-card-face flip-card-front bg-white border-2 border-black shadow-pixel p-6 pb-8 relative">
+            <!-- 编辑按钮（仅「我的」页面显示） -->
+            <div v-if="isMyProfile" class="absolute top-4 right-4 z-20">
+              <button
+                @click.stop="isEditing = !isEditing"
+                class="w-10 h-10 bg-gray-100 border-2 border-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+              >
+                <span v-if="!isEditing" class="text-xl">✏️</span>
+                <span v-else class="text-xl">❌</span>
+              </button>
+            </div>
+            <div class="flex flex-col items-center gap-4">
 
         <!-- 头像与等级 -->
         <div class="relative">
@@ -63,14 +72,28 @@
 
         <!-- 技能标签 -->
         <div class="w-full max-w-xs">
-          <div v-if="!isEditing" class="flex flex-wrap gap-2 justify-center">
-            <span 
-              v-for="skill in member?.skills" 
-              :key="skill" 
-              class="bg-gray-100 border border-gray-300 px-3 py-1 text-xs font-pixel rounded-full"
-            >
-              {{ skill }}
-            </span>
+          <div v-if="!isEditing" class="flex flex-col gap-2 items-center">
+            <!-- 第一行：技能标签 -->
+            <div class="flex flex-wrap gap-2 justify-center">
+              <span 
+                v-for="skill in member?.skills" 
+                :key="skill" 
+                class="bg-gray-100 border border-gray-300 px-3 py-1 text-xs font-pixel rounded-full"
+              >
+                {{ skill }}
+              </span>
+            </div>
+            <!-- 第二行：社区标签 -->
+            <div class="flex flex-wrap gap-2 justify-center">
+              <span 
+                v-for="comm in communities" 
+                :key="`comm-${comm.id}`" 
+                @click.stop="navigateTo(`/community/${comm.id}`)"
+                class="bg-blue-100 border border-blue-300 px-3 py-1 text-xs font-pixel rounded-full cursor-pointer hover:bg-blue-200 transition-colors"
+              >
+                {{ comm.name }}
+              </span>
+            </div>
           </div>
           <div v-else class="space-y-2">
             <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">技能标签</label>
@@ -114,7 +137,281 @@
           <PixelButton block variant="secondary" @click="cancelEdit">取消</PixelButton>
         </div>
 
-        <!-- 非编辑模式下的操作按钮（已移除，发布任务按钮移到动态tab） -->
+        <!-- 非编辑模式下的操作按钮（已移除，发布任务按钮移到任务tab） -->
+            </div>
+          </div>
+
+          <!-- 卡片背面 -->
+          <div class="flip-card-face flip-card-back bg-white border-2 border-black shadow-pixel p-6 pb-8 relative">
+            <div class="flex flex-col gap-4">
+              <!-- 钱包地址和链选择按钮（左上方）+ 发送按钮（右上角） -->
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 flex-1">
+                  <!-- Chain Switch Button -->
+                  <button 
+                    @click.stop="showChainSelector = true"
+                    class="w-10 h-10 bg-mario-red border-2 border-black flex items-center justify-center text-white font-pixel text-sm shadow-pixel hover:scale-105 transition-transform"
+                  >
+                    {{ currentChain.shortName }}
+                  </button>
+                  
+                  <!-- Address Display -->
+                  <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border-2 border-black shadow-pixel-sm flex-1">
+                    <PixelAvatar :seed="walletAddress || 'user'" size="sm" />
+                    <span class="font-vt323 text-lg">{{ truncatedAddress }}</span>
+                    <button 
+                      @click.stop="copyAddress"
+                      class="text-gray-400 hover:text-black transition-colors cursor-pointer"
+                      title="复制地址"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- 发送按钮（右上角） -->
+                <PixelButton 
+                  @click.stop="showSendModal = true"
+                  variant="primary" 
+                  size="sm"
+                  class="flex-shrink-0"
+                >
+                  <div class="flex items-center gap-1">
+                    <span class="text-base">📤</span>
+                    <span>转账</span>
+                  </div>
+                </PixelButton>
+              </div>
+
+              <!-- 二维码 -->
+              <div class="flex flex-col items-center gap-4 mt-4">
+                <div class="relative">
+                  <div v-if="qrCodeUrl" class="w-32 h-32 bg-white border-4 border-black p-2">
+                    <img :src="qrCodeUrl" alt="QR Code" class="w-full h-full image-pixelated" />
+                  </div>
+                  <div v-else class="w-32 h-32 bg-gray-100 border-4 border-black flex items-center justify-center">
+                    <span class="text-gray-400 font-vt323 text-sm">加载中...</span>
+                  </div>
+                </div>
+
+                <!-- 社区积分显示（替换原来的姓名位置） -->
+                <div v-if="userCommunity" class="flex flex-col items-center gap-2 w-full max-w-xs">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-green-200 border-2 border-black flex items-center justify-center text-xl shadow-pixel">
+                      {{ userCommunity.pointName === '零废弃积分' ? '♻️' : '🌾' }}
+                    </div>
+                    <div class="text-center">
+                      <div class="font-pixel text-xs text-green-600">{{ userCommunity.pointName }}</div>
+                      <div class="font-vt323 text-2xl">{{ formatPoints(userCommunityPoints) }} {{ getPointAbbr(userCommunity.pointName) }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="text-center w-full max-w-xs">
+                  <div class="text-gray-400 font-vt323 text-sm">未加入任何社区</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Send Modal -->
+    <div v-if="showSendModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div class="w-full max-w-md">
+        <PixelCard>
+          <template #header>
+            <div class="flex justify-between items-center">
+              <span>发送资产</span>
+              <button @click="closeSendModal" class="hover:text-red-500">✕</button>
+            </div>
+          </template>
+          
+          <div class="space-y-4 py-4">
+            <div>
+              <label class="block font-pixel text-xs mb-2">接收方 (地址 / 手机号)</label>
+              <div class="flex gap-2">
+                <input 
+                  v-model="sendForm.recipient" 
+                  type="text" 
+                  placeholder="0x... or 138..." 
+                  class="flex-1 p-3 font-vt323 text-xl border-2 border-black shadow-pixel-sm focus:outline-none focus:translate-y-1 focus:shadow-none transition-all"
+                >
+                <button 
+                  @click="openScanner" 
+                  class="px-4 py-3 bg-white border-2 border-black shadow-pixel-sm hover:bg-gray-100 transition-colors font-pixel text-xs"
+                  title="扫描二维码"
+                >
+                  📷
+                </button>
+                <button 
+                  @click="showContacts = true" 
+                  class="px-4 py-3 bg-white border-2 border-black shadow-pixel-sm hover:bg-gray-100 transition-colors font-pixel text-xs"
+                  title="通讯录"
+                >
+                  📇
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block font-pixel text-xs mb-2">金额</label>
+              <input 
+                v-model="sendForm.amount" 
+                type="number" 
+                step="0.000001"
+                placeholder="0.00" 
+                class="w-full p-3 font-vt323 text-xl border-2 border-black shadow-pixel-sm focus:outline-none focus:translate-y-1 focus:shadow-none transition-all"
+              >
+            </div>
+            <div>
+              <label class="block font-pixel text-xs mb-2">备注信息</label>
+              <input 
+                v-model="sendForm.note" 
+                type="text" 
+                placeholder="可选，添加备注信息..." 
+                class="w-full p-3 font-vt323 text-lg border-2 border-black shadow-pixel-sm focus:outline-none focus:translate-y-1 focus:shadow-none transition-all"
+              >
+            </div>
+          </div>
+
+          <template #footer>
+            <div class="flex gap-4 w-full">
+              <PixelButton block variant="secondary" @click="closeSendModal">取消</PixelButton>
+              <PixelButton block variant="success" @click="handleSend">确认发送</PixelButton>
+            </div>
+          </template>
+        </PixelCard>
+      </div>
+    </div>
+
+    <!-- Contacts Modal -->
+    <div v-if="showContacts" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div class="w-full max-w-md">
+        <PixelCard>
+          <template #header>
+            <div class="flex justify-between items-center">
+              <span>通讯录</span>
+              <button @click="showContacts = false" class="hover:text-red-500">✕</button>
+            </div>
+          </template>
+          
+          <div class="space-y-2 py-4 max-h-96 overflow-y-auto">
+            <div 
+              v-for="contact in savedContacts" 
+              :key="contact.id"
+              @click="selectContact(contact)"
+              class="flex items-center justify-between p-3 border-2 border-black/10 hover:bg-gray-50 hover:border-black cursor-pointer transition-all"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gray-200 border-2 border-black flex items-center justify-center text-lg shadow-pixel-sm">
+                  {{ contact.icon }}
+                </div>
+                <div>
+                  <div class="font-pixel text-xs">{{ contact.name }}</div>
+                  <div class="font-vt323 text-sm text-gray-600">{{ contact.address }}</div>
+                </div>
+              </div>
+            </div>
+            <div v-if="savedContacts.length === 0" class="text-center py-8 text-gray-400 font-vt323">
+              暂无保存的地址
+            </div>
+          </div>
+
+          <template #footer>
+            <PixelButton block variant="secondary" @click="showContacts = false">关闭</PixelButton>
+          </template>
+        </PixelCard>
+      </div>
+    </div>
+
+    <!-- Scanner Modal -->
+    <div v-if="showScanner" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div class="w-full max-w-md">
+        <PixelCard>
+          <template #header>
+            <div class="flex justify-between items-center">
+              <span>扫描二维码</span>
+              <button @click="closeScanner" class="hover:text-red-500">✕</button>
+            </div>
+          </template>
+          
+          <div class="py-6">
+            <div class="w-full h-64 bg-black/10 border-4 border-dashed border-black flex items-center justify-center mb-4">
+              <div class="text-center">
+                <div class="text-4xl mb-2">📷</div>
+                <div class="font-pixel text-xs text-gray-500">请允许访问摄像头权限</div>
+                <div class="font-vt323 text-sm text-gray-400 mt-2">或手动输入地址</div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <label class="block font-pixel text-xs">手动输入二维码内容</label>
+              <input 
+                v-model="scannedAddress" 
+                type="text" 
+                placeholder="粘贴二维码内容..." 
+                class="w-full p-3 font-vt323 text-lg border-2 border-black shadow-pixel-sm focus:outline-none"
+                @keyup.enter="applyScannedAddress"
+              >
+            </div>
+          </div>
+
+          <template #footer>
+            <div class="flex gap-4 w-full">
+              <PixelButton block variant="secondary" @click="closeScanner">取消</PixelButton>
+              <PixelButton block variant="primary" @click="applyScannedAddress">确认</PixelButton>
+            </div>
+          </template>
+        </PixelCard>
+      </div>
+    </div>
+
+    <!-- Chain Selector Modal -->
+    <div v-if="showChainSelector" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div class="w-full max-w-sm">
+        <PixelCard>
+          <template #header>
+            <div class="flex justify-between items-center">
+              <span>选择网络</span>
+              <button @click="showChainSelector = false" class="hover:text-red-500">✕</button>
+            </div>
+          </template>
+          
+          <div class="space-y-2 py-4">
+            <div 
+              v-for="chain in availableChains" 
+              :key="chain.id"
+              @click="selectChain(chain)"
+              :class="[
+                'flex items-center justify-between p-3 border-2 cursor-pointer transition-all',
+                currentChain.id === chain.id ? 'border-black bg-gray-100' : 'border-black/10 hover:bg-gray-50 hover:border-black'
+              ]"
+            >
+              <div class="flex items-center gap-3">
+                <div 
+                  :class="[
+                    'w-8 h-8 border-2 border-black flex items-center justify-center text-white font-pixel text-xs shadow-pixel-sm',
+                    currentChain.id === chain.id ? 'bg-mario-red' : 'bg-gray-400'
+                  ]"
+                >
+                  {{ chain.shortName }}
+                </div>
+                <div>
+                  <div class="font-pixel text-xs">{{ chain.name }}</div>
+                  <div class="font-vt323 text-xs text-gray-500">{{ chain.nativeCurrency.symbol }}</div>
+                </div>
+              </div>
+              <div v-if="currentChain.id === chain.id" class="text-green-600 font-pixel text-xs">
+                ✓
+              </div>
+            </div>
+          </div>
+
+          <template #footer>
+            <PixelButton block variant="secondary" @click="showChainSelector = false">关闭</PixelButton>
+          </template>
+        </PixelCard>
       </div>
     </div>
 
@@ -135,16 +432,6 @@
             {{ tab.label }}
           </button>
         </div>
-        <button
-          v-if="isMyProfile"
-          @click="navigateTo('/tasks/create')"
-          class="create-task-btn relative px-4 py-2.5 font-pixel text-xs uppercase"
-        >
-          <span class="relative z-10 flex items-center gap-1.5 whitespace-nowrap">
-            <span class="text-base">🎯</span>
-            <span class="font-bold">创建任务</span>
-          </span>
-        </button>
       </div>
 
       <!-- Tab 内容 -->
@@ -194,21 +481,6 @@
           </div>
         </div>
 
-        <!-- COMMUNITIES TAB -->
-        <div v-else-if="activeTab === 'COMMUNITIES'" class="space-y-3">
-          <div v-for="comm in communities" :key="comm.id" class="bg-white border-2 border-black p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" @click="navigateTo(`/community/${comm.id}`)">
-            <div class="w-12 h-12 bg-mario-red border-2 border-black flex-shrink-0"></div>
-            <div class="flex-1">
-              <div class="font-pixel text-sm">{{ comm.name }}</div>
-              <div class="font-vt323 text-gray-500 text-sm mt-1">
-                <span v-if="comm.pointName">{{ comm.pointName }}: {{ comm.points }}</span>
-                <span v-else>积分: {{ comm.points }}</span>
-              </div>
-            </div>
-            <div class="text-gray-400">›</div>
-          </div>
-        </div>
-
         <!-- BADGES TAB -->
         <div v-else-if="activeTab === 'BADGES'" class="grid grid-cols-3 gap-3">
           <div v-for="i in 8" :key="i" class="aspect-square bg-white border-2 border-black flex flex-col items-center justify-center p-2 hover:-translate-y-1 transition-transform">
@@ -229,8 +501,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
-import { getMemberById, getCommunities, getMyTasks, type Task } from '~/utils/api'
+import PixelCard from '~/components/pixel/PixelCard.vue'
+import { getMemberById, getCommunities, getMyTasks, getWalletAddressByMemberId, getUserCommunityPoints, addTransaction, type Task, type Community } from '~/utils/api'
 import { getTaskRewardSymbol } from '~/utils/display'
+import { useToast } from '~/composables/useToast'
 
 definePageMeta({
   layout: 'default'
@@ -241,8 +515,84 @@ const router = useRouter()
 const memberId = parseInt(route.params.id as string)
 const activeTab = ref('HISTORY')
 const isEditing = ref(false)
+const isFlipped = ref(false)
 const newSkill = ref('')
 const userStore = useUserStore()
+const toast = useToast()
+
+// 钱包相关状态
+const walletAddress = ref('')
+const showChainSelector = ref(false)
+const showSendModal = ref(false)
+const showContacts = ref(false)
+const showScanner = ref(false)
+const scannedAddress = ref('')
+
+// 转账表单
+const sendForm = ref({
+  recipient: '',
+  amount: '',
+  note: ''
+})
+
+// 社区积分相关状态
+const userCommunity = ref<Community | null>(null)
+const userCommunityPoints = ref(0)
+const currentChain = ref({
+  id: 10,
+  name: 'OP Mainnet',
+  shortName: 'OP',
+  nativeCurrency: {
+    symbol: 'ETH'
+  }
+})
+
+const availableChains = ref([
+  {
+    id: 10,
+    name: 'OP Mainnet',
+    shortName: 'OP',
+    nativeCurrency: {
+      symbol: 'ETH'
+    }
+  },
+  {
+    id: 1,
+    name: 'Ethereum',
+    shortName: 'ETH',
+    nativeCurrency: {
+      symbol: 'ETH'
+    }
+  },
+  {
+    id: 8453,
+    name: 'Base',
+    shortName: 'BASE',
+    nativeCurrency: {
+      symbol: 'ETH'
+    }
+  },
+  {
+    id: 42161,
+    name: 'Arbitrum One',
+    shortName: 'ARB',
+    nativeCurrency: {
+      symbol: 'ETH'
+    }
+  }
+])
+
+// 截断的钱包地址
+const truncatedAddress = computed(() => {
+  if (walletAddress.value.length <= 10) return walletAddress.value
+  return `${walletAddress.value.slice(0, 6)}...${walletAddress.value.slice(-4)}`
+})
+
+// 二维码URL
+const qrCodeUrl = computed(() => {
+  if (!walletAddress.value) return ''
+  return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${walletAddress.value}`
+})
 
 // 判断是否是当前用户自己的页面
 const isMyProfile = computed(() => {
@@ -250,8 +600,7 @@ const isMyProfile = computed(() => {
 })
 
 const tabs = [
-  { id: 'HISTORY', label: '动态' },
-  { id: 'COMMUNITIES', label: '社区' },
+  { id: 'HISTORY', label: '任务' },
   { id: 'BADGES', label: '徽章' }
 ]
 
@@ -279,6 +628,187 @@ const memberLevel = computed(() => {
 
 const navigateTo = (path: string) => {
   router.push(path)
+}
+
+// 翻转卡片切换
+const toggleFlip = () => {
+  if (!isEditing.value) {
+    isFlipped.value = !isFlipped.value
+  }
+}
+
+// 复制地址
+const copyAddress = async () => {
+  const text = walletAddress.value
+  
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.add({ title: '地址已复制到剪贴板', color: 'green' })
+      return
+    } catch (err) {
+      console.error('Clipboard API 失败:', err)
+    }
+  }
+  
+  try {
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    
+    const successful = document.execCommand('copy')
+    document.body.removeChild(textArea)
+    
+    if (successful) {
+      toast.add({ title: '地址已复制到剪贴板', color: 'green' })
+    } else {
+      throw new Error('execCommand 失败')
+    }
+  } catch (err) {
+    console.error('复制失败:', err)
+    toast.add({ title: `请手动复制: ${text}`, color: 'red' })
+  }
+}
+
+// 选择链
+const selectChain = (chain: any) => {
+  currentChain.value = chain
+  showChainSelector.value = false
+  toast.add({ title: `已切换到 ${chain.name}`, color: 'green' })
+}
+
+// 转账相关函数
+const openScanner = () => {
+  showScanner.value = true
+}
+
+const closeScanner = () => {
+  showScanner.value = false
+  scannedAddress.value = ''
+}
+
+const applyScannedAddress = () => {
+  if (scannedAddress.value) {
+    sendForm.value.recipient = scannedAddress.value
+    closeScanner()
+  }
+}
+
+const savedContacts = ref([
+  { id: 1, name: 'Mario', address: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', icon: '🍄' },
+  { id: 2, name: 'Luigi', address: '0x9bb3a8c5d4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b', icon: '🟢' },
+  { id: 3, name: 'Peach', address: '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1', icon: '👑' },
+])
+
+const selectContact = (contact: any) => {
+  sendForm.value.recipient = contact.address
+  showContacts.value = false
+}
+
+const closeSendModal = () => {
+  showSendModal.value = false
+  sendForm.value = {
+    recipient: '',
+    amount: '',
+    note: ''
+  }
+}
+
+const handleSend = async () => {
+  if (!sendForm.value.recipient || !sendForm.value.amount) {
+    toast.add({ title: '请填写接收方和金额', color: 'red' })
+    return
+  }
+
+  // 确保用户信息已加载
+  const user = await userStore.getUser()
+  if (!user || !user.id) {
+    toast.add({ title: '用户信息获取失败', color: 'red' })
+    return
+  }
+
+  // 创建新交易记录
+  const now = new Date()
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  
+  // 获取当前用户的社区积分符号
+  let currency = '积分'
+  if (userCommunity.value && userCommunity.value.pointName) {
+    if (userCommunity.value.pointName === '零废弃积分') {
+      currency = 'ZWP'
+    } else if (userCommunity.value.pointName === '南塘豆') {
+      currency = 'NTD'
+    }
+  }
+  
+  const newTransaction = {
+    id: 0,
+    type: 'out' as const,
+    title: sendForm.value.note || '转账',
+    date: dateStr,
+    amount: parseFloat(sendForm.value.amount),
+    currency: currency
+  }
+
+  try {
+    await addTransaction(user.id, newTransaction)
+    toast.add({ title: '转账成功', color: 'green' })
+  } catch (error) {
+    console.error('保存交易记录失败:', error)
+    toast.add({ title: '保存交易记录失败', color: 'red' })
+  }
+
+  closeSendModal()
+}
+
+// 社区积分相关函数
+const formatPoints = (points: number): string => {
+  return points.toLocaleString('zh-CN')
+}
+
+const getPointAbbr = (pointName: string | undefined): string => {
+  if (!pointName) return 'PTS'
+  if (pointName === '零废弃积分') return 'ZWP'
+  if (pointName === '南塘豆') return 'NTD'
+  return 'PTS'
+}
+
+const loadUserCommunity = async () => {
+  try {
+    // 获取成员信息（使用 memberId，因为这是查看其他成员的页面）
+    const member = await getMemberById(memberId)
+    
+    if (!member) {
+      console.log('未找到成员信息')
+      return
+    }
+    
+    if (member.communities.length === 0) {
+      console.log('成员未加入任何社区')
+      return
+    }
+
+    // 获取所有社区信息
+    const allCommunities = await getCommunities()
+    
+    // 找到用户所属的第一个社区
+    const community = allCommunities.find(c => member.communities.includes(c.id))
+    
+    if (community) {
+      userCommunity.value = community
+      
+      // 从 API 获取真实的社区积分（使用 memberId）
+      const points = await getUserCommunityPoints(memberId, community.id)
+      userCommunityPoints.value = points
+    }
+  } catch (error) {
+    console.error('Failed to load user community:', error)
+  }
 }
 
 // 进入编辑模式
@@ -467,7 +997,7 @@ const formatTaskDate = (task: Task): string => {
   return `${action} ${timeStr}`
 }
 
-// 监听 activeTab，当切换到动态tab时刷新任务列表
+// 监听 activeTab，当切换到任务tab时刷新任务列表
 watch(() => activeTab.value, (newTab) => {
   if (newTab === 'HISTORY') {
     loadClaimedTasks()
@@ -481,6 +1011,16 @@ onMounted(async () => {
   // 从 API 获取成员数据
   try {
     member.value = await getMemberById(memberId)
+    
+    // 获取钱包地址
+    try {
+      walletAddress.value = await getWalletAddressByMemberId(memberId)
+    } catch (error) {
+      console.error('Failed to load wallet address:', error)
+    }
+    
+    // 加载社区积分信息
+    await loadUserCommunity()
     
     if (member.value) {
       // 获取成员所属的社群信息
@@ -514,7 +1054,7 @@ onMounted(async () => {
         },
       ]
       
-      // 如果当前是动态tab，加载任务列表
+      // 如果当前是任务tab，加载任务列表
       if (activeTab.value === 'HISTORY') {
         loadClaimedTasks()
       }
@@ -549,66 +1089,42 @@ onUnmounted(() => {
     scrollbar-width: none;
 }
 
-.create-task-btn {
-  /* 机械键盘按钮风格：白底黑框 */
-  background: #ffffff;
-  color: #000000;
-  border: 3px solid #000000;
-  
-  /* 无阴影 */
-  box-shadow: none;
-  
-  /* 轻微浮动动画（包含缩放） */
-  animation: float-gentle 3s ease-in-out infinite;
-  
-  /* 过渡效果 */
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  
-  /* 像素风格 */
+.image-pixelated {
   image-rendering: pixelated;
+}
+
+/* 翻转卡片样式 */
+.flip-card-container {
+  width: 100%;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.flip-card-inner {
   position: relative;
-  overflow: visible;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 轻微浮动动画 */
-@keyframes float-gentle {
-  0%, 100% {
-    transform: translateY(0px) scale(0.85);
-  }
-  50% {
-    transform: translateY(-2px) scale(0.85);
-  }
+.flip-card-container.is-flipped .flip-card-inner {
+  transform: rotateY(180deg);
 }
 
-/* Hover 效果：放大、旋转、上浮 */
-.create-task-btn:hover {
-  transform: translateY(-4px) rotate(2deg) scale(1);
-  box-shadow: none;
-  animation-play-state: paused;
+.flip-card-face {
+  position: relative;
+  width: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
-/* Active 效果：点击放大到当前尺度 */
-.create-task-btn:active {
-  transform: translateY(0px) rotate(0deg) scale(1);
-  box-shadow: none;
-  animation-play-state: paused;
-}
-
-/* 表情动画 */
-.create-task-btn .text-base {
-  display: inline-block;
-  animation: emoji-bounce 2s ease-in-out infinite;
-}
-
-@keyframes emoji-bounce {
-  0%, 100% {
-    transform: scale(1) rotate(0deg);
-  }
-  25% {
-    transform: scale(1.1) rotate(-5deg);
-  }
-  75% {
-    transform: scale(1.1) rotate(5deg);
-  }
+.flip-card-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotateY(180deg);
 }
 </style>
