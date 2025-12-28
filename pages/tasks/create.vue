@@ -121,34 +121,44 @@
               </div>
 
               <div>
-                <label class="block font-pixel text-xs uppercase mb-2 text-black">开始日期 *</label>
-                <PixelDatePicker
-                  v-model="taskForm.startDate"
-                  placeholder="选择开始日期"
-                  :min="minStartDate"
-                  :error="startDateError"
-                />
-                <PixelTimePicker
-                  v-if="taskForm.startDate"
-                  v-model="taskForm.startTime"
-                  class="mt-2"
-                />
+                <label class="block font-pixel text-xs uppercase mb-2 text-black">报名开始时间 *</label>
+                <div class="flex items-center gap-2">
+                  <div class="flex-1">
+                    <PixelDatePicker
+                      v-model="taskForm.startDate"
+                      placeholder="选择开始日期"
+                      :min="minStartDate"
+                      :error="startDateError"
+                    />
+                  </div>
+                  <div class="flex-1">
+                    <PixelTimePicker
+                      v-if="taskForm.startDate"
+                      v-model="taskForm.startTime"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
             <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">截止日期 *</label>
-              <PixelDatePicker
-                v-model="taskForm.deadline"
-                placeholder="选择截止日期"
-                :min="minDeadlineDate"
-                :error="deadlineError"
-              />
-              <PixelTimePicker
-                v-if="taskForm.deadline"
-                v-model="taskForm.deadlineTime"
-                class="mt-2"
-              /> 
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">提交截止时间 *</label>
+              <div class="flex items-center gap-2">
+                <div class="flex-1">
+                  <PixelDatePicker
+                    v-model="taskForm.deadline"
+                    placeholder="选择截止日期"
+                    :min="minDeadlineDate"
+                    :error="deadlineError"
+                  />
+                </div>
+                <div class="flex-1">
+                  <PixelTimePicker
+                    v-if="taskForm.deadline"
+                    v-model="taskForm.deadlineTime"
+                  />
+                </div>
+              </div>
               <p v-if="deadlineError" class="mt-1 font-vt323 text-xs text-mario-red">
                 {{ deadlineError }}
               </p>
