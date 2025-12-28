@@ -1,200 +1,139 @@
 <template>
-  <div class="relative h-[calc(100vh-140px)] -mx-4 -my-8 overflow-hidden">
-    <!-- Sidebar -->
-    <SquareSidebar
-      @filter="handleFilter"
-      @select-community="handleCommunitySelect"
-      @preview-community="handleCommunityPreview"
-      @clear-preview="handleClearPreview"
-      @activity-click="handleActivityClick"
-    />
-
-    <!-- Graph Layer -->
-    <ClientOnly>
-      <NetworkCanvas ref="networkCanvas" @nodeClick="handleNodeClick" />
-      <template #fallback>
-        <div class="w-full h-full flex items-center justify-center bg-mario-sky">
-          <div class="text-center">
-            <span class="font-pixel text-2xl animate-pulse text-white text-shadow-pixel block mb-4">正在加载世界...</span>
-            <div class="flex gap-2 justify-center">
-              <div class="w-2 h-2 bg-white border border-black animate-bounce" style="animation-delay: 0s"></div>
-              <div class="w-2 h-2 bg-white border border-black animate-bounce" style="animation-delay: 0.2s"></div>
-              <div class="w-2 h-2 bg-white border border-black animate-bounce" style="animation-delay: 0.4s"></div>
-            </div>
-          </div>
-        </div>
-      </template>
-    </ClientOnly>
-
-    <!-- UI Overlay Layer -->
-    <div class="absolute inset-0 pointer-events-none p-4 md:p-8">
-      
-      <!-- Floating decorative elements for pixel feel -->
-      <div class="absolute top-20 left-8 pointer-events-none animate-float">
-        <div class="w-4 h-4 bg-mario-coin border-2 border-black shadow-pixel-sm"></div>
-      </div>
-      <div class="absolute top-32 right-12 pointer-events-none animate-float-delayed">
-        <div class="w-3 h-3 bg-mario-red border-2 border-black shadow-pixel-sm"></div>
-      </div>
-      <div class="absolute bottom-32 left-16 pointer-events-none animate-float-slow">
-        <div class="w-3 h-3 bg-mario-green border-2 border-black shadow-pixel-sm"></div>
-      </div>
+  <div class="space-y-8">
+    <!-- 社区广场标题 -->
+    <div class="text-center mb-6">
+      <h1 class="font-pixel text-2xl md:text-4xl text-black mb-2">社区广场</h1>
+      <div class="w-24 md:w-32 h-1 bg-black mx-auto"></div>
     </div>
+
+    <!-- 南塘社区卡片 -->
+    <PixelCard>
+      <div class="space-y-6">
+        <!-- 社区标题和下拉框 -->
+        <div class="flex items-center justify-between border-b-2 border-black pb-4">
+          <h2 class="font-pixel text-lg uppercase text-black">南塘</h2>
+          <button
+            @click="showIntro = !showIntro"
+            class="px-4 py-2 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-sm transition-all hover:shadow-pixel hover:-translate-y-1"
+          >
+            {{ showIntro ? '收起' : '展开' }}
+          </button>
+        </div>
+
+        <!-- 社区介绍（可展开/收起） -->
+        <div v-if="showIntro" class="prose font-vt323 text-lg max-w-none p-4 bg-gray-50 border-2 border-black">
+          <div class="whitespace-pre-wrap">{{ nantangIntro }}</div>
+        </div>
+
+        <!-- 社区信息（数据清空） -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- 市政厅 -->
+          <PixelCard>
+            <template #header>市政厅 (TOWN HALL)</template>
+            <div class="space-y-4 text-center">
+              <div class="w-full h-24 bg-gray-100 flex items-center justify-center border-2 border-dashed border-black/20 relative overflow-hidden">
+                <div class="absolute inset-0 flex items-center justify-center text-6xl opacity-20">🏰</div>
+              </div>
+              
+              <!-- 社区统计（数据清空） -->
+              <div class="grid grid-cols-2 gap-2 text-left font-vt323 text-lg bg-gray-50 p-2 border border-black/10">
+                <div>南塘豆:</div>
+                <div class="text-right text-mario-coin font-bold">0</div>
+                <div>成员:</div>
+                <div class="text-right font-bold">0</div>
+              </div>
+
+              <p class="text-sm text-gray-600 text-left">
+                素舍提供乡村村民宿餐饮，体验乡村生活，感受自然之美。
+              </p>
+            </div>
+          </PixelCard>
+
+          <!-- 村民（数据清空） -->
+          <PixelCard>
+            <template #header>村民 (VILLAGERS)</template>
+            <div class="text-center py-8 text-gray-400 font-vt323">
+              暂无成员
+            </div>
+          </PixelCard>
+        </div>
+      </div>
+    </PixelCard>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import NetworkCanvas from '~/components/graph/NetworkCanvas.vue'
-import SquareSidebar from '~/components/square/SquareSidebar.vue'
+import { ref } from 'vue'
+import PixelCard from '~/components/pixel/PixelCard.vue'
 import { useUserStore } from '~/stores/user'
-
-const router = useRouter()
-const networkCanvas = ref<any>(null)
-
-const handleFilter = (filter: any) => {
-  if (networkCanvas.value) {
-    networkCanvas.value.filterNodes(filter)
-  }
-}
-
-const handleCommunitySelect = (id: number) => {
-  router.push(`/community/${id}`)
-}
-
-const handleCommunityPreview = (id: number) => {
-  if (networkCanvas.value && typeof networkCanvas.value.highlightCommunity === 'function') {
-    networkCanvas.value.highlightCommunity(id)
-  }
-}
-
-const handleClearPreview = () => {
-  if (networkCanvas.value && typeof networkCanvas.value.clearHighlight === 'function') {
-    networkCanvas.value.clearHighlight()
-  }
-}
-
-const inferCommunityIdFromLog = (log: any): number | null => {
-  if (log.type === 'join' || log.type === 'new_community') {
-    return log.targetId
-  }
- 
-  return null
-}
-
-const handleActivityClick = async (log: any) => {
-  const communityId = inferCommunityIdFromLog(log)
-
-  if (communityId && networkCanvas.value && typeof networkCanvas.value.highlightCommunity === 'function') {
-    networkCanvas.value.highlightCommunity(communityId)
-  }
-
-  if (log.type === 'join' || log.type === 'new_community') {
-    await router.push(`/community/${log.targetId}`)
-  } else if (log.type === 'complete_task') {
-    await router.push('/tasks')
-  } else if (log.type === 'create_proposal') {
-    if (communityId) {
-      await router.push(`/community/${communityId}`)
-    }
-  } else {
-    await router.push('/activities')
-  }
-}
 
 // Use definePageMeta to ensure layout is applied
 definePageMeta({
   layout: 'default',
-  middleware: 'auth'  // 使用 auth 中间件保护页面
+  middleware: 'auth'
 })
 
 const userStore = useUserStore()
 
-// 在组件挂载时尝试获取用户信息
-onMounted(async () => {
-  try {
-    await userStore.getUser()
-  } catch (error) {
-    console.error('Failed to get user:', error)
-    // 如果获取用户信息失败，中间件会处理重定向
-  }
-})
+// 控制展开/收起
+const showIntro = ref(false)
 
-const handleNodeClick = (node: any) => {
-  if (node.type === 'COMMUNITY') {
-    // Mock ID mapping: comm1 -> 1
-    const id = node.id.replace('comm', '') || '1'
-    router.push(`/community/${id}`)
-  } else if (node.type === 'USER') {
-    // Mock ID mapping: user1 -> 1
-    const id = node.id.replace('user', '') || '1'
-    router.push(`/member/${id}`)
-  }
-}
+// 南塘社区介绍文字
+const nantangIntro = `# 南塘
+
+欢迎来到南塘，素舍提供乡村村民宿餐饮服务。
+
+## 我们的特色
+- 乡村民宿体验
+- 地道乡村餐饮
+- 自然生态体验
+- 南塘豆积分奖励
+
+## 服务内容
+- 民宿住宿服务
+- 乡村特色餐饮
+- 农事体验活动
+- 乡村文化体验
+`
 </script>
 
 <style scoped>
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-10px) rotate(5deg);
-  }
+.prose {
+  color: #000;
 }
 
-@keyframes float-delayed {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-15px) rotate(-5deg);
-  }
+.prose h1 {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
 }
 
-@keyframes float-slow {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-8px) rotate(3deg);
-  }
+.prose h2 {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
 }
 
-@keyframes pulse-hover {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
+.prose ul {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
-.animate-slide-down {
-  animation: slide-down 0.6s ease-out;
+.prose li {
+  padding-left: 1.5rem;
+  position: relative;
+  margin-bottom: 0.5rem;
 }
 
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-float-delayed {
-  animation: float-delayed 4s ease-in-out infinite;
-  animation-delay: 1s;
-}
-
-.animate-float-slow {
-  animation: float-slow 5s ease-in-out infinite;
-  animation-delay: 2s;
-}
-
-.animate-pulse-hover {
-  animation: pulse-hover 2s ease-in-out infinite;
-}
-
-.animate-pulse-hover:hover {
-  animation: none;
-  transform: scale(1.1);
+.prose li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  font-weight: bold;
 }
 </style>
