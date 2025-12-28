@@ -169,7 +169,7 @@ const { getMemberById, getMyTasks } = useApi()
 
 const route = useRoute()
 const router = useRouter()
-const memberId = parseInt(route.params.id as string)
+const memberId = route.params.id as string
 const activeTab = ref('HISTORY')
 const isEditing = ref(false)
 
@@ -273,6 +273,14 @@ const saveProfile = async () => {
           bio: updatedUser.bio || ''
         }
         console.log('更新后的 member.value:', member.value)
+
+        const userStore = useUserStore()
+        userStore.setUser({
+          ...updatedUser,
+          userType: 'member' as 'member' | 'community',
+          isProfileSetup: !!updatedUser.name
+        })
+        console.log('已更新 userStore.user')
       } else {
         // 如果获取失败，至少更新本地数据
         console.warn('获取更新后的用户信息失败，使用本地数据')
