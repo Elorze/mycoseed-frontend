@@ -294,16 +294,24 @@ const canSubmit = computed(() => {
   return reviewResult.value.decision && reviewResult.value.comments.trim().length > 0
 })
 
-// 格式化日期
+// 格式化日期（后端已返回本地时间格式 YYYY-MM-DDTHH:mm）
 const formatDate = (dateString: string): string => {
   if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  
+  // 后端统一返回本地时间格式 YYYY-MM-DDTHH:mm，直接解析
+  const [datePart, timePart] = dateString.split('T')
+  if (!datePart || !timePart) {
+    // 兼容旧数据：如果是 ISO 格式，转换为本地时间
+    const date = new Date(dateString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}年${month}月${day}日`
+  }
+  
+  // 直接解析本地时间格式 YYYY-MM-DDTHH:mm
+  const [year, month, day] = datePart.split('-')
+  return `${year}年${month}月${day}日`
 }
 
 // 格式化文件大小

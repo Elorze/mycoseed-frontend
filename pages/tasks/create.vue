@@ -511,8 +511,13 @@ const publishTask = async () => {
 onMounted(() => {
   const now = new Date()
   now.setSeconds(0, 0)
-  // datetime-local 需要到分钟的字符串：YYYY-MM-DDTHH:MM
-  minStart.value = now.toISOString().slice(0, 16)
+  // datetime-local 需要到分钟的字符串：YYYY-MM-DDTHH:MM（本地时间格式）
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hour = String(now.getHours()).padStart(2, '0')
+  const minute = String(now.getMinutes()).padStart(2, '0')
+  minStart.value = `${year}-${month}-${day}T${hour}:${minute}`
 })
 </script>
 

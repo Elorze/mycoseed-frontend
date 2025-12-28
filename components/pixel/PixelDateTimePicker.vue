@@ -240,11 +240,23 @@ const displayDateTime = computed(() => {
 // 监听 modelValue 变化
 watch(() => props.modelValue, (newValue) => {
   if (newValue) {
-    const date = new Date(newValue)
-    selectedDate.value = date
-    currentDate.value = new Date(date.getFullYear(), date.getMonth(), 1)
-    selectedHour.value = date.getHours()
-    selectedMinute.value = date.getMinutes()
+    // 解析本地时间格式 YYYY-MM-DDTHH:mm，直接解析字符串避免时区问题
+    const [datePart, timePart] = newValue.split('T')
+    if (datePart && timePart) {
+      const [year, month, day] = datePart.split('-').map(Number)
+      const [hour, minute] = timePart.split(':').map(Number)
+      selectedDate.value = new Date(year, month - 1, day, hour, minute)
+      currentDate.value = new Date(year, month - 1, 1)
+      selectedHour.value = hour
+      selectedMinute.value = minute
+    } else {
+      // 兼容旧格式，使用 Date 对象解析
+      const date = new Date(newValue)
+      selectedDate.value = date
+      currentDate.value = new Date(date.getFullYear(), date.getMonth(), 1)
+      selectedHour.value = date.getHours()
+      selectedMinute.value = date.getMinutes()
+    }
   } else {
     selectedDate.value = null
     selectedHour.value = 0

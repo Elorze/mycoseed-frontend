@@ -20,33 +20,33 @@
       <!-- 任务详情 -->
       <div v-else class="space-y-4 md:space-y-6">
         <!-- 任务介绍 -->
-        <PixelCard>
-          <template #header>
+          <PixelCard>
+            <template #header>
             任务介绍
-          </template>
-          <div class="space-y-4">
+            </template>
+            <div class="space-y-4">
             <div class="flex items-start justify-between gap-4 flex-wrap">
               <h1 class="font-pixel text-xl md:text-2xl text-black leading-tight flex-1 min-w-0">
-                {{ task.title || '加载中...' }}
-              </h1>
-              <div class="flex items-center gap-3 flex-wrap">
-                <span class="px-3 py-1.5 bg-mario-coin text-white border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase">
+                  {{ task.title || '加载中...' }}
+                </h1>
+                <div class="flex items-center gap-3 flex-wrap">
+                  <span class="px-3 py-1.5 bg-mario-coin text-white border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase">
                   {{ task.reward }} {{ taskRewardSymbol }}
-                </span>
-                <span 
-                  class="px-3 py-1.5 border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase"
-                  :class="getStatusBadgeClass(task.status)"
-                >
-                  {{ getStatusText(task.status) }}
-                </span>
+                  </span>
+                  <span 
+                    class="px-3 py-1.5 border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase"
+                    :class="getStatusBadgeClass(task.status)"
+                  >
+                    {{ getStatusText(task.status) }}
+                  </span>
+                </div>
               </div>
-            </div>
-            
-            <div class="pt-4 border-t-2 border-black/20">
-              <h3 class="font-pixel text-xs uppercase text-black mb-2">任务描述</h3>
-              <p class="font-vt323 text-lg text-black leading-relaxed">{{ task.description }}</p>
-            </div>
-            
+              
+              <div class="pt-4 border-t-2 border-black/20">
+                <h3 class="font-pixel text-xs uppercase text-black mb-2">任务描述</h3>
+                <p class="font-vt323 text-lg text-black leading-relaxed">{{ task.description }}</p>
+              </div>
+              
             <div v-if="task.proofConfig" class="pt-4 border-t-2 border-black/20">
               <h3 class="font-pixel text-xs uppercase text-black mb-4">提交要求</h3>
               <div class="space-y-3">
@@ -93,9 +93,9 @@
                   未设置提交要求
                 </div>
               </div>
-            </div>
-            
-            <div class="pt-4 border-t-2 border-black/20">
+              </div>
+              
+              <div class="pt-4 border-t-2 border-black/20">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-vt323 text-base">
                 <div class="flex justify-between items-center pb-2 border-b border-black/10">
                   <span class="text-black/70">发布者:</span>
@@ -104,7 +104,7 @@
                 <div class="flex justify-between items-center pb-2 border-b border-black/10">
                   <span class="text-black/70">报名开始时间:</span>
                   <span class="text-black font-medium">
-                    {{ task.claimedAt ? formatDate(task.claimedAt) : (task.startDate ? formatDate(task.startDate) : '未开始') }}
+                    {{ task.startDate ? formatDate(task.startDate) : '未开始' }}
                   </span>
                 </div>
                 <div class="flex justify-between items-center pb-2 border-b border-black/10">
@@ -115,98 +115,98 @@
             </div>
             
             <div v-if="task.submissionInstructions && task.submissionInstructions.trim()" class="pt-4 border-t-2 border-black/20">
-              <h3 class="font-pixel text-xs uppercase text-black mb-2">提交说明</h3>
+                <h3 class="font-pixel text-xs uppercase text-black mb-2">提交说明</h3>
               <p class="font-vt323 text-lg text-black leading-relaxed">
                 {{ task.submissionInstructions }}
               </p>
+              </div>
             </div>
-          </div>
-        </PixelCard>
+          </PixelCard>
 
-        <!-- 任务进度 -->
-        <PixelCard v-if="task.updates && task.updates.length > 0">
-          <template #header>
-            任务进度
-          </template>
-          <div class="space-y-4">
-            <div
-              v-for="(update, index) in task.updates"
-              :key="update.id"
-              class="relative pl-8"
-            >
-              <!-- 时间线连接线 -->
-              <div 
+          <!-- 任务进度 -->
+          <PixelCard v-if="task.updates && task.updates.length > 0">
+            <template #header>
+              任务进度
+            </template>
+            <div class="space-y-4">
+              <div
+                v-for="(update, index) in task.updates"
+                :key="update.id"
+                class="relative pl-8"
+              >
+                <!-- 时间线连接线 -->
+                <div 
                 v-if="Number(index) < task.updates.length - 1"
                 class="absolute left-3 top-6 w-0.5 h-8 bg-mario-blue"
-              ></div>
-              
-              <!-- 时间线节点 -->
-              <div class="flex items-start gap-3">
-                <div class="flex-shrink-0 w-6 h-6 bg-mario-blue border-2 border-black shadow-pixel-sm flex items-center justify-center -ml-8">
-                  <div class="w-2 h-2 bg-white border border-black"></div>
-                </div>
+                ></div>
                 
-                <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <span class="font-pixel text-[10px] uppercase text-black">{{ update.title }}</span>
-                    <span class="font-vt323 text-sm text-black/60">{{ formatDate(update.timestamp) }}</span>
-                    <span 
-                      v-if="update.status"
-                      class="px-2 py-0.5 border border-black font-pixel text-[8px] uppercase"
-                      :class="getStatusBadgeClass(update.status)"
-                    >
-                      {{ getStatusText(update.status) }}
-                    </span>
+                <!-- 时间线节点 -->
+                <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-6 h-6 bg-mario-blue border-2 border-black shadow-pixel-sm flex items-center justify-center -ml-8">
+                    <div class="w-2 h-2 bg-white border border-black"></div>
                   </div>
-                  <p class="font-vt323 text-base text-black">{{ update.description }}</p>
                   
-                  <!-- 显示实时状态 -->
-                  <div v-if="update.isRealTime" class="mt-2 flex items-center gap-2">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                      <span class="font-pixel text-[10px] uppercase text-black">{{ update.title }}</span>
+                      <span class="font-vt323 text-sm text-black/60">{{ formatDate(update.timestamp) }}</span>
+                      <span 
+                        v-if="update.status"
+                        class="px-2 py-0.5 border border-black font-pixel text-[8px] uppercase"
+                        :class="getStatusBadgeClass(update.status)"
+                      >
+                        {{ getStatusText(update.status) }}
+                      </span>
+                    </div>
+                    <p class="font-vt323 text-base text-black">{{ update.description }}</p>
+                    
+                    <!-- 显示实时状态 -->
+                    <div v-if="update.isRealTime" class="mt-2 flex items-center gap-2">
                     <div class="w-2 h-2 bg-mario-blue border border-black animate-pulse"></div>
                     <span class="font-vt323 text-sm text-mario-blue">实时更新中...</span>
                   </div>
                 </div>
               </div>
+              </div>
             </div>
-          </div>
-        </PixelCard>
-        
+          </PixelCard>
+          
         <!-- 操作按钮 -->
-        <PixelCard>
-          <template #header>
-            操作
-          </template>
-          <div class="space-y-3">
-            <PixelButton
-              v-if="task.status === 'unclaimed'"
-              @click="handleClaimTask"
-              variant="primary"
-              size="lg"
-              :block="true"
+          <PixelCard>
+            <template #header>
+              操作
+            </template>
+            <div class="space-y-3">
+              <PixelButton
+                v-if="task.status === 'unclaimed'"
+                @click="handleClaimTask"
+                variant="primary"
+                size="lg"
+                :block="true"
               :disabled="loading || !isTaskStarted || isTaskExpired"
-            >
+              >
               {{ loading ? '领取中...' : (isTaskExpired ? '已过期' : (isTaskStarted ? '领取任务' : '待任务开始')) }}
-            </PixelButton>
-            
-            <PixelButton
-              v-if="task.status === 'in_progress'"
-              @click="submitTask"
-              variant="success"
-              size="lg"
-              :block="true"
-            >
-              提交任务
-            </PixelButton>
-            
-            <PixelButton
+              </PixelButton>
+              
+              <PixelButton
+                v-if="task.status === 'in_progress'"
+                @click="submitTask"
+                variant="success"
+                size="lg"
+                :block="true"
+              >
+                提交任务
+              </PixelButton>
+              
+              <PixelButton
               v-if="task.status === 'under_review' && canReview"
-              @click="reviewTask"
-              variant="warning"
-              size="lg"
-              :block="true"
-            >
-              审核任务
-            </PixelButton>
+                @click="reviewTask"
+                variant="warning"
+                size="lg"
+                :block="true"
+              >
+                审核任务
+              </PixelButton>
             
             <PixelButton
               v-if="task.status === 'under_review' && !canReview"
@@ -217,19 +217,19 @@
             >
               审核中
             </PixelButton>
-            
-            <PixelButton
-              v-if="task.status === 'completed'"
-              variant="secondary"
-              size="lg"
-              :block="true"
-              :disabled="true"
-            >
-              已完成
-            </PixelButton>
-          </div>
-        </PixelCard>
-      </div>
+              
+              <PixelButton
+                v-if="task.status === 'completed'"
+                variant="secondary"
+                size="lg"
+                :block="true"
+                :disabled="true"
+              >
+                已完成
+              </PixelButton>
+            </div>
+          </PixelCard>
+        </div>
     </div>
   </div>
 </template>
@@ -333,16 +333,29 @@ const getStatusBadgeClass = (status: string): string => {
   return statusClassMap[status as TaskStatus] || 'bg-white text-black'
 }
 
-// 格式化日期
+// 格式化日期（后端已返回本地时间格式 YYYY-MM-DDTHH:mm）
 const formatDate = (dateString: string | undefined) => {
   if (!dateString) return '未设置'
-  return new Date(dateString).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  
+  // 后端统一返回本地时间格式 YYYY-MM-DDTHH:mm，直接解析
+  const [datePart, timePart] = dateString.split('T')
+  if (!datePart || !timePart) {
+    // 兼容旧数据：如果是 ISO 格式，转换为本地时间
+    const date = new Date(dateString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hour = String(date.getHours()).padStart(2, '0')
+    const minute = String(date.getMinutes()).padStart(2, '0')
+    return `${year}年${month}月${day}日 ${hour}:${minute}`
+  }
+  
+  // 直接解析本地时间格式 YYYY-MM-DDTHH:mm
+  const [year, month, day] = datePart.split('-')
+  const [hour, minute] = timePart.split(':')
+  
+  // 格式化为中文日期格式：YYYY年MM月DD日 HH:mm
+  return `${year}年${month}月${day}日 ${hour}:${minute}`
 }
 
 // 检查是否有任何证明配置
@@ -355,6 +368,27 @@ const hasAnyProofConfig = (proofConfig: any) => {
   )
 }
 
+// 将日期转换为本地时间格式 YYYY-MM-DDTHH:mm
+const toLocalDateTime = (date: Date | string | undefined): string => {
+  if (!date) {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const hour = String(now.getHours()).padStart(2, '0')
+    const minute = String(now.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hour}:${minute}`
+  }
+  
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  const year = dateObj.getFullYear()
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+  const day = String(dateObj.getDate()).padStart(2, '0')
+  const hour = String(dateObj.getHours()).padStart(2, '0')
+  const minute = String(dateObj.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hour}:${minute}`
+}
+
 // 生成进度时间线
 const updateTimeline = () => {
   const updates: any[] = []
@@ -364,7 +398,7 @@ const updateTimeline = () => {
     id: 1,
     title: '任务创建',
     description: '任务已创建，等待领取',
-    timestamp: task.value.createdAt || new Date().toISOString(),
+    timestamp: task.value.createdAt || toLocalDateTime(new Date()),
     status: 'completed'
   })
   
@@ -376,7 +410,7 @@ const updateTimeline = () => {
       description: task.value.participantsList.length > 0 
         ? `任务已被${task.value.participantsList[0].name}领取`
         : '任务已被领取，开始执行',
-      timestamp: task.value.claimedAt || new Date().toISOString(),
+      timestamp: task.value.claimedAt ? toLocalDateTime(task.value.claimedAt) : toLocalDateTime(new Date()),
       status: 'completed'
     })
   }
@@ -387,7 +421,7 @@ const updateTimeline = () => {
       id: 3,
       title: '凭证提交',
       description: '任务完成凭证已提交，等待审核',
-      timestamp: task.value.submittedAt || new Date().toISOString(),
+      timestamp: task.value.submittedAt ? toLocalDateTime(task.value.submittedAt) : toLocalDateTime(new Date()),
       status: 'completed'
     })
   }
@@ -398,7 +432,7 @@ const updateTimeline = () => {
       id: 4,
       title: '审核通过',
       description: '任务审核通过，奖励已发放',
-      timestamp: task.value.completedAt || new Date().toISOString(),
+      timestamp: task.value.completedAt ? toLocalDateTime(task.value.completedAt) : toLocalDateTime(new Date()),
       status: 'completed'
     })
   } else if (task.value.status === 'rejected') {
@@ -406,7 +440,7 @@ const updateTimeline = () => {
       id: 4,
       title: '审核驳回',
       description: '任务审核未通过，已驳回',
-      timestamp: task.value.updatedAt || new Date().toISOString(),
+      timestamp: task.value.updatedAt || toLocalDateTime(new Date()),
       status: 'rejected'
     })
   }
@@ -417,7 +451,7 @@ const updateTimeline = () => {
       id: Date.now(),
       title: '任务进行中',
       description: '任务正在进行中，等待提交...',
-      timestamp: new Date().toISOString(),
+      timestamp: toLocalDateTime(new Date()),
       status: 'in_progress',
       isRealTime: true
     })
