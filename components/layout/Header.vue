@@ -22,7 +22,7 @@
         <PixelButton
            variant="warning"
            size="sm"
-           @click="navigateTo('market')"
+           @click="navigateTo('tasks')"
         >
            🛒 商城
         </PixelButton>
@@ -56,6 +56,11 @@
 <script setup lang="ts">
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
+import { useUserStore } from '~/stores/user'
+import { computed } from 'vue'
+
+const userStore = useUserStore()
+const currentUser = computed(() => userStore.user)
 
 interface Props {
   currentPage?: string
@@ -69,8 +74,12 @@ const emit = defineEmits<{
 
 const navigateTo = (page: string) => {
   if (page === 'profile') {
-    // Mock ID 1 for current user
-    emit('navigate', 'member/1')
+    const userId = currentUser.value?.id
+    if (userId) {
+      emit('navigate', `member/${userId}`)
+    } else {
+      console.warn('无法获取用户ID, 请先登录')
+    }
   } else {
     emit('navigate', page)
   }
