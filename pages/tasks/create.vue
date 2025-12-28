@@ -66,38 +66,7 @@
                   最多 {{ taskForm.participantLimit }} 人可以参与此任务
                 </p>
 
-                <!-- 奖励分配方式选择器 -->
-                <div v-if="limitParticipants && taskForm.participantLimit" class="mt-3 space-y-2">
-                  <label class="block font-pixel text-[10px] uppercase text-black">奖励分配方式</label>
-                  <div class="flex gap-3">
-                    <label class="flex items-center cursor-pointer">
-                      <input 
-                        type="radio"
-                        v-model="rewardDistributionMode"
-                        value="per_person"
-                        class="sr-only peer"
-                      />
-                      <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
-                        每人积分
-                      </div>
-                    </label>
-                    <label class="flex items-center cursor-pointer">
-                      <input 
-                        type="radio"
-                        v-model="rewardDistributionMode"
-                        value="total"
-                        class="sr-only peer"
-                      />
-                      <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
-                        总积分
-                      </div>
-                    </label>
-                  </div>
-                  
-                  <p v-if="rewardExplanation" class="mt-2 font-vt323 text-sm text-black/70">
-                    {{ rewardExplanation }}
-                  </p>
-                </div>
+                
               </div>
               <p v-else class="mt-2 font-vt323 text-sm text-black/70">
                 默认不限报名人数
@@ -116,6 +85,39 @@
                   placeholder="100"
                   class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                 />
+                
+                <!-- 奖励分配方式选择器（仅在设置了参与人数上限时显示） -->
+                <div v-if="limitParticipants && taskForm.participantLimit" class="mt-3 space-y-2">
+                  <label class="block font-pixel text-[10px] uppercase text-black">奖励分配方式</label>
+                  <div class="flex gap-3">
+                    <label class="flex items-center cursor-pointer">
+                      <input 
+                        type="radio" 
+                        v-model="rewardDistributionMode"
+                        value="per_person"
+                        class="sr-only peer"
+                      />
+                      <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
+                        每人积分
+                      </div>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                      <input 
+                        type="radio" 
+                        v-model="rewardDistributionMode"
+                        value="total"
+                        class="sr-only peer"
+                      />
+                      <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
+                        总积分
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                <p v-if="rewardExplanation" class="mt-2 font-vt323 text-sm text-black/70">
+                  {{ rewardExplanation }}
+                </p>
               </div>
 
               <div>
@@ -367,13 +369,29 @@ const proofConfig = ref({
 })
 
 
-// 计算属性
+// 奖励积分说明文本
 const rewardExplanation = computed(() => {
-  if (!limitParticipants.value || !taskForm.value.participantLimit) return ''
-
-  const limit = taskForm.value.participantLimit || 1
-  if (rewardDistributionMode.value === 'per_person') {
-    return `每人将获得 ${taskForm.value.reward} 积分，将由 ${limit} 人平分，每人约 ${Math.floor(taskForm.value.reward / limit)} 积分`
+  const reward = parseFloat(taskForm.value.reward) || 0
+  if (reward <= 0) {
+    return ''
+  }
+  
+  // 不限制人数时，使用总积分模式（默认）
+  if (!limitParticipants.value) {
+    return `总奖励 ${reward} 积分，将根据实际参与人数平均分配（不限人数）`
+  } else {
+    const limit = taskForm.value.participantLimit || 1
+    
+    // 根据分配模式显示不同的说明
+    if (rewardDistributionMode.value === 'per_person') {
+      // 每人积分模式
+      const totalReward = reward * limit
+      return `每个完成任务的参与者将获得 ${reward} 积分（共 ${limit} 人，总奖励 ${totalReward} 积分）`
+    } else {
+      // 总积分模式
+      const perPersonReward = Math.floor(reward / limit)
+      return `总奖励 ${reward} 积分，将根据实际参与人数平均分配（最多 ${limit} 人，每人最多可获得 ${perPersonReward} 积分）`
+    }
   }
 })
 
