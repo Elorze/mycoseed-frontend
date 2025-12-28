@@ -290,7 +290,7 @@ const isTaskStarted = computed(() => {
   return now >= startDate
 })
 
-// 检查任务是否已过期{
+// 检查任务是否已过期
 const isTaskExpired = computed(() => {
   if (!task.value.deadline) return false 
   const now = new Date()

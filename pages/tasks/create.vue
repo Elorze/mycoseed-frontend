@@ -33,7 +33,7 @@
             </div>
 
             <!-- 参与人数配置 -->
-             <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
+            <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
               <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-3">
                   <h4 class="font-pixel text-xs uppercase text-black">限制参与人数</h4>
@@ -65,14 +65,12 @@
                 <p v-if="!participantError && taskForm.participantLimit" class="mt-2 font-vt323 text-sm text-black/70">
                   最多 {{ taskForm.participantLimit }} 人可以参与此任务
                 </p>
-
-                
               </div>
               <p v-else class="mt-2 font-vt323 text-sm text-black/70">
                 默认不限报名人数
               </p>
             </div>
-            
+
             <!-- 移动端单列，桌面端双列 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -122,59 +120,34 @@
 
               <div>
                 <label class="block font-pixel text-xs uppercase mb-2 text-black">报名开始时间 *</label>
-                <div class="flex items-center gap-2">
-                  <div class="flex-1">
-                    <PixelDatePicker
-                      v-model="taskForm.startDate"
-                      placeholder="选择开始日期"
-                      :min="minStartDate"
-                      :error="startDateError"
-                    />
-                  </div>
-                  <div class="flex-1">
-                    <PixelTimePicker
-                      v-if="taskForm.startDate"
-                      v-model="taskForm.startTime"
-                    />
-                  </div>
-                </div>
+                <PixelDateTimePicker
+                  v-model="taskForm.startDate" 
+                  :min="minStart"
+                  :error="dateError"
+                />
               </div>
             </div>
 
             <div>
               <label class="block font-pixel text-xs uppercase mb-2 text-black">提交截止时间 *</label>
-              <div class="flex items-center gap-2">
-                <div class="flex-1">
-                  <PixelDatePicker
-                    v-model="taskForm.deadline"
-                    placeholder="选择截止日期"
-                    :min="minDeadlineDate"
-                    :error="deadlineError"
-                  />
-                </div>
-                <div class="flex-1">
-                  <PixelTimePicker
-                    v-if="taskForm.deadline"
-                    v-model="taskForm.deadlineTime"
-                  />
-                </div>
-              </div>
-              <p v-if="deadlineError" class="mt-1 font-vt323 text-xs text-mario-red">
-                {{ deadlineError }}
-              </p>
+              <PixelDateTimePicker
+                v-model="taskForm.deadline" 
+                :min="taskForm.startDate || minStart"
+                :error="dateError"
+              />
             </div>
-            
-            <!-- 提交说明 -->
-            <div class="border-t-2 border-black pt-4 md:pt-6">
-              <div>
-                <label class="block font-pixel text-xs uppercase mb-2 text-black">提交说明（可选）</label>
-                <textarea
-                  v-model="submissionInstructions"
-                  placeholder="补充任务完成后的提交说明，如需要强调的注意事项等..."
-                  rows="3"
-                  class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
-                ></textarea>
-              </div>
+          </div>
+
+          <!-- 提交说明（展示给报名者的信息补充） -->
+          <div class="border-t-2 border-black pt-4 md:pt-6">
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">提交说明（可选）</label>
+              <textarea
+                v-model="taskForm.submissionInstructions"
+                placeholder="补充任务完成后的提交说明，如需要强调的注意事项等..."
+                rows="3"
+                class="w-full px-4 py-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base text-black focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
+              ></textarea>
             </div>
           </div>
 
@@ -236,16 +209,6 @@
                     />
                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
                   </label>
-                </div>
-                
-                <div v-if="proofConfig.gps.enabled" class="mt-3">
-                  <label class="block font-pixel text-[10px] uppercase mb-1 text-black">定位精度</label>
-                  <select 
-                    v-model="proofConfig.gps.accuracy"
-                    class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-                  >
-                    <option v-for="opt in gpsAccuracyOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                  </select>
                 </div>
               </div>
 
@@ -325,21 +288,17 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
-import PixelDatePicker from '~/components/pixel/PixelDatePicker.vue'
-import PixelTimePicker from '~/components/pixel/PixelTimePicker.vue'
+import PixelDateTimePicker from '~/components/pixel/PixelDateTimePicker.vue'
 import { useApi } from '~/composables/useApi'
 import { useToast } from '~/composables/useToast'
 
 // 参与人数限制
 const limitParticipants = ref(false)
-const participantError = ref<string | null>(null)
+const participantError = ref('')
 const rewardDistributionMode = ref<'per_person' | 'total'>('total')
-
-// 提交说明
-const submissionInstructions = ref('')
-
 
 definePageMeta({
   layout: 'default',
@@ -354,10 +313,9 @@ const taskForm = ref({
   objective: '',
   reward: '',
   startDate: '',
-  startTime: '00:00',
   deadline: '',
-  deadlineTime: '23:59',
-  participantLimit: 1
+  participantLimit: 1,
+  submissionInstructions: ''
 })
 
 // 证明配置
@@ -373,7 +331,7 @@ const proofConfig = ref({
   },
   description: {
     enabled: false,
-    minWords: 50,
+    minWords: 10,
     prompt: ''
   }
 })
@@ -405,19 +363,18 @@ const rewardExplanation = computed(() => {
   }
 })
 
-// 监听器
-watch(() => [taskForm.value.participantLimit, limitParticipants.value], () => {
-      validatePArticipantLimit()
-})
-
-const validatePArticipantLimit = () => {
-  if (limitParticipants.value) {
-    const value = taskForm.value.participantLimit
-    if (!value || value<1 ) {
-      participantError.value = '参与人数必须至少为1'
-      return false
-    }
-    participantError.value = null
+// 校验参与人数
+const validateParticipants = () => {
+  participantError.value = ''
+  if (!limitParticipants.value) {
+    // 不限制人数时忽略具体数值
+    taskForm.value.participantLimit = null as unknown as number
+    return true
+  }
+  const value = taskForm.value.participantLimit
+  if (!value || value < 1) {
+    participantError.value = '参与人数至少为 1 人'
+    return false
   }
   return true
 }
@@ -426,83 +383,9 @@ const validatePArticipantLimit = () => {
 // 加载状态
 const isPublishing = ref(false)
 
-// 最小开始日期（今天）
-const minStartDate = computed(() => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return today.toISOString().split('T')[0]
-})
-
-// 最小截止日期（开始日期或今天，取较晚的）
-const minDeadlineDate = computed(() => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  if (taskForm.value.startDate) {
-    const startDate = new Date(taskForm.value.startDate)
-    startDate.setHours(0, 0, 0, 0)
-    return startDate >= today
-      ? taskForm.value.startDate
-      : today.toISOString().split('T')[0]
-  }
-
-  return today.toISOString().split('T')[0]
-})
-
-// 日期验证错误
-const startDateError = computed(() => {
-  if (!taskForm.value.startDate) return ''
-
-  const start = new Date(taskForm.value.startDate)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  start.setHours(0, 0, 0, 0)
-
-  if (start < today) {
-    return '开始日期不能早于今天'
-  }
-
-  return ''
-})
-
-const deadlineError = computed(() => {
-  if (!taskForm.value.deadline) return ''
-
-  const deadline = new Date(taskForm.value.deadline)
-  deadline.setHours(0, 0, 0, 0)
-
-  // 检查是否早于今天
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  if (deadline < today) {
-    return '截止日期不能早于今天'
-  }
-
-  // 检查是否早于开始日期
-  if (taskForm.value.startDate) {
-    const start = new Date(taskForm.value.startDate)
-    start.setHours(0, 0, 0, 0)
-
-    if (deadline < start) {
-      return '截止日期必须晚于开始日期'
-    }
-
-    // 如果日期相同，检查时间
-    if (deadline.getTime() === start.getTime()) {
-      const [deadlineHour, deadlineMinute] = taskForm.value.deadlineTime.split(':').map(Number)
-      const [startHour, startMinute] = taskForm.value.startTime.split(':').map(Number)
-
-      const deadlineTime = deadlineHour * 60 + deadlineMinute
-      const startTime = startHour * 60 + startMinute
-
-      if (deadlineTime <= startTime) {
-        return '截止时间必须晚于开始时间'
-      }
-    }
-  }
-
-  return ''
-})
+// 日期校验相关
+const minStart = ref('')
+const dateError = ref('')
 
 // 选项数据
 const photoCountOptions = [
@@ -513,33 +396,71 @@ const photoCountOptions = [
   { label: '5张', value: '5' }
 ]
 
-const gpsAccuracyOptions = [
-  { label: '高精度 (±5米)', value: 'high' },
-  { label: '中精度 (±50米)', value: 'medium' },
-  { label: '低精度 (±500米)', value: 'low' }
-]
+// 日期校验：开始时间不得早于当前时间，截止时间不得早于开始时间
+const validateDates = () => {
+  dateError.value = ''
+  if (!taskForm.value.startDate || !taskForm.value.deadline) {
+    return true
+  }
+
+  const now = new Date()
+  const start = new Date(taskForm.value.startDate)
+  const deadline = new Date(taskForm.value.deadline)
+
+  if (start < now) {
+    dateError.value = '开始时间不能早于当前时间'
+    return false
+  }
+
+  if (deadline < start) {
+    dateError.value = '截止时间不能早于开始时间'
+    return false
+  }
+
+  return true
+}
+
+// 监听字段变化做实时校验
+watch(() => [taskForm.value.participantLimit, limitParticipants.value], () => {
+  validateParticipants()
+})
+
+watch(() => [taskForm.value.startDate, taskForm.value.deadline], () => {
+  validateDates()
+})
 
 // 计算属性
 const canPublish = computed(() => {
-  const hasBasicInfo = taskForm.value.title && taskForm.value.objective && taskForm.value.reward
-  const hasValidDates = taskForm.value.startDate && taskForm.value.deadline && !startDateError.value && !deadlineError.value
-
-  return hasBasicInfo && hasValidDates
+  return taskForm.value.title && 
+         taskForm.value.objective && 
+         taskForm.value.reward && 
+         taskForm.value.startDate && 
+         taskForm.value.deadline &&
+         // 参与人数校验：如果限制人数，则必须填写有效的人数
+         (
+           !limitParticipants.value ||
+           (!!taskForm.value.participantLimit && taskForm.value.participantLimit >= 1)
+         ) &&
+         // 日期关系校验（没有错误信息）
+         !dateError.value
 })
 
 // 发布任务
 const publishTask = async () => {
-  if (!canPublish.value) {
+  // 最终前再做一轮校验，给出明确提示
+  const participantsOK = validateParticipants()
+  const datesOK = validateDates()
+
+  if (!participantsOK || !datesOK || !canPublish.value) {
     const toast = useToast()
+    const description = !participantsOK
+      ? (participantError.value || '请检查参与人数配置')
+      : (dateError.value || '请确保所有必填项和时间字段填写正确')
     toast.add({
-      title: '请填写完整信息',
-      description: startDateError.value || deadlineError.value || '请确保所有必填项都已填写',
+      title: '请检查表单信息',
+      description,
       color: 'red'
     })
-    return
-  }
-
-  if (!validatePArticipantLimit()) {
     return
   }
 
@@ -549,22 +470,17 @@ const publishTask = async () => {
     // 模拟钱包签名和发布
     await new Promise(resolve => setTimeout(resolve, 2000))
     
-    // 组合日期和时间
-    const startDateTime = `${taskForm.value.startDate}T${taskForm.value.startTime}`
-    const deadlineDateTime = `${taskForm.value.deadline}T${taskForm.value.deadlineTime}`
-    
-    
     // 创建任务
     const newTask = await createTask({
       title: taskForm.value.title,
       description: taskForm.value.objective,
       reward: parseFloat(taskForm.value.reward),
-      startDate: startDateTime,
-      deadline: deadlineDateTime,
-      proofConfig: proofConfig.value,
+      startDate: taskForm.value.startDate,
+      deadline: taskForm.value.deadline,
       participantLimit: !limitParticipants.value ? null : taskForm.value.participantLimit,
-      rewardDistributionMode: !limitParticipants.value ? 'total' :rewardDistributionMode.value,
-      submissionInstructions: submissionInstructions.value || undefined,
+      rewardDistributionMode: !limitParticipants.value ? 'total' : rewardDistributionMode.value, // 不限制人数时默认使用总积分模式
+      submissionInstructions: taskForm.value.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
+      proofConfig: proofConfig.value
     })
 
     
@@ -590,6 +506,14 @@ const publishTask = async () => {
     isPublishing.value = false
   }
 }
+
+// 初始化最小开始时间
+onMounted(() => {
+  const now = new Date()
+  now.setSeconds(0, 0)
+  // datetime-local 需要到分钟的字符串：YYYY-MM-DDTHH:MM
+  minStart.value = now.toISOString().slice(0, 16)
+})
 </script>
 
 <style scoped>
