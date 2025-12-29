@@ -164,9 +164,33 @@
                     <div v-if="update.isRealTime" class="mt-2 flex items-center gap-2">
                     <div class="w-2 h-2 bg-mario-blue border border-black animate-pulse"></div>
                     <span class="font-vt323 text-sm text-mario-blue">实时更新中...</span>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+          </PixelCard>
+
+        <!-- 审核结果 -->
+        <PixelCard v-if="task.status === 'completed' || task.status === 'rejected'">
+            <template #header>
+            审核结果
+            </template>
+          <div class="space-y-3">
+            <div class="flex items-center gap-2">
+              <span v-if="task.status === 'completed'" class="text-2xl">✅</span>
+              <span v-else class="text-2xl">❌</span>
+              <span class="font-pixel text-xs uppercase text-black">
+                {{ task.status === 'completed' ? '审核通过' : '审核驳回' }}
+                  </span>
+                </div>
+            <div v-if="task.rejectReason" class="pt-2 border-t border-black/10">
+              <p class="font-vt323 text-base text-black">
+                <span class="font-medium">审核意见:</span> {{ task.rejectReason }}
+              </p>
+            </div>
+            <div class="font-vt323 text-sm text-black/60">
+              审核时间: {{ formatDate(task.completedAt || task.updatedAt) }}
               </div>
             </div>
           </PixelCard>
@@ -216,7 +240,7 @@
               :disabled="true"
             >
               审核中
-            </PixelButton>
+              </PixelButton>
               
               <PixelButton
                 v-if="task.status === 'completed'"
@@ -499,7 +523,8 @@ const loadTask = async () => {
       updatedAt: taskData.updatedAt,
       claimedAt: taskData.claimedAt,
       submittedAt: taskData.submittedAt,
-      completedAt: taskData.completedAt
+      completedAt: taskData.completedAt,
+      rejectReason: taskData.rejectReason || undefined
     }
     
     // 获取任务奖励的积分符号

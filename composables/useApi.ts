@@ -44,7 +44,7 @@ export const useApi = () => {
     
     // 审核相关 API
     approveTask: (taskId: string, comments?: string) => api.approveTask(taskId, apiBaseUrl, comments),
-    rejectTask: (taskId: string, reason: string) => api.rejectTask(taskId, reason, apiBaseUrl),
+    rejectTask: (taskId: string, reason: string, rejectOption?: 'resubmit' | 'reclaim') => api.rejectTask(taskId, reason, apiBaseUrl, rejectOption),
     
     // 社群相关 API（暂时返回空数据）
     getCommunities: api.getCommunities,

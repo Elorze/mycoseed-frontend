@@ -62,12 +62,12 @@
                     照片证明 <span class="text-mario-red">*</span>
                   </label>
                   <div
-                    @click="triggerFileInput('photo')"
+                    @click="triggerFileInput()"
                     class="border-2 border-dashed border-black bg-white p-6 md:p-8 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-pixel transition-all"
                     :class="{ 'border-mario-red shadow-pixel': dragOver }"
                     @dragover.prevent="dragOver = true"
                     @dragleave="dragOver = false"
-                    @drop.prevent="handleFileDrop($event, 'photo')"
+                    @drop.prevent="handleFileDrop($event)"
                   >
                     <div class="text-4xl mb-3">📷</div>
                     <p class="font-vt323 text-base text-black font-medium mb-1">点击上传或拖拽照片到此处</p>
@@ -80,7 +80,7 @@
                     multiple
                     class="hidden"
                     accept="image/*"
-                    @change="handleFileSelect($event, 'photo')"
+                    @change="handleFileSelect($event)"
                   />
                   
                   <!-- 已选择的照片 -->
@@ -97,7 +97,7 @@
                         <div class="font-vt323 text-xs text-black/60">({{ formatFileSize(file.size) }})</div>
                       </div>
                       <PixelButton
-                        @click="removeFile('photo', index)"
+                        @click="removeFile(index)"
                         variant="danger"
                         size="sm"
                       >
@@ -108,57 +108,6 @@
                   </div>
                 </div>
 
-                <!-- 文档上传区域 -->
-                <div v-if="allowsDocuments">
-                  <label class="block font-pixel text-[10px] uppercase text-black mb-2">
-                    文档证明 <span v-if="!requiresPhoto" class="text-mario-red">*</span>
-                  </label>
-                  <div
-                    @click="triggerFileInput('document')"
-                    class="border-2 border-dashed border-black bg-white p-4 md:p-6 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-pixel transition-all"
-                    :class="{ 'border-mario-red shadow-pixel': dragOver }"
-                    @dragover.prevent="dragOver = true"
-                    @dragleave="dragOver = false"
-                    @drop.prevent="handleFileDrop($event, 'document')"
-                  >
-                    <div class="text-4xl mb-3">📄</div>
-                    <p class="font-vt323 text-base text-black font-medium mb-1">点击上传或拖拽文件到此处</p>
-                    <p class="font-vt323 text-sm text-black/70">支持 PDF, DOC, DOCX 格式</p>
-                    <p class="font-vt323 text-xs text-black/60 mt-1">最大 10MB</p>
-                  </div>
-                  <input
-                    ref="documentFileInput"
-                    type="file"
-                    multiple
-                    class="hidden"
-                    accept=".pdf,.doc,.docx"
-                    @change="handleFileSelect($event, 'document')"
-                  />
-                  
-                  <!-- 已选择的文档-->
-                  <div v-if="selectedDocuments.length > 0" class="mt-3 space-y-2">
-                    <div
-                      v-for="(file, index) in selectedDocuments"
-                      :key="index"
-                      class="p-3 bg-white border-2 border-black shadow-pixel-sm"
-                    >
-                      <div class="flex items-center gap-3">
-                        <span class="text-2xl">📄</span>
-                        <div class="flex-1">
-                          <div class="font-vt323 text-sm text-black font-medium">{{ file.name }}</div>
-                          <div class="font-vt323 text-xs text-black/60">({{ formatFileSize(file.size) }})</div>
-                        </div>
-                        <PixelButton
-                          @click="removeFile('document', index)"
-                          variant="danger"
-                          size="sm"
-                        >
-                          移除
-                        </PixelButton>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -193,9 +142,6 @@
                   <div class="font-vt323 text-sm text-black space-y-1">
                     <p><span class="font-medium">纬度：</span> {{ gpsLocation.latitude?.toFixed(6) }}</p>
                     <p><span class="font-medium">经度：</span> {{ gpsLocation.longitude?.toFixed(6) }}</p>
-                    <p v-if="gpsLocation.accuracy !== null">
-                      <span class="font-medium">精度:</span>{{ gpsLocation.accuracy.toFixed(2) }} 米
-                    </p>
                 </div>
                 <PixelButton
                   @click="getGPSLocation"
@@ -292,14 +238,12 @@ const loading = ref(true)
 
 // 响应式数据
 const selectedPhotos = ref<File[]>([])
-const selectedDocuments = ref<File[]>([])
 const submissionDescription = ref('')
 const isSubmitting = ref(false)
 const dragOver = ref(false)
 
 // 文件输入引用
 const photoFileInput = ref<HTMLInputElement | null>(null)
-const documentFileInput = ref<HTMLInputElement | null>(null)
 
 // 任务数据
 const task = ref<Task>({
@@ -449,17 +393,6 @@ const requiresPhoto = computed(() => {
   return task.value.proofConfig?.photo?.enabled === true
 })
 
-// 检查是否需要文件上传（照片或文档）
-const requiresFileUpload = computed(() => {
-  return requiresPhoto.value || allowsDocuments.value
-})
-
-// 检查是否允许文档上传
-const allowsDocuments = computed(()=>{
-  // 默认允许文档上传
-  return true
-})
-
 // 检查是否需要GPS定位
 const requiresGPS = computed(() => {
   return task.value.proofConfig?.gps?.enabled === true
@@ -473,101 +406,45 @@ const canSubmit = computed
   // 如果任务已过期，不能提交
   if (isTaskExpired.value) return false
 
-  // 如果需要文件上传
-  if (requiresFileUpload.value)
- {
-    // 如果要求照片，必须至少有一张照片
-    const hasPhoto = requiresPhoto.value ? selectedPhotos.value.length > 0 : true
-    // 如果要求文档（且不要求照片），必须至少有一个文档
-    const hasDocument = (!requiresPhoto.value && allowsDocuments.value)
-      ? selectedDocuments.value.length > 0
-      : true
-    const hasGPS = requiresGPS.value ? (gpsLocation.value.latitude !== null && gpsLocation.value.longitude !== null) : true
-    const hasDescription = requiresDescription.value ? isValidDescription.value : true
-    return hasPhoto && hasDocument && hasGPS && hasDescription
- }
-
- // 如果需要GPS定位，必须获取位置
- if (requiresGPS.value)
- {
-  const hasGPS = gpsLocation.value.latitude !== null && gpsLocation.value.longitude !== null
+  // 如果要求照片，必须至少有一张照片
+  const hasPhoto = requiresPhoto.value ? selectedPhotos.value.length > 0 : true
+  // 如果要求GPS定位，必须获取位置
+  const hasGPS = requiresGPS.value ? (gpsLocation.value.latitude !== null && gpsLocation.value.longitude !== null) : true
+  // 如果要求文字描述，必须填写说明并满足最小字数
   const hasDescription = requiresDescription.value ? isValidDescription.value : true
-  return hasGPS && hasDescription
- }
-
- // 如果需要文字描述，必须填写说明并满足最小字数
- if (requiresDescription.value)
- {
-  return isValidDescription.value
- }
-
- // 如果没有任何要求，至少需要文件或文字描述中的一种
- const hasFiles = selectedPhotos.value.length > 0 || selectedDocuments.value.length > 0
- return hasFiles || submissionDescription.value.trim().length > 0
+  
+  return hasPhoto && hasGPS && hasDescription
 }
 )
 
 
 // 触发文件输入
-const triggerFileInput = (type: 'photo' | 'document') => {
-  if (type === 'photo') {
-    photoFileInput.value?.click()
-  } else {
-    documentFileInput.value?.click()
-  }
+const triggerFileInput = () => {
+  photoFileInput.value?.click()
 }
 
 // 处理文件选择
-const handleFileSelect = (event: Event, type: 'photo' | 'document') => {
+const handleFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
   const files = Array.from(target.files || [])
-
-  if (type === 'photo') {
-    // 验证是否为图片
-    const imageFiles = files.filter(file => file.type.startsWith('image/'))
-    selectedPhotos.value = [...selectedPhotos.value, ...imageFiles]
-  } else {
-    // 验证是否为文档
-    const docFiles = files.filter
-    (
-      file =>
-      file.type === 'application/pdf' || 
-      file.type.includes('document') ||
-      file.name.match(/\.(pdf|doc|docx)$/i)
-    )
-    selectedDocuments.value = [...selectedDocuments.value, ...docFiles]
-  }
-
+  // 验证是否为图片
+  const imageFiles = files.filter(file => file.type.startsWith('image/'))
+  selectedPhotos.value = [...selectedPhotos.value, ...imageFiles]
   // 清空 input，允许重复选择同一文件
   target.value = ''
 }
 
 // 处理文件拖拽
-const handleFileDrop = (event: DragEvent, type: 'photo' | 'document') => {
+const handleFileDrop = (event: DragEvent) => {
   dragOver.value = false
   const files = Array.from(event.dataTransfer?.files || [])
-  if (type === 'photo') {
-    const imageFiles = files.filter(file => file.type.startsWith('image/'))
-    selectedPhotos.value = [...selectedPhotos.value, ...imageFiles]
-  } else {
-    const docFiles = files.filter
-    (
-      file =>
-      file.type === 'application/pdf' ||
-      file.type.includes('document') ||
-      file.name.match(/\.(pdf|doc|docx)$/i)
-    )
-    selectedDocuments.value = [...selectedDocuments.value, ...docFiles]
-  }
+  const imageFiles = files.filter(file => file.type.startsWith('image/'))
+  selectedPhotos.value = [...selectedPhotos.value, ...imageFiles]
 }
 
 // 移除文件
-const removeFile = (type: 'photo' | 'document', index: number) => {
-  if (type === 'photo') {
-    selectedPhotos.value.splice(index, 1)
-  } else {
-    selectedDocuments.value.splice(index, 1)
-  }
+const removeFile = (index: number) => {
+  selectedPhotos.value.splice(index, 1)
 }
 
 // 格式化文件大小
@@ -633,7 +510,7 @@ const submitForm = async () =>
         gpsData = {
           latitude: gpsLocation.value.latitude,
           longitude: gpsLocation.value.longitude,
-          accuracy: gpsLocation.value.accuracy || 0,
+          accuracy: 0, // 保留字段但不使用
           timestamp: new Date(gpsLocation.value.timestamp || Date.now()).toISOString()
         }
       } else {
@@ -655,16 +532,12 @@ const submitForm = async () =>
     }
 
     // 上传文件到后端
-    const filesToUpload: File[] = []
-    filesToUpload.push(...selectedPhotos.value)
-    filesToUpload.push(...selectedDocuments.value)
-
     let uploadedFiles: ProofFile[] = []
-    if(filesToUpload.length > 0)
+    if(selectedPhotos.value.length > 0)
     {
       try
       {
-        uploadedFiles = await uploadProofFile(filesToUpload, taskId, apiBaseUrl)
+        uploadedFiles = await uploadProofFile(selectedPhotos.value, taskId, apiBaseUrl)
       } catch(error:any)
       {
         toast.add
@@ -685,7 +558,6 @@ const submitForm = async () =>
       gps: gpsData ? {
         latitude: gpsData.latitude,
         longitude: gpsData.longitude,
-        accuracy: gpsData.accuracy,
         timestamp: gpsData.timestamp
       } : undefined,
       submittedAt: new Date().toISOString()

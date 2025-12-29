@@ -15,7 +15,7 @@ export interface GPSData
 {
   latitude:number
   longitude:number
-  accuracy:number
+  accuracy?:number  // 精度字段改为可选，不再使用
   timestamp:string
 }
 
@@ -447,8 +447,9 @@ export const approveTask = async (taskId: string, baseUrl: string, comments?: st
  * @param taskId 任务 ID (UUID string)
  * @param reason 驳回理由
  * @param baseUrl API 基础 URL
+ * @param rejectOption 驳回选项：'resubmit' 重新提交证明，'reclaim' 重新发布任务
  */
-export const rejectTask = async (taskId: string, reason: string, baseUrl: string): Promise<{ success: boolean; message: string }> =>
+export const rejectTask = async (taskId: string, reason: string, baseUrl: string, rejectOption?: 'resubmit' | 'reclaim'): Promise<{ success: boolean; message: string }> =>
 {
   try
   {
@@ -460,7 +461,7 @@ export const rejectTask = async (taskId: string, reason: string, baseUrl: string
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
         },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, rejectOption }),
       }
     )
 
@@ -639,32 +640,72 @@ export const getMe = async (baseUrl: string): Promise<any> => {
 
 export const AUTH_TOKEN_KEY = 'auth_token'
 
+// 使用 localStorage 存储 token，避免部署后丢失
 export const getCookie = (key: string): string | null => {
-  if(typeof document === 'undefined') return null
-  const cookies = document.cookie.split(';')
-  for (let cookie of cookies)
-  {
-    const [name,value]= cookie.trim().split('=')
-    if(name===key)
-    {
-      return decodeURIComponent(value)
+  if(typeof window === 'undefined') return null
+  try {
+    // 优先从 localStorage 读取
+    let token = localStorage.getItem(key)
+    
+    // 如果 localStorage 中没有，尝试从 cookie 读取（兼容旧数据）
+    if (!token) {
+      const cookies = document.cookie.split(';')
+      for (let cookie of cookies)
+      {
+        const [name,value]= cookie.trim().split('=')
+        if(name===key)
+        {
+          token = decodeURIComponent(value)
+          // 迁移到 localStorage
+          if (token) {
+            localStorage.setItem(key, token)
+            // 删除旧的 cookie
+            document.cookie=`${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
+          }
+          break
+        }
+      }
     }
+    
+    return token
+  } catch (e) {
+    // 如果 localStorage 不可用，回退到 cookie
+    const cookies = document.cookie.split(';')
+    for (let cookie of cookies)
+    {
+      const [name,value]= cookie.trim().split('=')
+      if(name===key)
+      {
+        return decodeURIComponent(value)
+      }
+    }
+    return null
   }
-  return null
 }
 
 export const setCookie = (key:string,value:string,days:number=365)=>
 {
-  if (typeof document ==='undefined') return
-  const expires=new Date()
-  expires.setTime(expires.getTime()+days*24*60*60*1000)
-  document.cookie=`${key}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/`
+  if (typeof window ==='undefined') return
+  try {
+    // 优先使用 localStorage
+    localStorage.setItem(key, value)
+  } catch (e) {
+    // 如果 localStorage 不可用，回退到 cookie
+    const expires=new Date()
+    expires.setTime(expires.getTime()+days*24*60*60*1000)
+    document.cookie=`${key}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Lax`
+  }
 }
 
 export const deleteCookie = (key:string)=>
 {
-  if(typeof document ==='undefined') return
-  document.cookie=`${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
+  if(typeof window ==='undefined') return
+  try {
+    localStorage.removeItem(key)
+  } catch (e) {
+    // 如果 localStorage 不可用，回退到 cookie
+    document.cookie=`${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
+  }
 }
 
 export const clearAuthToken =(): void=>
