@@ -45,3 +45,4 @@
 - `/activities-feed` → `activities-feed.vue` (活动流)
 - `/member/[id]` → `member/[id].vue` (个人主页)
 
+

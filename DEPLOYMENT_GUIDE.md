@@ -156,3 +156,4 @@ git reset --hard <commit-hash>
 3. 查看远程状态：`git fetch && git status`
 4. 检查部署平台的构建日志
 
+
