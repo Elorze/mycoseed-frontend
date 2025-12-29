@@ -422,7 +422,7 @@ const updateTimeline = () => {
     id: 1,
     title: '任务创建',
     description: '任务已创建，等待领取',
-    timestamp: task.value.createdAt || toLocalDateTime(new Date()),
+    timestamp: task.value.createdAt ? toLocalDateTime(task.value.createdAt) : toLocalDateTime(new Date()),
     status: 'completed'
   })
   
