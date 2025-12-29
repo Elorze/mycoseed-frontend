@@ -461,7 +461,10 @@ export const rejectTask = async (taskId: string, reason: string, baseUrl: string
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
         },
-        body: JSON.stringify({ reason, rejectOption }),
+        body: JSON.stringify({ 
+          reason, 
+          ...(rejectOption && rejectOption !== '' ? { rejectOption } : {})
+        }),
       }
     )
 

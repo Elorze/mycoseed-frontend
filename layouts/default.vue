@@ -36,7 +36,20 @@
 </template>
 
 <script setup lang="ts">
+import { useUserStore } from '~/stores/user'
+
 const currentPage = ref('hub')
+const userStore = useUserStore()
+
+// 应用启动时自动恢复登录状态
+onMounted(async () => {
+  try {
+    await userStore.getUser()
+  } catch (error) {
+    console.error('自动登录失败:', error)
+    // 如果 token 无效，getUser 内部会清除它，这里静默失败即可
+  }
+})
 
 const handleNavigate = (page: string) => {
   currentPage.value = page

@@ -188,7 +188,7 @@
               <p class="font-vt323 text-base text-black">
                 <span class="font-medium">审核意见:</span> {{ task.rejectReason }}
               </p>
-            </div>
+                      </div>
             <div class="font-vt323 text-sm text-black/60">
               审核时间: {{ formatDate(task.completedAt || task.updatedAt) }}
               </div>
@@ -402,6 +402,11 @@ const toLocalDateTime = (date: Date | string | undefined): string => {
     const hour = String(now.getHours()).padStart(2, '0')
     const minute = String(now.getMinutes()).padStart(2, '0')
     return `${year}-${month}-${day}T${hour}:${minute}`
+  }
+  
+  // 如果已经是本地时间格式 YYYY-MM-DDTHH:mm，直接返回
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(date)) {
+    return date
   }
   
   const dateObj = typeof date === 'string' ? new Date(date) : date
