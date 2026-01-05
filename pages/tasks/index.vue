@@ -101,7 +101,7 @@ import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import { useUserStore } from '~/stores/user'
-import { getAllTasks, type Task } from '~/utils/api'
+import { getAllTasks, getApiBaseUrl, type Task } from '~/utils/api'
 
 definePageMeta({
   layout: 'default'
@@ -139,7 +139,8 @@ const tasks = ref<Task[]>([])
 const loadData = async () => {
   loading.value = true
   try {
-    const apiTasks = await getAllTasks()
+    const baseUrl = getApiBaseUrl()
+    const apiTasks = await getAllTasks(baseUrl)
     tasks.value = apiTasks
   } catch (error) {
     console.error('加载数据失败:', error)

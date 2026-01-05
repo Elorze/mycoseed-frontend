@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col container-size rounded-xl bg-[var(--ui-bg)] shadow-lg p-4">
     <UButton icon="i-heroicons-arrow-left" variant="ghost" class="self-start mb-4"
-      @click="router.push('/login')">
+      @click="router.push('/auth/login')">
       返回
     </UButton>
     <div class="flex flex-col items-center justify-center h-full gap-4 py-8 w-[80%] mx-auto">
@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 // import { sendSMS, signIn, getMe } from '../../../semi/semi-app-main/utils/semi_api' // 已注释，使用本地mock API
-import { sendSMS, signIn, getMe } from '~/utils/api'
+import { sendSMS, signIn, getMe, getApiBaseUrl } from '~/utils/api'
 import { useUserStore } from '~/stores/user'
 
 definePageMeta({
@@ -110,7 +110,8 @@ const resendCode = async () => {
   if (countdown.value > 0) return
   
   try {
-    await sendSMS(phone.value)
+    const baseUrl = getApiBaseUrl()
+    await sendSMS(phone.value, baseUrl)
     toast.add({
       title: '验证码已重新发送'
     })
@@ -128,14 +129,15 @@ const onSubmit = async () => {
   try {
     const validation = validatePin(formState.pin)
     if (validation === true) {
-      const response = await signIn(phone.value, formState.pin.join(''))
+      const baseUrl = getApiBaseUrl()
+      const response = await signIn(phone.value, formState.pin.join(''), baseUrl)
       if (response.result === 'ok') {
         toast.add({
           title: '验证成功',
           description: '正在跳转到首页'
         })
 
-        const user = await getMe()
+        const user = await getMe(baseUrl)
         console.log('[user]:', user)
 
         if (!user.encrypted_keys) {
@@ -143,7 +145,13 @@ const onSubmit = async () => {
           return
         }
 
-        userStore.setUser(user)
+        // 确保包含必要的字段
+        const userWithMetadata = {
+          ...user,
+          isProfileSetup: !!user.name, // 根据是否有 name 判断是否完成设置
+          userType: user.userType || 'member' // 保持原有类型或默认 member
+        }
+        userStore.setUser(userWithMetadata)
         await router.push('/')
         return
       } else {
@@ -173,3 +181,4 @@ onMounted(() => {
   startCountdown()
 })
 </script>
+

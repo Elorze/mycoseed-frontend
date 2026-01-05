@@ -319,6 +319,7 @@
             </div>
           </div>
 
+          
           <template #footer>
             <PixelButton block variant="secondary" @click="showContacts = false">关闭</PixelButton>
           </template>
@@ -502,7 +503,7 @@ import { useUserStore } from '~/stores/user'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelCard from '~/components/pixel/PixelCard.vue'
-import { getMemberById, getCommunities, getMyTasks, getWalletAddressByMemberId, getUserCommunityPoints, addTransaction, type Task, type Community } from '~/utils/api'
+import { getMemberById, getCommunities, getMyTasks, getWalletAddressByMemberId, getUserCommunityPoints, addTransaction, getApiBaseUrl, type Task, type Community } from '~/utils/api'
 import { getTaskRewardSymbol } from '~/utils/display'
 import { useToast } from '~/composables/useToast'
 
@@ -892,7 +893,8 @@ watch(() => isEditing.value, (newVal) => {
 const loadClaimedTasks = async () => {
   loadingTasks.value = true
   try {
-    const tasks = await getMyTasks()
+    const baseUrl = getApiBaseUrl()
+    const tasks = await getMyTasks(baseUrl)
     // 排序：优先显示已完成的任务，然后按更新时间倒序
     claimedTasks.value = tasks.sort((a, b) => {
       // 优先显示已完成的任务

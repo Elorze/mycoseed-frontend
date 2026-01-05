@@ -9,7 +9,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      // 高德地图API Key（占位符，需要替换为实际的API Key）
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3001',
       amapApiKey: process.env.AMAP_API_KEY || 'YOUR_AMAP_API_KEY_HERE'
     }
   },

@@ -240,7 +240,7 @@
 </template>
 
 <script setup lang="ts">
-import { getTaskById } from '~/utils/api'
+import { getTaskById, getApiBaseUrl, submitProof, uploadProofFile, type ProofData } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
@@ -302,7 +302,8 @@ const task = ref<{
 const loadTask = async () => {
   loading.value = true
   try {
-    const taskData = await getTaskById(taskId)
+    const baseUrl = getApiBaseUrl()
+    const taskData = await getTaskById(String(taskId), baseUrl)
     if (!taskData) {
       toast.add({
         title: '任务不存在',
@@ -667,8 +668,56 @@ const submitForm = async () => {
     })
     
     // 调用API提交凭证
-    const { submitProof } = await import('~/utils/api')
-    const result = await submitProof(taskId, proofContent)
+    const baseUrl = getApiBaseUrl()
+    
+    // 解析 proofContent 字符串为 ProofData 对象
+    let proofData: ProofData
+    try {
+      // 尝试解析为 JSON（可能包含 GPS 数据）
+      const parsed = JSON.parse(proofContent)
+      proofData = {
+        description: parsed.description || proofContent, // 如果没有 description 字段，使用原始内容
+        files: [], // 文件需要先上传，这里暂时为空
+        gps: parsed.latitude && parsed.longitude ? {
+          latitude: parsed.latitude,
+          longitude: parsed.longitude,
+          accuracy: parsed.accuracy,
+          timestamp: parsed.timestamp ? new Date(parsed.timestamp).toISOString() : new Date().toISOString()
+        } : undefined,
+        submittedAt: new Date().toISOString()
+      }
+    } catch (e) {
+      // 如果不是 JSON，就是纯文本描述
+      proofData = {
+        description: proofContent,
+        files: [],
+        submittedAt: new Date().toISOString()
+      }
+    }
+    
+    // 如果有文件，先上传文件
+    if (requiresFileUpload.value && (selectedFiles.value.main || selectedFiles.value.additional.length > 0)) {
+      try {
+        const files: File[] = []
+        if (selectedFiles.value.main) files.push(selectedFiles.value.main)
+        files.push(...selectedFiles.value.additional)
+        
+        // 上传文件
+        const uploadedFiles = await uploadProofFile(files, String(taskId), baseUrl)
+        proofData.files = uploadedFiles.map(f => ({
+          url: f.url,
+          hash: f.hash,
+          name: f.name,
+          size: f.size,
+          type: f.type
+        }))
+      } catch (e) {
+        console.error('文件上传失败:', e)
+        // 继续执行，但 files 为空
+      }
+    }
+    
+    const result = await submitProof(String(taskId), proofData, baseUrl)
     
     if (result.success) {
       toast.add({
@@ -708,3 +757,4 @@ onMounted(() => {
   loadTask()
 })
 </script>
+

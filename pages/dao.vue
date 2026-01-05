@@ -256,7 +256,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { getActivities, getAllTasks, getReviewTasks, approveTask, rejectTask, discountTask, getFinalReward, type Activity, type Task } from '~/utils/api'
+import { getActivities, getAllTasks, getReviewTasks, approveTask, rejectTask, discountTask, getFinalReward, getApiBaseUrl, type Activity, type Task } from '~/utils/api'
 import { getTaskRewardSymbol } from '~/utils/display'
 
 // 响应式数据
@@ -284,7 +284,8 @@ const activitiesWithTasks = computed(() => {
 
 // 同意审核
 const handleApprove = async (taskId: number) => {
-  const result = await approveTask(taskId)
+  const baseUrl = getApiBaseUrl()
+  const result = await approveTask(String(taskId), baseUrl)
   alert(result.message)
   if (result.success) {
     await loadReviewTasks()
@@ -303,7 +304,9 @@ const openRejectModal = (task: Task) => {
 const handleReject = async () => {
   if (!selectedTask.value || !rejectReason.value.trim()) return
   
-  const result = await rejectTask(selectedTask.value.id, rejectReason.value.trim())
+  const baseUrl = getApiBaseUrl()
+  // 注意：后端不支持 'end' 选项，这里使用 'reclaim' 作为默认值
+  const result = await rejectTask(String(selectedTask.value.id), rejectReason.value.trim(), baseUrl, 'reclaim')
   alert(result.message)
   if (result.success) {
     showRejectModal.value = false
@@ -335,7 +338,8 @@ const handleDiscount = async () => {
 
 // 加载任务数据
 const loadTasks = async () => {
-  tasks.value = await getAllTasks()
+  const baseUrl = getApiBaseUrl()
+  tasks.value = await getAllTasks(baseUrl)
   
   // 为每个任务获取对应的积分符号
   const allCommunities = await getActivities() // 这里应该获取社区列表，但为了性能，我们可以批量处理
@@ -353,7 +357,8 @@ const loadTasks = async () => {
 
 // 加载审核任务
 const loadReviewTasks = async () => {
-  reviewTasks.value = await getReviewTasks()
+  const baseUrl = getApiBaseUrl()
+  reviewTasks.value = await getReviewTasks(baseUrl)
   
   // 为每个审核任务获取对应的积分符号
   try {

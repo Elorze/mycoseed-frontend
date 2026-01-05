@@ -150,7 +150,7 @@ const handleNavigate = (page: string) => {
   }).catch(() => {})
   // #endregion
 
-  // Map 'hub' to root index, 'wallet' to /wallet (if it exists, or keep as placeholder)
+  // Map 'hub' to root index
   navigateTo(targetPath)
 }
 </script>

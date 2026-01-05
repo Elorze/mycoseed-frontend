@@ -1,15 +1,29 @@
-// 导入 semi 的 API 功能 - 已注释，使用mock数据
-// export { 
-//   sendSMS, 
-//   signIn, 
-//   getMe, 
-//   setEncryptedKeys,
-//   AUTH_TOKEN_KEY,
-//   getCookie,
-//   clearAuthToken 
-// } from '../../../semi/semi-app-main/utils/semi_api'
-
 // ==================== 数据类型定义 ====================
+
+export interface ProofFile
+{
+  url: string
+  hash:string
+  name:string
+  size:number
+  type:string
+}
+
+export interface GPSData
+{
+  latitude:number
+  longitude:number
+  accuracy?:number  // 精度字段改为可选，不再使用
+  timestamp:string
+}
+
+export interface ProofData
+{
+  description:string
+  files:ProofFile[]
+  gps?:GPSData
+  submittedAt:string
+}
 
 /**
  * 活动数据结构
@@ -336,57 +350,87 @@ export const getFinalReward = (task: Task): number => {
   return task.reward
 }
 
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  }
+
+  if (typeof window !== 'undefined') {
+    const token = getCookie(AUTH_TOKEN_KEY)
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+  }
+
+  return headers
+}
+
+/**
+ * 获取 API 基础 URL
+ * 优先从环境变量读取，否则使用默认值
+ */
+export const getApiBaseUrl = (): string => {
+  // 优先使用环境变量（兼容客户端和服务器端）
+  if (typeof window !== 'undefined') {
+    // 客户端环境：使用 import.meta.env
+    const env = (import.meta as any).env
+    if (env?.NUXT_PUBLIC_API_URL) {
+      return env.NUXT_PUBLIC_API_URL
+    }
+  } else {
+    // 服务器端环境：使用 process.env
+    const processEnv = (globalThis as any).process?.env || {}
+    if (processEnv.NUXT_PUBLIC_API_URL) {
+      return processEnv.NUXT_PUBLIC_API_URL
+    }
+  }
+  
+  // 尝试从 Nuxt 运行时配置获取（如果可用）
+  if (typeof window !== 'undefined') {
+    try {
+      const nuxtApp = (window as any).__NUXT__
+      if (nuxtApp?.config?.public?.apiUrl) {
+        return nuxtApp.config.public.apiUrl
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+  }
+  
+  // 默认值（开发环境）
+  return 'http://localhost:3001'
+}
+
 // ==================== 活动相关 API ====================
 
 /**
  * 获取所有活动列表
  * @param status 可选：按状态筛选活动
+ * TODO: 等待后端实现活动 API
  */
 export const getActivities = async (status?: Activity['status']): Promise<Activity[]> => {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  if (status) {
-    return mockActivities.filter(activity => activity.status === status)
-  }
-  
-  return mockActivities
+  console.warn('活动 API 暂未实现，返回空数组')
+  return []
 }
 
 /**
  * 根据 ID 获取单个活动详情
  * @param id 活动 ID
+ * TODO: 等待后端实现活动 API
  */
 export const getActivityById = async (id: number): Promise<Activity | null> => {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  const activity = mockActivities.find(activity => activity.id === id)
-  return activity || null
+  console.warn('活动 API 暂未实现，返回 null')
+  return null
 }
 
 /**
  * 报名参加活动
  * @param id 活动 ID
+ * TODO: 等待后端实现活动 API
  */
 export const joinActivity = async (id: number): Promise<{ success: boolean; message: string }> => {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  const activity = mockActivities.find(activity => activity.id === id)
-  
-  if (!activity) {
-    return { success: false, message: '活动不存在' }
-  }
-  
-  if (activity.participants >= activity.maxParticipants) {
-    return { success: false, message: '活动已满员' }
-  }
-  
-  // Mock: 增加参与人数
-  activity.participants += 1
-  
-  return { success: true, message: '报名成功！' }
+  console.warn('活动 API 暂未实现，返回错误消息')
+  return { success: false, message: '活动功能暂未实现，等待后端开发' }
 }
 
 // ==================== 任务相关 API ====================
@@ -394,55 +438,73 @@ export const joinActivity = async (id: number): Promise<{ success: boolean; mess
 /**
  * 获取活动的任务列表
  * @param activityId 活动 ID
+ * @param baseUrl API 基础 URL
  */
-export const getTasks = async (activityId: number): Promise<Task[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  return tasks
-    .filter(task => task.activityId === activityId)
-    .map(task => ({
-      ...task,
-      isClaimed: claimedTaskIds.includes(task.id)
-    }))
+export const getTasks = async (activityId: number, baseUrl: string): Promise<Task[]> => {
+  try {
+    // 获取所有任务，然后在前端过滤
+    const allTasks = await getAllTasks(baseUrl)
+    return allTasks.filter(task => task.activityId === activityId)
+  } catch (error: any) {
+    console.error('Get tasks error:', error)
+    throw error
+  }
 }
 
 /**
  * 根据 ID 获取单个任务详情
- * @param id 任务 ID
+ * @param id 任务 ID (UUID string)
+ * @param baseUrl API 基础 URL
  */
-export const getTaskById = async (id: number): Promise<Task | null> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  const task = tasks.find(t => t.id === id)
-  if (!task) {
+export const getTaskById = async (id: string, baseUrl: string): Promise<Task | null> => {
+  try {
+    const response = await fetch(`${baseUrl}/api/tasks/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
     return null
-  }
-  
-  return {
-    ...task,
-    isClaimed: claimedTaskIds.includes(task.id)
+      }
+      const error = await response.json()
+      throw new Error(error.error || '获取任务失败')
+    }
+
+    const task: Task = await response.json()
+    return task
+  } catch (error: any) {
+    console.error('Get task by id error:', error)
+    throw error
   }
 }
 
 /**
  * 获取所有任务列表
+ * @param baseUrl API 基础 URL
  */
-export const getAllTasks = async (): Promise<Task[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  return tasks.map(task => ({
-    ...task,
-    isClaimed: claimedTaskIds.includes(task.id)
-  }))
+export const getAllTasks = async (baseUrl: string): Promise<Task[]> => {
+  try {
+    const response = await fetch(`${baseUrl}/api/tasks`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || '获取任务列表失败')
+    }
+
+    const tasks: Task[] = await response.json()
+    return tasks
+  } catch (error: any) {
+    console.error('Get all tasks error:', error)
+    throw error
+  }
 }
 
 /**
@@ -454,405 +516,271 @@ export interface CreateTaskParams {
   reward: number
   startDate: string
   deadline: string
+  proofConfig?: any
+  allowRepeatClaim?: boolean  // 是否允许重复领取
   participantLimit?: number | null
   rewardDistributionMode?: 'per_person' | 'total'
   submissionInstructions?: string
-  proofConfig?: any
 }
 
-export const createTask = async (params: CreateTaskParams): Promise<Task> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  // 生成新任务ID（使用当前最大ID + 1）
-  const newId = tasks.length > 0 
-    ? Math.max(...tasks.map(t => t.id)) + 1 
-    : 1
-  
-  const now = new Date().toISOString()
-  const newTask: Task = {
-    id: newId,
-    activityId: 0, // 独立任务，不关联活动
+/**
+ * 创建新任务
+ * @param params 任务参数
+ * @param baseUrl API 基础 URL
+ */
+export const createTask = async (params: CreateTaskParams, baseUrl: string): Promise<Task> => {
+  try {
+    const response = await fetch(`${baseUrl}/api/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({
     title: params.title,
     description: params.description,
     reward: params.reward,
-    participantLimit: params.participantLimit ?? null,
-    rewardDistributionMode: params.rewardDistributionMode || 'per_person', // 保存奖励分配模式，默认为每人积分
-    isClaimed: false,
-    status: 'unclaimed',
-    creatorId: 1, // Mock: 当前用户ID，实际应从认证系统获取
-    creatorName: '当前用户', // Mock: 当前用户名称
-    proofConfig: params.proofConfig, // 保存证明配置
-    submissionInstructions: params.submissionInstructions,
-    startDate: params.startDate, // 保存开始日期
-    deadline: params.deadline, // 保存截止日期
-    createdAt: now,
-    updatedAt: now
+        startDate: params.startDate,
+        deadline: params.deadline,
+        proofConfig: params.proofConfig || null,
+        allowRepeatClaim: params.allowRepeatClaim || false,
+        participantLimit: params.participantLimit ?? null,
+        rewardDistributionMode: params.rewardDistributionMode || 'per_person',
+        submissionInstructions: params.submissionInstructions,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || '创建任务失败')
+    }
+
+    const task: Task = await response.json()
+    return task
+  } catch (error: any) {
+    console.error('Create task error:', error)
+    throw error
   }
-  
-  tasks.push(newTask)
-  // 保存到 localStorage 以便跨页面同步
-  persistTasks()
-  
-  return newTask
 }
 
 /**
  * 领取任务
- * @param taskId 任务 ID
+ * @param taskId 任务 ID (UUID string)
+ * @param baseUrl API 基础 URL
+ * @param userIdentifier 用户标识（可选，如果已登录则从 getMe 获取用户ID）
  */
-export const claimTask = async (taskId: number): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  const task = tasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
+export const claimTask = async (taskId: string, baseUrl: string, userIdentifier?: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    // 如果没有提供 userIdentifier，尝试从当前登录用户获取
+    let userId = userIdentifier
+    if (!userId) {
+      try {
+        const user = await getMe(baseUrl)
+        userId = user.id
+      } catch (e) {
+        // 如果未登录，使用临时标识符（从 localStorage 获取）
+        if (typeof window !== 'undefined') {
+          userId = localStorage.getItem('current_identifier') || undefined
+        }
+      }
+    }
+
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/claim`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({
+        userIdentifier: userId,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      return { success: false, message: error.message || '领取任务失败' }
+    }
+
+    const result = await response.json()
+    return result
+  } catch (error: any) {
+    console.error('Claim task error:', error)
+    return { success: false, message: error.message || '领取任务失败' }
   }
-  
-  if (task.status !== 'unclaimed') {
-    return { success: false, message: '任务已被领取或已完成' }
-  }
-  
-  if (claimedTaskIds.includes(taskId)) {
-    return { success: false, message: '您已经领取过这个任务' }
-  }
-  
-  // 更新任务状态和接单者信息
-  const now = new Date().toISOString()
-  task.status = 'in_progress'
-  task.isClaimed = true
-  task.claimerId = 1 // Mock: 当前用户ID，实际应从认证系统获取
-  task.claimerName = '当前用户' // Mock: 当前用户名称
-  task.claimedAt = now
-  task.updatedAt = now
-  
-  claimedTaskIds.push(taskId)
-  // 持久化任务状态变化
-  persistTasks()
-  return { success: true, message: '任务领取成功！' }
 }
 
 /**
  * 获取我的任务列表
- * 返回所有曾经领取过的任务（包括所有状态：进行中、审核中、已完成、已驳回）
+ * @param baseUrl API 基础 URL
  */
-export const getMyTasks = async (): Promise<Task[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  // Mock: 当前用户ID为1，实际应从认证系统获取
-  const currentUserId = 1
-  
-  // 根据 claimerId 查找所有曾经领取过的任务（包括所有状态）
-  return tasks.filter(task => task.claimerId === currentUserId)
+export const getMyTasks = async (baseUrl: string): Promise<Task[]> => {
+  try {
+    // 获取所有任务，然后在前端过滤（需要根据用户ID过滤）
+    // 注意：这个功能需要后端支持，或者前端根据 task_claims 表查询
+    // 目前先返回所有任务，后续可以优化
+    const allTasks = await getAllTasks(baseUrl)
+    
+    // 尝试获取当前用户ID
+    try {
+      const user = await getMe(baseUrl)
+      // TODO: 如果后端提供了根据用户ID获取任务的接口，应该调用那个接口
+      // 目前先返回所有任务，前端可以根据需要进一步过滤
+      return allTasks.filter(task => task.isClaimed)
+    } catch (e) {
+      // 如果未登录，返回空数组
+      return []
+    }
+  } catch (error: any) {
+    console.error('Get my tasks error:', error)
+    throw error
+  }
 }
 
 /**
  * 提交任务完成凭证
- * @param taskId 任务 ID
- * @param proof 凭证内容
+ * @param taskId 任务 ID (UUID string)
+ * @param proof 凭证数据
+ * @param baseUrl API 基础 URL
  */
-export const submitProof = async (taskId: number, proof: string): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  const task = tasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
+export const submitProof = async (taskId: string, proof: ProofData, baseUrl: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/submit`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({
+        proof: proof, // 直接传递对象，后端会序列化
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      return { success: false, message: error.message || '提交凭证失败' }
+    }
+
+    const result = await response.json()
+    return result
+  } catch (error: any) {
+    console.error('Submit proof error:', error)
+    return { success: false, message: error.message || '提交凭证失败' }
   }
-  
-  if (task.status !== 'in_progress') {
-    return { success: false, message: '任务状态不正确，无法提交凭证' }
-  }
-  
-  if (!claimedTaskIds.includes(taskId)) {
-    return { success: false, message: '您还没有领取这个任务' }
-  }
-  
-  const now = new Date().toISOString()
-  task.proof = proof
-  task.status = 'under_review'
-  task.submittedAt = now
-  task.updatedAt = now
-  // 持久化任务状态变化
-  persistTasks()
-  return { success: true, message: '凭证提交成功！' }
 }
 
 /**
  * 获取审核中的任务列表
+ * @param baseUrl API 基础 URL
  */
-export const getReviewTasks = async (): Promise<Task[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  return tasks.filter(task => task.status === 'under_review')
+export const getReviewTasks = async (baseUrl: string): Promise<Task[]> => {
+  try {
+    // 从后端获取所有任务，然后过滤出审核中的任务
+    const allTasks = await getAllTasks(baseUrl)
+    return allTasks.filter(task => task.status === 'under_review')
+  } catch (error) {
+    console.error('Get review tasks error:', error)
+    return []
+  }
 }
 
 /**
  * 审核通过任务
- * @param taskId 任务 ID
+ * @param taskId 任务 ID (UUID string)
+ * @param baseUrl API 基础 URL
+ * @param comments 可选的审核评语
  */
-export const approveTask = async (taskId: number): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  const task = tasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
-  }
-  
-  if (task.status !== 'under_review') {
-    return { success: false, message: '任务状态不正确，无法审核' }
-  }
-  
-  const now = new Date().toISOString()
-  task.status = 'completed'
-  task.completedAt = now
-  task.updatedAt = now
-  
-  // 如果任务有完成者，添加积分和交易记录
-  if (task.claimerId) {
-    try {
-      // 计算实际奖励（考虑折扣）
-      let points = task.reward // 任务奖励直接就是社区积分
-      if (task.discount && task.discount > 0 && task.discount <= 100) {
-        // 如果有打折，按比例计算：points = reward * (1 - discount / 100)
-        points = task.reward * (1 - task.discount / 100)
+export const approveTask = async (taskId: string, baseUrl: string, comments?: string): Promise<{ success: boolean; message: string }> =>
+{
+  try
+  {
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/approve`,
+      {
+        method: 'PATCH',
+        headers: 
+        {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: comments ? JSON.stringify({ comments }) : undefined,
       }
-      
-      // 获取完成者信息
-      const member = await getMemberById(task.claimerId)
-      if (member && member.communities.length > 0) {
-        const communityId = member.communities[0] // 使用第一个社区
-        const community = await getCommunityById(communityId)
-        
-        if (community) {
-          // 更新用户积分
-          await updateUserCommunityPoints(task.claimerId, communityId, points)
-          
-          // 创建交易记录
-          const dateStr = new Date().toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          }).replace(/\//g, '-')
-          
-          // 获取积分缩写
-          let currency = 'CP'
-          if (community.pointName === '零废弃积分') {
-            currency = 'ZWP'
-          } else if (community.pointName === '南塘豆') {
-            currency = 'NTD'
-          }
-          
-          await addTransaction(task.claimerId, {
-            id: 0, // 会在 addTransaction 中自动生成
-            type: 'in',
-            title: task.title,
-            date: dateStr,
-            amount: Math.round(points * 100) / 100, // 保留两位小数
-            currency: currency,
-            taskId: task.id,
-            taskTitle: task.title
-          })
-        }
+    )
+
+    if (!response.ok)
+    {
+      const error = await response.json()
+      return {
+        success: false,
+        message: error.message || '审核失败'
       }
-    } catch (error) {
-      console.error('Failed to add points and transaction:', error)
-      // 即使积分添加失败，任务审核仍然成功
     }
+
+    const result = await response.json()
+    return result
+  } catch (error: any)
+  {
+    console.error('Approve task error:', error)
+    return { success: false, message: error.message || '审核失败'}
   }
-  
-  // 持久化任务状态变化
-  persistTasks()
-  return { success: true, message: '任务审核通过！' }
 }
 
 /**
  * 驳回任务
- * @param taskId 任务 ID
+ * @param taskId 任务 ID (UUID string)
  * @param reason 驳回理由
- * @param rejectOption 拒绝选项：'resubmit' 重新提交证明, 'reclaim' 重新发布任务, 'end' 结束任务
+ * @param baseUrl API 基础 URL
+ * @param rejectOption 驳回选项：'resubmit' 重新提交证明，'reclaim' 重新发布任务
  */
-export const rejectTask = async (taskId: number, reason: string, rejectOption: 'resubmit' | 'reclaim' | 'end' = 'end'): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  const task = tasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
-  }
-  
-  if (task.status !== 'under_review') {
-    return { success: false, message: '任务状态不正确，无法驳回' }
-  }
-  
-  const now = new Date().toISOString()
-  task.rejectReason = reason
-  task.proof = undefined
-  task.updatedAt = now
-  
-  if (rejectOption === 'resubmit') {
-    // 重新提交证明：状态回到进行中，保留领取者信息
-    task.status = 'in_progress'
-    task.submittedAt = undefined
-    // 保留 claimerId, claimerName, claimedAt
-  } else if (rejectOption === 'reclaim') {
-    // 重新发布任务：只清除当前审核的领取者信息
-    // 获取当前审核的领取者ID（用于后续可能的清理操作）
-    const currentClaimerId = task.claimerId
+export const rejectTask = async (taskId: string, reason: string, baseUrl: string, rejectOption?: 'resubmit' | 'reclaim'): Promise<{ success: boolean; message: string }> =>
+{
+  try
+  {
+    // 构建请求体，确保 rejectOption 总是被包含（如果存在）
+    const body: any = { reason }
+    if (rejectOption) {
+      body.rejectOption = rejectOption
+    }
     
-    // 清除当前审核的领取者信息（只清除当前审核的这个领取者）
-    task.claimerId = undefined
-    task.claimerName = undefined
-    task.claimedAt = undefined
-    task.submittedAt = undefined
-    task.proof = undefined
-    
-    // 判断任务类型：多人报名 vs 单人任务
-    // 如果是多人报名的活动（participantLimit > 1），保留其他领取者信息，状态保持为进行中
-    // 如果是单人任务（participantLimit === 1 或 null），清除所有信息，状态设为未领取
-    if (task.participantLimit && task.participantLimit > 1) {
-      // 多人报名任务：只清除当前审核的领取者信息
-      // 其他领取者的信息保持不变（在其他地方存储，不在这里的task对象中）
-      // 任务状态保持为进行中，让其他领取者可以继续
-      task.status = 'in_progress'
-      // 注意：由于当前Task数据结构只存储单个claimerId，其他领取者的信息可能在别处存储
-      // 这里只清除当前审核的领取者信息，不影响其他领取者
-    } else {
-      // 单人任务：清除所有领取者信息，任务状态设为未领取
-      task.status = 'unclaimed'
-      task.isClaimed = false
-      // 从claimedTaskIds中移除当前任务
-      // 注意：如果是多人报名，claimedTaskIds应该按用户区分，这里只移除当前用户的任务
-      const taskIndex = claimedTaskIds.indexOf(taskId)
-      if (taskIndex > -1) {
-        claimedTaskIds.splice(taskIndex, 1)
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/reject`,
+      {
+        method: 'PATCH',
+        headers:
+        {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify(body),
       }
+    )
+
+    if (!response.ok)
+    {
+      const error = await response.json()
+      return { success: false, message: error.message || '审核失败'}
     }
-  } else {
-    // 结束任务：状态设为已拒绝，任务结束
-    task.status = 'rejected'
-    const taskIndex = claimedTaskIds.indexOf(taskId)
-    if (taskIndex > -1) {
-      claimedTaskIds.splice(taskIndex, 1)
-    }
-    task.isClaimed = false
-    task.claimerId = undefined
-    task.claimerName = undefined
-    task.claimedAt = undefined
-    task.submittedAt = undefined
+
+    const result = await response.json()
+    return result
+  } catch (error: any)
+  {
+    console.error('Reject task error:', error)
+    return { success: false, message: error.message || '审核失败' }
   }
-  
-  // 持久化任务状态变化
-  persistTasks()
-  
-  let message = '任务已驳回！'
-  if (rejectOption === 'resubmit') {
-    message = '任务已退回，需要重新提交证明'
-  } else if (rejectOption === 'reclaim') {
-    message = '任务已重新发布，可以重新领取'
-  }
-  
-  return { success: true, message }
 }
 
 /**
  * 打折审核任务
- * @param taskId 任务 ID
+ * @param taskId 任务 ID (number 或 string)
  * @param discount 打折百分数
  * @param reason 打折理由
+ * TODO: 等待后端实现打折 API
  */
-export const discountTask = async (taskId: number, discount: number, reason: string): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
-  // 重新加载任务（确保获取最新数据）
-  tasks = loadTasks()
-  
-  const task = tasks.find(t => t.id === taskId)
-  if (!task) {
-    return { success: false, message: '任务不存在' }
-  }
-  
-  task.status = 'completed'
-  task.discount = discount
-  task.discountReason = reason
-  task.completedAt = new Date().toISOString()
-  task.updatedAt = new Date().toISOString()
-  
-  // 如果任务有完成者，添加积分和交易记录
-  if (task.claimerId) {
-    try {
-      // 计算实际奖励（考虑折扣）
-      // 如果有打折，按比例计算：points = reward * (1 - discount / 100)
-      const points = task.reward * (1 - discount / 100)
-      
-      // 获取完成者信息
-      const member = await getMemberById(task.claimerId)
-      if (member && member.communities.length > 0) {
-        const communityId = member.communities[0] // 使用第一个社区
-        const community = await getCommunityById(communityId)
-        
-        if (community) {
-          // 更新用户积分
-          await updateUserCommunityPoints(task.claimerId, communityId, points)
-          
-          // 创建交易记录
-          const dateStr = new Date().toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          }).replace(/\//g, '-')
-          
-          // 获取积分缩写
-          let currency = 'CP'
-          if (community.pointName === '零废弃积分') {
-            currency = 'ZWP'
-          } else if (community.pointName === '南塘豆') {
-            currency = 'NTD'
-          }
-          
-          await addTransaction(task.claimerId, {
-            id: 0, // 会在 addTransaction 中自动生成
-            type: 'in',
-            title: task.title,
-            date: dateStr,
-            amount: Math.round(points * 100) / 100, // 保留两位小数
-            currency: currency,
-            taskId: task.id,
-            taskTitle: task.title
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Failed to add points and transaction:', error)
-      // 即使积分添加失败，任务审核仍然成功
-    }
-  }
-  
-  // 持久化任务状态变化
-  persistTasks()
-  return { success: true, message: '任务已打折通过！' }
+export const discountTask = async (
+  taskId: number | string,
+  discount: number,
+  reason: string
+): Promise<{ success: boolean; message: string }> => {
+  console.warn('打折功能暂未实现')
+  return { success: false, message: '打折功能暂未实现，请使用审核功能' }
 }
 
 // ==================== 用户相关 API ====================
@@ -903,77 +831,109 @@ const mockUser = {
 }
 
 // Mock API 函数
-export const sendSMS = async (phone: string): Promise<{ result: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  console.log(`[Mock] 发送验证码到手机: ${phone}`)
-  return { result: 'ok' }
+/**
+ * 发送短信验证码
+ * @param phone 手机号
+ * @param baseUrl API 基础 URL
+ */
+export const sendSMS = async (phone: string, baseUrl: string): Promise<{ result: string }> => {
+  const response = await fetch(`${baseUrl}/api/auth/send-sms`,
+    {
+      method:'POST',
+      headers:
+      {
+        'Content-Type':'application/json',
+      },
+      body:JSON.stringify({phone}),
+    }
+  )
+
+  if(!response.ok)
+  {
+    const error= await response.json()
+    throw new Error(error.message||'Failed to send SMS')
+  }
+  return response.json()
 }
 
+/**
+ * 发送邮箱验证码
+ * @param email 邮箱地址
+ * TODO: 等待后端实现邮箱验证码 API
+ */
 export const sendEmailCode = async (email: string): Promise<{ result: string }> => {
+  console.warn('邮箱验证码功能暂未实现，返回 Mock 响应')
   await new Promise(resolve => setTimeout(resolve, 1000))
-  console.log(`[Mock] 发送验证码到邮箱: ${email}`)
   return { result: 'ok' }
 }
 
-export const signIn = async (identifier: string, code: string, userType?: 'member' | 'community'): Promise<{ result: string; isNewUser?: boolean }> => {
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  console.log(`[Mock] 登录: ${identifier}, 验证码: ${code}, 用户类型: ${userType || '未指定'}`)
-  
-  // 检查是否是新用户（检查两个数据库）
-  const existingUser = userDatabase[identifier] || communityDatabase[identifier]
-  const isNewUser = !existingUser
-  
-  if (isNewUser && userType) {
-    // 创建新用户
-    const walletAddress = getWalletAddress(identifier)
-    const isPhone = /^\d{11}$/.test(identifier)
-    
-    if (userType === 'community') {
-      communityDatabase[identifier] = {
-        id: Object.keys(communityDatabase).length + 1,
-        identifier: identifier,
-        identifierType: isPhone ? 'phone' : 'email',
-        evm_chain_address: walletAddress,
-        userType: 'community',
-        isProfileSetup: false,
-        created_at: new Date().toISOString()
-      }
-    } else {
-      userDatabase[identifier] = {
-        id: Object.keys(userDatabase).length + 1,
-        identifier: identifier,
-        identifierType: isPhone ? 'phone' : 'email',
-        evm_chain_address: walletAddress,
-        userType: 'member',
-        isProfileSetup: false,
-        created_at: new Date().toISOString()
-      }
+/**
+ * 登录
+ * @param identifier 手机号或邮箱
+ * @param code 验证码
+ * @param baseUrl API 基础 URL
+ */
+export const signIn = async (identifier: string, code: string, baseUrl: string): Promise<{ result: string; auth_token?:string }> => {
+  const response = await fetch(`${baseUrl}/api/auth/signin`,
+    {
+      method:'POST',
+      headers:
+      {
+        'Content-Type':'application/json',
+      },
+      body:JSON.stringify({phone: identifier, code}),
     }
+  )
+
+  if(!response.ok)
+  {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to sign in')
   }
-  
-  return { result: 'ok', isNewUser }
+
+  const data = await response.json()
+
+  // 保存token到cookie
+  if (data.auth_token)
+  {
+    setCookie(AUTH_TOKEN_KEY,data.auth_token)
+  }
+
+  return data
 }
 
-export const signInWithEmail = async (email: string, code: string, userType?: 'member' | 'community'): Promise<{ result: string; isNewUser?: boolean }> => {
-  return signIn(email, code, userType)
+/**
+ * 使用邮箱登录
+ * @param email 邮箱
+ * @param code 验证码
+ * @param baseUrl API 基础 URL
+ * @param userType 用户类型（可选）
+ */
+export const signInWithEmail = async (email: string, code: string, baseUrl: string, userType?: 'member' | 'community'): Promise<{ result: string; isNewUser?: boolean }> => {
+  return signIn(email, code, baseUrl)
 }
 
-export const getMe = async (): Promise<any> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  console.log('[Mock] 获取用户信息')
-  
-  // 从localStorage获取当前登录的标识符
-  if (typeof window !== 'undefined') {
-    const currentIdentifier = localStorage.getItem('current_identifier')
-    if (currentIdentifier) {
-      const user = userDatabase[currentIdentifier] || communityDatabase[currentIdentifier]
-      if (user) {
-        return user
-      }
+/**
+ * 获取当前用户信息
+ * @param baseUrl API 基础 URL
+ */
+export const getMe = async (baseUrl: string): Promise<any> => {
+  const response = await fetch(`${baseUrl}/api/auth/me`,
+    {
+      method:'GET',
+      headers: getAuthHeaders(),
     }
+  )
+
+  if(!response.ok)
+  {
+    if(response.status===401)
+    {
+      clearAuthToken()
+    }
+    throw new Error('Failed to get user info')
   }
-  
-  return mockUser
+  return response.json()
 }
 
 export const setEncryptedKeys = async (keys: string): Promise<{ result: string }> => {
@@ -984,16 +944,77 @@ export const setEncryptedKeys = async (keys: string): Promise<{ result: string }
 
 export const AUTH_TOKEN_KEY = 'auth_token'
 
+// 使用 localStorage 存储 token，避免部署后丢失
 export const getCookie = (key: string): string | null => {
-  // Mock: 总是返回一个token
-  return 'mock_auth_token'
+  if(typeof window === 'undefined') return null
+  try {
+    // 优先从 localStorage 读取
+    let token = localStorage.getItem(key)
+    
+    // 如果 localStorage 中没有，尝试从 cookie 读取（兼容旧数据）
+    if (!token) {
+      const cookies = document.cookie.split(';')
+      for (let cookie of cookies)
+      {
+        const [name,value]= cookie.trim().split('=')
+        if(name===key)
+        {
+          token = decodeURIComponent(value)
+          // 迁移到 localStorage
+          if (token) {
+            localStorage.setItem(key, token)
+            // 删除旧的 cookie
+            document.cookie=`${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
+          }
+          break
+        }
+      }
+    }
+    
+    return token
+  } catch (e) {
+    // 如果 localStorage 不可用，回退到 cookie
+    const cookies = document.cookie.split(';')
+    for (let cookie of cookies)
+    {
+      const [name,value]= cookie.trim().split('=')
+      if(name===key)
+      {
+        return decodeURIComponent(value)
+      }
+    }
+    return null
+  }
 }
 
-export const clearAuthToken = (): void => {
-  console.log('[Mock] 清除认证token')
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('current_identifier')
+export const setCookie = (key:string,value:string,days:number=365)=>
+{
+  if (typeof window ==='undefined') return
+  try {
+    // 优先使用 localStorage
+    localStorage.setItem(key, value)
+  } catch (e) {
+    // 如果 localStorage 不可用，回退到 cookie
+    const expires=new Date()
+    expires.setTime(expires.getTime()+days*24*60*60*1000)
+    document.cookie=`${key}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Lax`
   }
+}
+
+export const deleteCookie = (key:string)=>
+{
+  if(typeof window ==='undefined') return
+  try {
+    localStorage.removeItem(key)
+  } catch (e) {
+    // 如果 localStorage 不可用，回退到 cookie
+    document.cookie=`${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
+  }
+}
+
+export const clearAuthToken =(): void=>
+{
+  deleteCookie(AUTH_TOKEN_KEY)
 }
 
 // 保存当前登录标识符
@@ -1003,14 +1024,37 @@ export const setCurrentIdentifier = (identifier: string): void => {
   }
 }
 
-// 头像上传API
-export const uploadAvatar = async (file: File): Promise<{ url: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  console.log('[Mock] 上传头像:', file.name)
-  
-  // 模拟上传，返回本地预览URL
-  const url = URL.createObjectURL(file)
-  return { url }
+/**
+ * 上传头像
+ * @param file 头像文件
+ * @param baseUrl API 基础 URL
+ */
+export const uploadAvatar = async (file: File, baseUrl: string): Promise<{ url: string; hash: string }> => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const headers = getAuthHeaders()
+    // 移除 content-type,让浏览器自动设置（包含boundary）
+    delete (headers as any)['Content-Type']
+
+    const response = await fetch(`${baseUrl}/api/upload/avatar`, {
+      method: 'POST',
+      headers,
+      body: formData
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || '上传头像失败')
+    }
+
+    const result = await response.json()
+    return { url: result.url, hash: result.hash }
+  } catch (error: any) {
+    console.error('Upload avatar error:', error)
+    throw error
+  }
 }
 
 // 更新用户信息
@@ -1020,25 +1064,86 @@ export interface UserProfile {
   avatar?: string
 }
 
-export const updateUserProfile = async (userId: number, profile: UserProfile): Promise<{ success: boolean; message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 500))
-  console.log('[Mock] 更新用户信息:', userId, profile)
-  
-  // 更新用户数据库
-  if (typeof window !== 'undefined') {
-    const currentIdentifier = localStorage.getItem('current_identifier')
-    if (currentIdentifier && userDatabase[currentIdentifier]) {
-      userDatabase[currentIdentifier] = {
-        ...userDatabase[currentIdentifier],
-        name: profile.name,
-        bio: profile.bio,
-        avatar: profile.avatar,
-        isProfileSetup: true
+export const updateUserProfile = async (userId: string | number, profile: UserProfile, baseUrl: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const headers = getAuthHeaders()
+
+    const response = await fetch(`${baseUrl}/api/auth/me`, {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(profile)
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || '更新用户信息失败')
+    }
+
+    const result = await response.json()
+
+    if (result.result === 'ok') {
+      return { success: true, message: '用户信息更新成功'}
+    } else {
+      throw new Error(result.message || '更新用户信息失败')
+    }
+  } catch (error: any) {
+    console.error('Update user profile error:', error)
+    throw error
+  }
+}
+
+/**
+ * 上传任务凭证照片
+ * @param files 照片数组
+ * @param taskId 任务 ID
+ * @param baseUrl API 基础 URL
+ */
+export const uploadProofFile = async (
+  files: File[],
+  taskId: string,
+  baseUrl: string
+): Promise<ProofFile[]> => {
+  try {
+    const formData = new FormData()
+    files.forEach(file => {
+      formData.append('files', file)
+    })
+    formData.append('taskId', taskId)
+
+    const headers = getAuthHeaders()
+    // 移除 content-type,让浏览器自动设置（包含boundary）
+    delete (headers as any)['Content-Type']
+
+    const response = await fetch(`${baseUrl}/api/upload/proof`, {
+      method: 'POST',
+      headers,
+      body: formData
+    })
+
+    if (!response.ok) {
+      // 检查响应内容类型
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json()
+        throw new Error(error.message || error.error || '上传文件失败')
+      } else {
+        // 如果不是 JSON，可能是 HTML 错误页面（如 404）
+        if (response.status === 404) {
+          throw new Error('上传接口不存在，请检查后端服务是否正常运行')
+        }
+        throw new Error(`上传文件失败 (${response.status}): ${response.statusText}`)
       }
     }
+
+    const result = await response.json()
+    return result.files
+  } catch (error: any) {
+    console.error('Upload proof file error:', error)
+    throw error
   }
-  
-  return { success: true, message: '用户信息更新成功' }
 }
 
 // 更新社区信息

@@ -236,7 +236,7 @@
 </template>
 
 <script setup lang="ts">
-import { getTaskById, claimTask } from '~/utils/api'
+import { getTaskById, claimTask, getApiBaseUrl } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
@@ -425,7 +425,8 @@ const updateTimeline = () => {
 const loadTask = async () => {
   loading.value = true
   try {
-    const taskData = await getTaskById(taskId)
+    const baseUrl = getApiBaseUrl()
+    const taskData = await getTaskById(String(taskId), baseUrl)
     if (!taskData) {
       toast.add({
         title: '任务不存在',
@@ -483,7 +484,8 @@ const loadTask = async () => {
 // 领取任务
 const handleClaimTask = async () => {
   try {
-    const result = await claimTask(taskId)
+    const baseUrl = getApiBaseUrl()
+    const result = await claimTask(String(taskId), baseUrl)
     if (result.success) {
       toast.add({
         title: '领取成功',
@@ -511,12 +513,12 @@ const handleClaimTask = async () => {
 
 // 提交任务
 const submitTask = () => {
-  router.push(`/tasks/detail/submit?id=${taskId}`)
+      router.push(`/tasks/submit?id=${taskId}`)
 }
 
 // 审核任务
 const reviewTask = () => {
-  router.push(`/tasks/detail/review?id=${taskId}`)
+      router.push(`/tasks/review?id=${taskId}`)
 }
 
 // 导航到成员页面
@@ -541,7 +543,8 @@ const startProgressPolling = () => {
   // 每5秒轮询一次任务状态
   pollingInterval = setInterval(async () => {
     try {
-      const updatedTask = await getTaskById(taskId)
+      const baseUrl = getApiBaseUrl()
+      const updatedTask = await getTaskById(String(taskId), baseUrl)
       if (updatedTask && updatedTask.status !== task.value.status) {
         // 状态发生变化，重新加载任务
         await loadTask()

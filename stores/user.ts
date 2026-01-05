@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 // 直接导入 semi 的 API - 已注释，使用本地mock API
 // import { AUTH_TOKEN_KEY, getCookie, clearAuthToken, getMe } from '../../../semi/semi-app-main/utils/semi_api'
-import { AUTH_TOKEN_KEY, getCookie, clearAuthToken, getMe } from '~/utils/api'
+import { AUTH_TOKEN_KEY, getCookie, clearAuthToken, getMe, getApiBaseUrl } from '~/utils/api'
 
 export interface User {
     id: number
@@ -35,7 +35,8 @@ export const useUserStore = defineStore('user', {
             }
             
             if (getCookie(AUTH_TOKEN_KEY)) {
-              const user = await getMe()
+              const baseUrl = getApiBaseUrl()
+              const user = await getMe(baseUrl)
               this.user = user
               return user
             }

@@ -31,7 +31,7 @@
 - **Style**: Notice Board / Bounty Hunter Board.
 - **Action**: Post Offer / Need.
 
-### 5. Auth: Start Game (`/login`)
+### 5. Auth: Start Game (`/auth/login`)
 - **Style**: "Insert Coin" / "Start Game" screen.
 - **Method**: Phone + Web3 AA Wallet (Auto-generated).
 

@@ -57,7 +57,7 @@
         <PixelButton 
           variant="secondary" 
           block 
-          @click="router.push('/login')"
+          @click="router.push('/auth/login')"
         >
           返回登录
         </PixelButton>
@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { sendSMS, sendEmailCode, signIn, signInWithEmail, getMe, setCurrentIdentifier } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
@@ -82,6 +82,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const toast = useToast()
+const { sendSMS, sendEmailCode, signIn, signInWithEmail, getMe, setCurrentIdentifier } = useApi()
 
 const identifier = computed(() => route.query.identifier as string || '')
 const identifierType = computed(() => (route.query.type as string) || 'phone')
@@ -188,23 +189,12 @@ const onSubmit = async () => {
     // 验证码验证
     let response
     if (identifierType.value === 'phone') {
-      response = await signIn(identifier.value, pinCode, isLogin.value ? undefined : userType.value as 'member' | 'community')
+      response = await signIn(identifier.value, pinCode)
     } else {
       response = await signInWithEmail(identifier.value, pinCode, isLogin.value ? undefined : userType.value as 'member' | 'community')
     }
 
     if (response.result === 'ok') {
-      // 如果是登录模式且是新用户，提示先注册
-      if (isLogin.value && response.isNewUser) {
-        loading.value = false
-        toast.add({
-          title: '用户不存在',
-          description: '请先注册账号'
-        })
-        await router.push('/login')
-        return
-      }
-
       // 获取用户信息
       const user = await getMe()
       console.log('[user]:', user)
@@ -218,15 +208,42 @@ const onSubmit = async () => {
         return
       }
 
-      // 设置用户信息到store
-      userStore.setUser(user)
+      // 准备用户对象，确保包含必要的字段
+      const userWithMetadata = {
+        ...user,
+        isProfileSetup: !!user.name, // 根据是否有 name 判断是否完成设置
+        userType: user.userType || (userType.value as 'member' | 'community') || 'member' // 从查询参数或默认值获取
+      }
 
-      // 登录成功后统一跳转到首页
-      toast.add({
-        title: response.isNewUser ? '注册成功' : '登录成功',
-        description: response.isNewUser ? '欢迎加入' : '欢迎回来'
-      })
-      await router.push('/')
+      // 设置用户信息到store
+      userStore.setUser(userWithMetadata)
+
+      // 检查是否是新用户且未完成设置（使用 name 判断是否完成设置）
+      // 注意：后端不返回 isNewUser 字段，只通过 !user.name 判断
+      if (!user.name) {
+        // 新用户或未完成设置，根据用户类型跳转到对应的设置页面
+        const finalUserType = userWithMetadata.userType
+        if (finalUserType === 'community') {
+          toast.add({
+            title: '注册成功',
+            description: '欢迎加入，请完成资料设置'
+          })
+          await router.push('/community/setup')
+        } else {
+          toast.add({
+            title: '注册成功',
+            description: '欢迎加入，请完成资料设置'
+          })
+          await router.push('/profile/setup')
+        }
+      } else {
+        // 老用户直接登录
+        toast.add({
+          title: '登录成功',
+          description: '欢迎回来'
+        })
+        await router.push('/')
+      }
     } else {
       toast.add({
         title: '验证失败',
@@ -246,13 +263,9 @@ const onSubmit = async () => {
 
 onMounted(() => {
   if (!identifier.value) {
-    router.push('/login')
+    router.push('/auth/login')
     return
   }
   startCountdown()
 })
 </script>
-
-
-
-

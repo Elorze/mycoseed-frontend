@@ -315,7 +315,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
-import { createTask } from '~/utils/api'
+import { createTask, getApiBaseUrl } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 
 definePageMeta({
@@ -525,6 +525,7 @@ const publishTask = async () => {
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     // 创建任务
+    const baseUrl = getApiBaseUrl()
     const newTask = await createTask({
       title: taskForm.value.title,
       description: taskForm.value.objective,
@@ -535,7 +536,7 @@ const publishTask = async () => {
       rewardDistributionMode: !limitParticipants.value ? 'total' : rewardDistributionMode.value, // 不限制人数时默认使用总积分模式
       submissionInstructions: taskForm.value.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
       proofConfig: proofConfig.value
-    })
+    }, baseUrl)
     
     // 显示成功消息
     const toast = useToast()

@@ -99,7 +99,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user'
-import { updateCommunityProfile, getMe } from '~/utils/api'
+import { updateCommunityProfile, getMe, getApiBaseUrl } from '~/utils/api'
 import { useFileUpload } from '~/composables/useFileUpload'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
@@ -162,7 +162,8 @@ const onSubmit = async () => {
   error.value = null
 
   try {
-    const user = userStore.user || await getMe()
+    const baseUrl = getApiBaseUrl()
+    const user = userStore.user || await getMe(baseUrl)
     if (!user) {
       loading.value = false
       error.value = '用户信息获取失败，请重新登录'
@@ -183,8 +184,14 @@ const onSubmit = async () => {
 
     if (result.success) {
       // 更新store中的用户信息
-      const updatedUser = await getMe()
-      userStore.setUser(updatedUser)
+      const updatedUser = await getMe(baseUrl)
+      // 确保包含必要的字段
+      const userWithMetadata = {
+        ...updatedUser,
+        isProfileSetup: !!updatedUser.name, // 已设置 name，表示完成设置
+        userType: updatedUser.userType || 'community' // 保持原有类型或默认 community
+      }
+      userStore.setUser(userWithMetadata)
 
       toast.add({
         title: '保存成功',
@@ -208,7 +215,7 @@ onMounted(async () => {
   // 检查是否已登录
   const user = userStore.user || await userStore.getUser()
   if (!user) {
-    router.push('/login')
+    router.push('/auth/login')
     return
   }
 

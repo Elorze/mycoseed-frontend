@@ -99,7 +99,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user'
-import { updateUserProfile, getMe } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 import { useFileUpload } from '~/composables/useFileUpload'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
@@ -111,6 +111,7 @@ definePageMeta({
 const router = useRouter()
 const userStore = useUserStore()
 const toast = useToast()
+const { updateUserProfile, getMe } = useApi()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const loading = ref(false)
@@ -178,7 +179,13 @@ const onSubmit = async () => {
     if (result.success) {
       // 更新store中的用户信息
       const updatedUser = await getMe()
-      userStore.setUser(updatedUser)
+      // 确保包含必要的字段
+      const userWithMetadata = {
+        ...updatedUser,
+        isProfileSetup: !!updatedUser.name, // 已设置 name，表示完成设置
+        userType: updatedUser.userType || 'member' // 保持原有类型或默认 member
+      }
+      userStore.setUser(userWithMetadata)
 
       toast.add({
         title: '保存成功',
@@ -202,12 +209,12 @@ onMounted(async () => {
   // 检查是否已登录
   const user = userStore.user || await userStore.getUser()
   if (!user) {
-    router.push('/login')
+    router.push('/auth/login')
     return
   }
 
-  // 如果已完成设置，跳转到主页
-  if (user.isProfileSetup) {
+  // 如果已完成设置（有 name），跳转到主页
+  if (user.name) {
     router.push('/')
     return
   }

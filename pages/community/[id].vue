@@ -200,7 +200,7 @@ import { useCommunityStore } from '~/stores/community'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
-import { getCommunityById, getCommunityMembers, getAllTasks, getMemberById, type Task } from '~/utils/api'
+import { getCommunityById, getCommunityMembers, getAllTasks, getMemberById, getApiBaseUrl, type Task } from '~/utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -316,7 +316,8 @@ const navigateTo = (path: string) => {
 const loadCommunityTasks = async () => {
   try {
     // 获取所有任务
-    const allTasks = await getAllTasks()
+    const baseUrl = getApiBaseUrl()
+    const allTasks = await getAllTasks(baseUrl)
     
     // 获取社区成员列表
     const communityMembers = await getCommunityMembers(communityId)

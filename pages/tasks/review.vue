@@ -353,7 +353,7 @@
 </template>
 
 <script setup lang="ts">
-import { getTaskById, approveTask, rejectTask } from '~/utils/api'
+import { getTaskById, approveTask, rejectTask, getApiBaseUrl } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
@@ -564,7 +564,8 @@ const previewFile = (file: { name: string; url: string }) => {
 const loadTask = async () => {
   loading.value = true
   try {
-    const taskData = await getTaskById(taskId)
+    const baseUrl = getApiBaseUrl()
+    const taskData = await getTaskById(String(taskId), baseUrl)
     if (!taskData) {
       toast.add({
         title: '任务不存在',
@@ -680,7 +681,8 @@ const submitReview = async () => {
   isSubmitting.value = true
   
   try {
-    const result = await approveTask(taskId)
+    const baseUrl = getApiBaseUrl()
+    const result = await approveTask(String(taskId), baseUrl, reviewResult.value.comments)
     
     if (result.success) {
       toast.add({
@@ -718,7 +720,13 @@ const confirmReject = async () => {
   isSubmitting.value = true
   
   try {
-    const result = await rejectTask(taskId, reviewResult.value.comments, rejectOption.value as 'resubmit' | 'reclaim' | 'end')
+    const baseUrl = getApiBaseUrl()
+    // 将 'end' 映射为 'reclaim'（后端不支持 'end' 选项）
+    let normalizedOption = rejectOption.value as 'resubmit' | 'reclaim' | 'end'
+    if (normalizedOption === 'end') {
+      normalizedOption = 'reclaim'
+    }
+    const result = await rejectTask(String(taskId), reviewResult.value.comments, baseUrl, normalizedOption as 'resubmit' | 'reclaim' | undefined)
     
     if (result.success) {
       toast.add({
@@ -765,3 +773,4 @@ onMounted(async () => {
   await loadTask()
 })
 </script>
+

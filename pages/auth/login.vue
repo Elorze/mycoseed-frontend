@@ -111,7 +111,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { sendSMS, sendEmailCode, setCurrentIdentifier } from '~/utils/api'
+import { useApi } from '~/composables/useApi'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 
@@ -124,6 +124,7 @@ const loading = ref(false)
 const toast = useToast()
 const inputType = ref<'phone' | 'email'>('phone')
 const isLoginMode = ref(true)
+const { sendSMS, sendEmailCode, setCurrentIdentifier } = useApi()
 
 const formState = reactive({
   identifier: '',
@@ -172,7 +173,7 @@ const onSubmit = async () => {
         userType: formState.userType,
         isLogin: isLoginMode.value.toString()
       })
-      await router.push(`/verify?${params.toString()}`)
+      await router.push(`/auth/verify?${params.toString()}`)
     } else {
       toast.add({
         title: '输入错误',
@@ -190,3 +191,4 @@ const onSubmit = async () => {
   }
 }
 </script>
+
