@@ -258,7 +258,7 @@ declare global {
 // 获取路由参数
 const route = useRoute()
 const router = useRouter()
-const taskId = parseInt((route.query.id || route.params.id) as string)
+const taskId = (route.query.id || route.params.id) as string  // UUID是字符串，不需要parseInt
 const toast = useToast()
 const loading = ref(true)
 
@@ -303,7 +303,7 @@ const loadTask = async () => {
   loading.value = true
   try {
     const baseUrl = getApiBaseUrl()
-    const taskData = await getTaskById(String(taskId), baseUrl)
+    const taskData = await getTaskById(taskId, baseUrl)
     if (!taskData) {
       toast.add({
         title: '任务不存在',
@@ -717,7 +717,7 @@ const submitForm = async () => {
       }
     }
     
-    const result = await submitProof(String(taskId), proofData, baseUrl)
+    const result = await submitProof(taskId, proofData, baseUrl)
     
     if (result.success) {
       toast.add({

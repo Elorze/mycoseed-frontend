@@ -246,7 +246,7 @@ import { getTaskRewardSymbol } from '~/utils/display'
 // 获取路由参数
 const route = useRoute()
 const router = useRouter()
-const taskId = parseInt(route.params.id as string)
+const taskId = route.params.id as string  // UUID是字符串，不需要parseInt
 const toast = useToast()
 const loading = ref(false)
 const userStore = useUserStore()
@@ -262,7 +262,7 @@ const task = ref<any>({
   deadline: '',
   startDate: '',
   creator: '',
-  creatorId: 0,
+  creatorId: '',  // ✅ 改为空字符串，因为creatorId是UUID (string)
   participantsList: [],
   submissionInstructions: '',
   proofConfig: null,
@@ -426,7 +426,7 @@ const loadTask = async () => {
   loading.value = true
   try {
     const baseUrl = getApiBaseUrl()
-    const taskData = await getTaskById(String(taskId), baseUrl)
+    const taskData = await getTaskById(taskId, baseUrl)
     if (!taskData) {
       toast.add({
         title: '任务不存在',
@@ -485,7 +485,7 @@ const loadTask = async () => {
 const handleClaimTask = async () => {
   try {
     const baseUrl = getApiBaseUrl()
-    const result = await claimTask(String(taskId), baseUrl)
+    const result = await claimTask(taskId, baseUrl)
     if (result.success) {
       toast.add({
         title: '领取成功',
@@ -522,7 +522,7 @@ const reviewTask = () => {
 }
 
 // 导航到成员页面
-const navigateToMember = (memberId: number) => {
+const navigateToMember = (memberId: string | number) => {
   router.push(`/member/${memberId}`)
 }
 
@@ -544,7 +544,7 @@ const startProgressPolling = () => {
   pollingInterval = setInterval(async () => {
     try {
       const baseUrl = getApiBaseUrl()
-      const updatedTask = await getTaskById(String(taskId), baseUrl)
+      const updatedTask = await getTaskById(taskId, baseUrl)
       if (updatedTask && updatedTask.status !== task.value.status) {
         // 状态发生变化，重新加载任务
         await loadTask()

@@ -513,7 +513,7 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const memberId = parseInt(route.params.id as string)
+const memberId = route.params.id as string  // UUID是字符串，不需要parseInt
 const activeTab = ref('HISTORY')
 const isEditing = ref(false)
 const isFlipped = ref(false)

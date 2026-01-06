@@ -62,7 +62,7 @@ export interface CreateActivityParams {
  * 任务数据结构
  */
 export interface Task {
-  id: number
+  id: string                     // 任务ID (UUID)
   activityId: number             // 所属活动ID
   title: string                  // 任务标题
   description: string            // 任务描述
@@ -77,12 +77,13 @@ export interface Task {
   rejectReason?: string          // 驳回理由
   discount?: number              // 打折百分数
   discountReason?: string        // 打折理由
-  creatorId: number              // 创建者ID
+  allowRepeatClaim?: boolean     // 是否允许重复领取
+  creatorId?: string             // 创建者ID (UUID)
   creatorName?: string           // 创建者名称
-  claimerId?: number             // 接单者ID
+  claimerId?: string             // 接单者ID (UUID)
   claimerName?: string           // 接单者名称
-  createdAt: string              // 创建时间
-  updatedAt: string              // 更新时间
+  createdAt?: string             // 创建时间
+  updatedAt?: string             // 更新时间
   startDate?: string             // 开始日期（创建时设置）
   deadline?: string              // 截止日期（创建时设置）
   claimedAt?: string             // 领取时间
@@ -206,13 +207,13 @@ const persistTasks = () => {
 // ==================== 交易记录和积分存储 ====================
 
 // 交易记录存储（按用户ID存储）
-const getTransactionsKey = (userId: number) => `transactions_${userId}`
+const getTransactionsKey = (userId: number | string) => `transactions_${userId}`
 
 /**
  * 获取用户的交易记录
- * @param userId 用户ID
+ * @param userId 用户ID (string | number)
  */
-export const getTransactions = async (userId: number): Promise<Transaction[]> => {
+export const getTransactions = async (userId: number | string): Promise<Transaction[]> => {
   await new Promise(resolve => setTimeout(resolve, 200))
   
   if (typeof window === 'undefined') {
@@ -236,10 +237,10 @@ export const getTransactions = async (userId: number): Promise<Transaction[]> =>
 
 /**
  * 添加交易记录
- * @param userId 用户ID
+ * @param userId 用户ID (string | number)
  * @param transaction 交易记录
  */
-export const addTransaction = async (userId: number, transaction: Transaction): Promise<void> => {
+export const addTransaction = async (userId: number | string, transaction: Transaction): Promise<void> => {
   if (typeof window === 'undefined') {
     return
   }
@@ -267,14 +268,14 @@ export const addTransaction = async (userId: number, transaction: Transaction): 
 }
 
 // 用户积分存储（按用户ID存储）
-const getUserPointsKey = (userId: number) => `user_points_${userId}`
+const getUserPointsKey = (userId: number | string) => `user_points_${userId}`
 
 /**
  * 获取用户的社区积分
- * @param userId 用户ID
+ * @param userId 用户ID (string | number)
  * @param communityId 社区ID
  */
-export const getUserCommunityPoints = async (userId: number, communityId: number): Promise<number> => {
+export const getUserCommunityPoints = async (userId: string | number, communityId: number): Promise<number> => {
   await new Promise(resolve => setTimeout(resolve, 200))
   
   if (typeof window === 'undefined') {
@@ -282,7 +283,7 @@ export const getUserCommunityPoints = async (userId: number, communityId: number
   }
   
   try {
-    const key = getUserPointsKey(userId)
+    const key = getUserPointsKey(String(userId))
     const saved = localStorage.getItem(key)
     if (saved) {
       const points = JSON.parse(saved) as Record<number, number>
@@ -297,17 +298,17 @@ export const getUserCommunityPoints = async (userId: number, communityId: number
 
 /**
  * 更新用户的社区积分
- * @param userId 用户ID
+ * @param userId 用户ID (string | number)
  * @param communityId 社区ID
  * @param points 积分数量（正数表示增加，负数表示减少）
  */
-export const updateUserCommunityPoints = async (userId: number, communityId: number, points: number): Promise<number> => {
+export const updateUserCommunityPoints = async (userId: number | string, communityId: number, points: number): Promise<number> => {
   if (typeof window === 'undefined') {
     return 0
   }
   
   try {
-    const key = getUserPointsKey(userId)
+    const key = getUserPointsKey(String(userId))
     let userPoints: Record<number, number> = {}
     
     const saved = localStorage.getItem(key)
@@ -329,9 +330,9 @@ export const updateUserCommunityPoints = async (userId: number, communityId: num
 
 /**
  * 获取用户的所有积分（所有社区）
- * @param userId 用户ID
+ * @param userId 用户ID (string | number)
  */
-export const getUserPoints = async (userId: number): Promise<Record<number, number>> => {
+export const getUserPoints = async (userId: number | string): Promise<Record<number, number>> => {
   await new Promise(resolve => setTimeout(resolve, 200))
   
   if (typeof window === 'undefined') {
@@ -339,7 +340,7 @@ export const getUserPoints = async (userId: number): Promise<Record<number, numb
   }
   
   try {
-    const key = getUserPointsKey(userId)
+    const key = getUserPointsKey(String(userId))
     const saved = localStorage.getItem(key)
     if (saved) {
       return JSON.parse(saved) as Record<number, number>
@@ -1384,18 +1385,20 @@ export const getMembers = async (): Promise<Member[]> => {
 
 /**
  * 根据 ID 获取单个成员详情
+ * TODO: 等待后端实现成员 API
  */
-export const getMemberById = async (id: number): Promise<Member | null> => {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  const member = mockMembers.find(m => m.id === id)
-  return member || null
+export const getMemberById = async (id: number | string): Promise<Member | null> => {
+  // 暂时返回null，因为后端可能还没有成员API
+  // 如果继续使用Mock，需要支持string类型的id
+  console.warn('Members API not implemented yet')
+  return null
 }
 
 /**
  * 根据成员ID获取钱包地址
  * 由于member对象中没有identifier，我们基于member ID生成确定性钱包地址
  */
-export const getWalletAddressByMemberId = async (id: number): Promise<string> => {
+export const getWalletAddressByMemberId = async (id: number | string): Promise<string> => {
   await new Promise(resolve => setTimeout(resolve, 100))
   
   // 基于member ID生成确定性钱包地址

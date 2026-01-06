@@ -264,7 +264,7 @@ const activeTab = ref<'management' | 'review'>('management')
 const activities = ref<Activity[]>([])
 const tasks = ref<Task[]>([])
 const reviewTasks = ref<Task[]>([])
-const taskRewardSymbols = ref<Record<number, string>>({}) // 存储每个任务对应的积分符号
+const taskRewardSymbols = ref<Record<string, string>>({}) // 存储每个任务对应的积分符号（key是task.id，现在是string）
 
 // 弹窗相关
 const showRejectModal = ref(false)
@@ -283,9 +283,9 @@ const activitiesWithTasks = computed(() => {
 })
 
 // 同意审核
-const handleApprove = async (taskId: number) => {
+const handleApprove = async (taskId: string) => {
   const baseUrl = getApiBaseUrl()
-  const result = await approveTask(String(taskId), baseUrl)
+  const result = await approveTask(taskId, baseUrl)
   alert(result.message)
   if (result.success) {
     await loadReviewTasks()
@@ -306,7 +306,7 @@ const handleReject = async () => {
   
   const baseUrl = getApiBaseUrl()
   // 注意：后端不支持 'end' 选项，这里使用 'reclaim' 作为默认值
-  const result = await rejectTask(String(selectedTask.value.id), rejectReason.value.trim(), baseUrl, 'reclaim')
+  const result = await rejectTask(selectedTask.value.id, rejectReason.value.trim(), baseUrl, 'reclaim')
   alert(result.message)
   if (result.success) {
     showRejectModal.value = false

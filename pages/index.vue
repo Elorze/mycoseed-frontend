@@ -190,7 +190,8 @@ import { getCommunityById, getCommunityMembers, getMemberById, getCommunities, g
 
 // Use definePageMeta to ensure layout is applied
 definePageMeta({
-  layout: 'default'
+  layout: 'default',
+  middleware: 'auth'
 })
 
 const router = useRouter()
@@ -267,6 +268,8 @@ const loadUserCommunity = async () => {
     
     if (!user || !user.id) {
       console.log('用户未登录或用户ID不存在')
+      // 重定向到登录页
+      router.push('/auth/login')
       return
     }
 
@@ -277,6 +280,7 @@ const loadUserCommunity = async () => {
     
     if (!member) {
       console.log('未找到成员信息，用户ID:', user.id)
+      // 成员信息不存在是正常的（可能是新用户），不重定向
       return
     }
 
@@ -308,6 +312,10 @@ const loadUserCommunity = async () => {
     }
   } catch (error) {
     console.error('Failed to load user community:', error)
+    // 错误时也检查是否需要登录
+    if (!userStore.isAuthenticated) {
+      router.push('/auth/login')
+    }
   }
 }
 

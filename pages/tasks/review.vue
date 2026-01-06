@@ -364,7 +364,7 @@ import type { Task } from '~/utils/api'
 // 获取路由参数
 const route = useRoute()
 const router = useRouter()
-const taskId = parseInt((route.query.id || route.params.id) as string)
+const taskId = (route.query.id || route.params.id) as string  // UUID是字符串，不需要parseInt
 const toast = useToast()
 const loading = ref(true)
 const userStore = useUserStore()
@@ -565,7 +565,7 @@ const loadTask = async () => {
   loading.value = true
   try {
     const baseUrl = getApiBaseUrl()
-    const taskData = await getTaskById(String(taskId), baseUrl)
+    const taskData = await getTaskById(taskId, baseUrl)
     if (!taskData) {
       toast.add({
         title: '任务不存在',
@@ -682,7 +682,7 @@ const submitReview = async () => {
   
   try {
     const baseUrl = getApiBaseUrl()
-    const result = await approveTask(String(taskId), baseUrl, reviewResult.value.comments)
+    const result = await approveTask(taskId, baseUrl, reviewResult.value.comments)
     
     if (result.success) {
       toast.add({
@@ -726,7 +726,7 @@ const confirmReject = async () => {
     if (normalizedOption === 'end') {
       normalizedOption = 'reclaim'
     }
-    const result = await rejectTask(String(taskId), reviewResult.value.comments, baseUrl, normalizedOption as 'resubmit' | 'reclaim' | undefined)
+    const result = await rejectTask(taskId, reviewResult.value.comments, baseUrl, normalizedOption as 'resubmit' | 'reclaim' | undefined)
     
     if (result.success) {
       toast.add({

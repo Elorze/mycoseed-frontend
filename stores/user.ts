@@ -1,21 +1,21 @@
 import { defineStore } from 'pinia'
 // 直接导入 semi 的 API - 已注释，使用本地mock API
 // import { AUTH_TOKEN_KEY, getCookie, clearAuthToken, getMe } from '../../../semi/semi-app-main/utils/semi_api'
-import { AUTH_TOKEN_KEY, getCookie, clearAuthToken, getMe, getApiBaseUrl } from '~/utils/api'
+import { AUTH_TOKEN_KEY, getCookie, clearAuthToken, getMe } from '~/utils/api'
 
 export interface User {
-    id: number
-    identifier: string
-    identifierType: 'phone' | 'email'
-    evm_chain_address: string
-    encrypted_keys?: string | null
-    userType: 'member' | 'community'
-    isProfileSetup: boolean
+    id: string
+    phone?: string
+    email?: string
+    handle?: string
     name?: string
     bio?: string
     avatar?: string
-    description?: string
-    created_at: string
+    phone_verified: boolean
+    created_at?: string
+    updated_at?: string
+    userType?: 'member' | 'community'
+    isProfileSetup?: boolean
 }
 
 export const useUserStore = defineStore('user', {
@@ -24,9 +24,23 @@ export const useUserStore = defineStore('user', {
     }),
     getters: {
         isAuthenticated: (state) => !!state.user,
-        isMember: (state) => state.user?.userType === 'member',
+        isMember: (state) => (state.user?.userType || 'member') === 'member',
         isCommunity: (state) => state.user?.userType === 'community',
-        needsProfileSetup: (state) => state.user && !state.user.isProfileSetup,
+        needsProfileSetup: (state) => {
+            if (!state.user) return false
+            // 根据 name 是否存在判断是否完成资料设置
+            return !state.user.isProfileSetup && !state.user.name
+        },
+        // 计算属性：从 phone 或 email
+        identifier: (state) => {
+            if (!state.user) return ''
+            return state.user.phone || state.user.email || ''
+        },
+        // 计算属性：判断 identifierType
+        identifierType: (state): 'phone' | 'email' => {
+            if (!state.user) return 'phone'
+            return state.user.phone ? 'phone' : 'email'
+        },
     },
     actions: {
         async getUser(force = false) {
@@ -35,10 +49,18 @@ export const useUserStore = defineStore('user', {
             }
             
             if (getCookie(AUTH_TOKEN_KEY)) {
-              const baseUrl = getApiBaseUrl()
-              const user = await getMe(baseUrl)
-              this.user = user
-              return user
+              // 在 store 中获取运行时配置
+              const config = useRuntimeConfig()
+              const apiBaseUrl = config.public.apiUrl || 'http://localhost:3001'
+              const userData = await getMe(apiBaseUrl)
+
+              // 映射后端数据到前端 User 类型
+              this.user = {
+                ...userData,
+                userType: 'member' as 'member' | 'community',
+                isProfileSetup: !!userData.name
+              }
+              return this.user
             }
 
             return null

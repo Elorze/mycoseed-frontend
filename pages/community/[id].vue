@@ -213,8 +213,12 @@ const communityStore = useCommunityStore()
 const isIntroExpanded = ref(false)
 
 // 判断是否是当前用户自己的社区
+// 注意：Community.id是number，User.id是string(UUID)，不能直接比较
+// 这里暂时只检查用户类型，实际应该通过Community的creatorId字段来判断
 const isMyCommunity = computed(() => {
-  return userStore.user?.id === communityId && userStore.user?.userType === 'community'
+  return userStore.user?.userType === 'community'
+  // TODO: 如果Community有creatorId字段，应该用creatorId来比较
+  // return userStore.user?.id === community.value?.creatorId && userStore.user?.userType === 'community'
 })
 
 const tabs = [
@@ -321,13 +325,15 @@ const loadCommunityTasks = async () => {
     
     // 获取社区成员列表
     const communityMembers = await getCommunityMembers(communityId)
-    const memberIds = new Set(communityMembers.map(m => m.id))
+    // ✅ 将member.id转换为string，因为task.creatorId是UUID (string)
+    const memberIds = new Set(communityMembers.map(m => String(m.id)))
     
     // 过滤出属于该社区的任务
     // 任务的创建者必须是该社区的成员
     const communityTasks = allTasks.filter(task => {
       // 如果任务的创建者是社区成员，则属于该社区
-      return memberIds.has(task.creatorId)
+      // task.creatorId是string (UUID)，memberIds也是Set<string>
+      return task.creatorId && memberIds.has(String(task.creatorId))
     })
     
     // 只显示未领取和进行中的任务
