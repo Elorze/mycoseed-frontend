@@ -44,6 +44,21 @@ export interface Activity {
 }
 
 /**
+ * 创建活动参数
+ */
+export interface CreateActivityParams {
+  name: string
+  description: string
+  startTime: string
+  endTime: string
+  location?: string
+  reward?: number
+  maxParticipants?: number
+  organizer?: string
+  tags?: string[]
+}
+
+/**
  * 任务数据结构
  */
 export interface Task {
@@ -431,6 +446,34 @@ export const getActivityById = async (id: number): Promise<Activity | null> => {
 export const joinActivity = async (id: number): Promise<{ success: boolean; message: string }> => {
   console.warn('活动 API 暂未实现，返回错误消息')
   return { success: false, message: '活动功能暂未实现，等待后端开发' }
+}
+
+/**
+ * 创建活动
+ * @param params 活动参数
+ * TODO: 等待后端实现活动 API
+ */
+export const createActivity = async (params: CreateActivityParams): Promise<Activity> => {
+  // 模拟网络延迟
+  await new Promise(resolve => setTimeout(resolve, 500))
+  
+  console.warn('Activities API not implemented yet')
+  
+  // 返回Mock数据，让页面可以正常渲染
+  return {
+    id: Date.now(), // 临时ID
+    name: params.name,
+    description: params.description,
+    location: params.location || '',
+    startTime: params.startTime,
+    endTime: params.endTime,
+    image: '',
+    organizer: params.organizer || '',
+    participants: 0,
+    maxParticipants: params.maxParticipants || 0,
+    status: 'upcoming',
+    tags: params.tags || []
+  }
 }
 
 // ==================== 任务相关 API ====================
