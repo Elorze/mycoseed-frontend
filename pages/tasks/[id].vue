@@ -322,8 +322,13 @@ const isTaskExpired = computed(() => {
   return now > deadline
 })
 
-// 状态文本
+// 状态文本（考虑过期）
 const getStatusText = (status: string): string => {
+  // 如果任务已过期且不是已完成/已驳回状态，显示"已过期"
+  if (isTaskExpired.value && status !== 'completed' && status !== 'rejected') {
+    return '已过期'
+  }
+  
   const statusMap: Record<TaskStatus, string> = {
     'unclaimed': '未领取',
     'in_progress': '进行中',
@@ -345,8 +350,13 @@ const getStatusClass = (status: string): string => {
   return statusClassMap[status] || 'bg-muted/10 text-muted-foreground'
 }
 
-// 状态徽章样式类（像素风格）
+// 状态徽章样式类（像素风格，考虑过期）
 const getStatusBadgeClass = (status: string): string => {
+  // 如果任务已过期，使用过期样式
+  if (isTaskExpired.value && status !== 'completed' && status !== 'rejected') {
+    return 'bg-gray-100 text-gray-600 border-gray-400'
+  }
+  
   const statusClassMap: Record<TaskStatus, string> = {
     'unclaimed': 'bg-white text-black',
     'in_progress': 'bg-mario-yellow text-black',

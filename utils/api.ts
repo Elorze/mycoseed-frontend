@@ -453,6 +453,12 @@ export const rejectTask = async (taskId: string, reason: string, baseUrl: string
 {
   try
   {
+    // 构建请求体，确保 rejectOption 总是被包含（如果存在）
+    const body: any = { reason }
+    if (rejectOption) {
+      body.rejectOption = rejectOption
+    }
+    
     const response = await fetch(`${baseUrl}/api/tasks/${taskId}/reject`,
       {
         method: 'PATCH',
@@ -461,10 +467,7 @@ export const rejectTask = async (taskId: string, reason: string, baseUrl: string
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
         },
-        body: JSON.stringify({ 
-          reason, 
-          ...(rejectOption && rejectOption !== '' ? { rejectOption } : {})
-        }),
+        body: JSON.stringify(body),
       }
     )
 

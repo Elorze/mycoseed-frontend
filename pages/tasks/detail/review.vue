@@ -684,8 +684,9 @@ const submitReview = async () => {
 const confirmReject = async () => {
   if (!rejectOption.value || !reviewResult.value.comments.trim() || !canReview.value) return
   
-  // 确保 rejectOption 是有效值
-  if (rejectOption.value !== 'resubmit' && rejectOption.value !== 'reclaim') {
+  // 确保 rejectOption 是有效值，使用 String().trim() 确保类型正确
+  const option = String(rejectOption.value).trim()
+  if (option !== 'resubmit' && option !== 'reclaim') {
     toast.add({
       title: '请选择拒绝选项',
       description: '请选择"重新提交证明"或"重新发布任务"',
@@ -697,7 +698,13 @@ const confirmReject = async () => {
   isSubmitting.value = true
   
   try {
-    const result = await rejectTask(taskId, reviewResult.value.comments, apiBaseUrl, rejectOption.value)
+    // 确保传递的是正确的值（类型断言）
+    const result = await rejectTask(
+      taskId, 
+      reviewResult.value.comments, 
+      apiBaseUrl, 
+      option as 'resubmit' | 'reclaim'
+    )
     
     if (result.success) {
       toast.add({

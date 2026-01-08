@@ -54,9 +54,9 @@
               <h3 class="font-pixel text-sm uppercase text-black line-clamp-1">{{ task.title }}</h3>
               <span
                 class="px-2 py-1 text-xs font-pixel uppercase border border-black"
-                :class="getStatusClass(task.status)"
+                :class="getStatusClass(task)"
               >
-                {{ getStatusText(task.status) }}
+                {{ getStatusText(task) }}
               </span>
             </div>
           </template>
@@ -151,8 +151,21 @@ const filteredTasks = computed(() => {
   return tasks.value.filter(task => task.status === activeTab.value)
 })
 
-// 状态文本
-const getStatusText = (status: string) => {
+// 检查任务是否已过期
+const isTaskExpired = (task: any): boolean => {
+  if (!task.deadline) return false
+  const now = new Date()
+  const deadline = new Date(task.deadline)
+  return now > deadline
+}
+
+// 状态文本（考虑过期）
+const getStatusText = (task: any) => {
+  // 如果任务已过期且不是已完成/已驳回状态，显示"已过期"
+  if (isTaskExpired(task) && task.status !== 'completed' && task.status !== 'rejected') {
+    return '已过期'
+  }
+  
   const statusMap: Record<string, string> = {
     'unclaimed': '未领取',
     'in_progress': '进行中',
@@ -160,11 +173,16 @@ const getStatusText = (status: string) => {
     'under_review': '审核中',
     'rejected': '已驳回'
   }
-  return statusMap[status] || '未知'
+  return statusMap[task.status] || '未知'
 }
 
-// 状态样式
-const getStatusClass = (status: string) => {
+// 状态样式（考虑过期）
+const getStatusClass = (task: any) => {
+  // 如果任务已过期，使用过期样式
+  if (isTaskExpired(task) && task.status !== 'completed' && task.status !== 'rejected') {
+    return 'bg-gray-100 text-gray-600'
+  }
+  
   const classMap: Record<string, string> = {
     'unclaimed': 'bg-yellow-100 text-yellow-800',
     'in_progress': 'bg-blue-100 text-blue-800',
@@ -172,7 +190,7 @@ const getStatusClass = (status: string) => {
     'under_review': 'bg-orange-100 text-orange-800',
     'rejected': 'bg-red-100 text-red-800'
   }
-  return classMap[status] || 'bg-gray-100 text-gray-800'
+  return classMap[task.status] || 'bg-gray-100 text-gray-800'
 }
 
 // 格式化日期（后端已返回本地时间格式 YYYY-MM-DDTHH:mm）
