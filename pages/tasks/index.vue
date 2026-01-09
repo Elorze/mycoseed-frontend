@@ -76,7 +76,7 @@
                   <div class="w-3 h-3 bg-mario-coin rounded-sm"></div>
                   {{ item.reward || 0 }} 积分
                 </div>
-                <span class="text-xs bg-gray-200 px-2 py-1 font-pixel uppercase">{{ getTaskStatusText(item.status) }}</span>
+                <span class="text-xs bg-gray-200 px-2 py-1 font-pixel uppercase">{{ getTaskStatusText(item.status, item._task) }}</span>
               </div>
               <PixelButton 
                 v-if="item.status === 'unclaimed'"
@@ -124,9 +124,10 @@ const navigateTo = (path: string) => {
 const activeStatusTab = ref('all')
 const statusTabs = [
   { id: 'all', label: '全部' },
-  { id: 'pending', label: '待开始' },
-  { id: 'in_progress', label: '进行中' },
-  { id: 'completed', label: '已完成' }
+  { id: 'pending', label: '可领取' }, // 包含"未领取"和"未领完"（多人项目没领完的）
+  { id: 'in_progress', label: '待审核' }, // 包含"待提交"（即目前"进行中"状态，是领取了但是未提交的）和"审核中"
+  { id: 'completed', label: '已完成' },
+  { id: 'expired', label: '已失效' }
 ]
 
 // 加载状态
@@ -159,6 +160,60 @@ interface TaskItem {
   deadline?: string
   createdAt?: string
   creator?: string
+  _task?: Task // 原始任务对象，用于判断是否失效
+}
+
+// 检查任务是否已领取（通过状态和字段判断）
+const isTaskClaimed = (task: Task): boolean => {
+  // 如果状态是 in_progress、under_review、completed 或 rejected，说明已领取
+  // 或者 isClaimed 字段为 true，或者有 claimerId
+  return task.status !== 'unclaimed' || task.isClaimed === true || !!task.claimerId
+}
+
+// 检查任务是否已过期（过了报名截止日期且未领取）
+const isTaskExpired = (task: Task): boolean => {
+  if (!task.deadline) return false // 如果没有报名截止时间，认为未过期
+  const now = new Date()
+  const deadline = new Date(task.deadline)
+  // 过了报名截止日期且未领取的任务才算过期
+  return now.getTime() > deadline.getTime() && !isTaskClaimed(task)
+}
+
+// 检查任务是否已截止（过了提交截止日期且已领取但未提交）
+// 逻辑与任务详情页保持一致
+const isTaskOverdue = (task: Task): boolean => {
+  // 优先使用提交截止日期
+  const submitDeadline = task.submitDeadline
+  if (!submitDeadline) {
+    // 如果没有提交截止时间，使用报名截止时间作为后备（向后兼容）
+    if (!task.deadline) return false
+    const now = new Date()
+    const deadline = new Date(task.deadline)
+    // 如果过了报名截止时间且状态是 in_progress，也算已截止
+    const isClaimed = task.isClaimed || task.status !== 'unclaimed' || !!task.claimerId
+    const isNotSubmitted = task.status !== 'completed' && task.status !== 'under_review'
+    return now.getTime() > deadline.getTime() && isClaimed && isNotSubmitted
+  }
+  
+  const now = new Date()
+  const deadline = new Date(submitDeadline)
+  
+  // 过了提交截止日期且已领取但未提交的任务才算已截止
+  // 检查条件：已领取 && 状态不是已完成和审核中 && 过了提交截止日期
+  const isClaimed = task.isClaimed || task.status !== 'unclaimed' || !!task.claimerId
+  const isNotSubmitted = task.status !== 'completed' && task.status !== 'under_review'
+  
+  return now.getTime() > deadline.getTime() && isClaimed && isNotSubmitted
+}
+
+// 检查任务是否被终止（rejected）
+const isTaskRejected = (task: Task): boolean => {
+  return task.status === 'rejected'
+}
+
+// 检查任务是否已失效（过期、已截止或被终止）
+const isTaskInvalid = (task: Task): boolean => {
+  return isTaskExpired(task) || isTaskOverdue(task) || isTaskRejected(task)
 }
 
 // 任务列表
@@ -171,16 +226,55 @@ const taskItems = computed<TaskItem[]>(() => {
     reward: task.reward,
     deadline: task.deadline || task.completedAt || task.updatedAt || task.createdAt || '',
     createdAt: task.createdAt,
-    creator: task.creatorName || '系统'
+    creator: task.creatorName || '系统',
+    // 添加原始任务对象，用于判断是否失效
+    _task: task
   }))
 })
 
+// 检查任务是否未领完（多人项目没领完的）
+const isTaskNotFullyClaimed = (task: Task): boolean => {
+  // 如果任务有参与人数限制
+  if (task.participantLimit && task.participantLimit > 1) {
+    // 检查当前已领取人数（通过 participantsList 或其他字段）
+    // 这里假设有 participantsList 字段，如果没有则通过其他方式判断
+    const currentParticipants = (task as any).participantsList?.length || 0
+    const claimedCount = currentParticipants || (task.isClaimed ? 1 : 0)
+    return claimedCount < task.participantLimit && task.status === 'unclaimed'
+  }
+  return false
+}
+
 // 状态映射：将任务状态映射到筛选状态
-const mapTaskStatusToFilter = (status: string): string => {
-  if (status === 'unclaimed') return 'pending'
-  if (status === 'in_progress') return 'in_progress'
-  if (status === 'completed') return 'completed'
-  return status
+const mapTaskStatusToFilter = (item: TaskItem): string => {
+  // 首先检查是否已失效（过期、已截止或被终止）
+  // 注意：这个检查必须在状态映射之前，确保已失效的任务不会被归类到正常状态
+  if (item._task) {
+    // 优先检查已截止（因为已截止的任务状态可能还是 in_progress）
+    if (isTaskOverdue(item._task)) {
+      return 'expired'
+    }
+    // 再检查是否已过期
+    if (isTaskExpired(item._task)) {
+      return 'expired'
+    }
+    // 再检查是否被终止
+    if (isTaskRejected(item._task)) {
+      return 'expired'
+    }
+  }
+  
+  // 然后映射正常状态（排除已失效的任务）
+  // "可领取"：包含"未领取"和"未领完"（多人项目没领完的）
+  if (item.status === 'unclaimed' || (item._task && isTaskNotFullyClaimed(item._task))) {
+    return 'pending'
+  }
+  // "待审核"：包含"待提交"（in_progress）和"审核中"（under_review）
+  if (item.status === 'in_progress' || item.status === 'under_review') {
+    return 'in_progress'
+  }
+  if (item.status === 'completed') return 'completed'
+  return item.status
 }
 
 // 过滤后的任务列表
@@ -190,7 +284,7 @@ const filteredItems = computed(() => {
   // 状态筛选
   if (activeStatusTab.value !== 'all') {
     items = items.filter(item => {
-      const filterStatus = mapTaskStatusToFilter(item.status)
+      const filterStatus = mapTaskStatusToFilter(item)
       return filterStatus === activeStatusTab.value
     })
   }
@@ -199,13 +293,34 @@ const filteredItems = computed(() => {
 })
 
 // 任务状态文本
-const getTaskStatusText = (status: string) => {
+const getTaskStatusText = (status: string, task?: Task) => {
+  // 如果提供了任务对象，优先检查是否已失效（过期、已截止或被终止）
+  if (task) {
+    // 先检查是否已截止（优先级最高，因为已截止的任务状态可能还是 in_progress）
+    if (isTaskOverdue(task)) {
+      return '已截止'
+    }
+    // 再检查是否已过期
+    if (isTaskExpired(task)) {
+      return '已过期'
+    }
+    // 再检查是否被终止
+    if (isTaskRejected(task)) {
+      return '已终止'
+    }
+    // 检查是否未领完（多人项目）
+    if (isTaskNotFullyClaimed(task)) {
+      return '未领完'
+    }
+  }
+  
+  // 如果没有失效，显示正常状态
   const statusMap: Record<string, string> = {
     'unclaimed': '未领取',
-    'in_progress': '进行中',
+    'in_progress': '待提交', // 改为"待提交"（领取了但是未提交的）
     'completed': '已完成',
     'under_review': '审核中',
-    'rejected': '已驳回'
+    'rejected': '已终止'
   }
   return statusMap[status] || '未知'
 }

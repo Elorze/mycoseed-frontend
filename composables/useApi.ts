@@ -10,7 +10,7 @@ import type { UserProfile } from '~/utils/api'
 export const useApi = () => {
   // 使用 Nuxt 的运行时配置获取 API URL
   const config = useRuntimeConfig()
-  const apiBaseUrl = config.public.apiUrl || 'http://localhost:3001'
+  const apiBaseUrl = config.public.apiUrl 
   
   return {
     apiBaseUrl,

@@ -51,7 +51,7 @@ export const useUserStore = defineStore('user', {
             if (getCookie(AUTH_TOKEN_KEY)) {
               // 在 store 中获取运行时配置
               const config = useRuntimeConfig()
-              const apiBaseUrl = config.public.apiUrl || 'http://localhost:3001'
+              const apiBaseUrl = config.public.apiUrl 
               const userData = await getMe(apiBaseUrl)
 
               // 映射后端数据到前端 User 类型
@@ -66,8 +66,14 @@ export const useUserStore = defineStore('user', {
             return null
         },
         async signout() {
+            // 清除认证 token
             clearAuthToken()
+            // 清除用户状态
             this.user = null
+            // 清除当前标识符（localStorage）
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('current_identifier')
+            }
         },
         setUser(user: User | null) {
             this.user = user

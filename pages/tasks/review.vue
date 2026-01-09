@@ -42,7 +42,10 @@
                 <span class="px-3 py-1.5 bg-mario-coin text-white border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase">
                   {{ task.reward }} {{ taskRewardSymbol }}
                 </span>
-                <span class="font-vt323 text-sm text-black">截止: {{ formatDate(task.deadline) }}</span>
+                <div class="flex flex-col gap-1">
+                  <span class="font-vt323 text-sm text-black">报名截止: {{ formatDate(task.deadline) }}</span>
+                  <span class="font-vt323 text-sm text-black">提交截止: {{ formatDate(task.submitDeadline || task.deadline) }}</span>
+                </div>
               </div>
             </div>
 
@@ -61,103 +64,92 @@
                 </div>
                 <div class="font-vt323 text-sm text-black space-y-1 pt-3 border-t border-black/10">
                   <p><span class="font-medium">提交时间:</span> {{ formatDate(submission.timestamp) }}</p>
-                  <p v-if="requiresDescription || submission.description"><span class="font-medium">提交说明:</span> {{ submission.description || '无' }}</p>
                 </div>
               </div>
             </div>
 
-            <!-- 提交文件 -->
-            <div v-if="requiresFileUpload" class="pt-4 border-t-2 border-black/20">
-              <h3 class="font-pixel text-xs uppercase text-black mb-4">提交文件</h3>
-              <div class="space-y-3">
-                <!-- 主要文件 -->
-                <div v-if="submission.mainFile" class="bg-white border-2 border-black shadow-pixel-sm p-4">
-                  <div class="flex items-center gap-3 mb-2">
-                    <span class="text-2xl">📄</span>
-                    <div class="flex-1">
-                      <div class="font-vt323 text-base text-black font-medium">{{ submission.mainFile.name }}</div>
-                      <div class="font-vt323 text-xs text-black/60">({{ formatFileSize(submission.mainFile.size) }})</div>
+            <!-- 提交内容（按顺序：图片 → 位置信息 → 文字说明） -->
+            <div class="pt-4 border-t-2 border-black/20">
+              <h3 class="font-pixel text-xs uppercase text-black mb-4">提交内容</h3>
+              
+              <!-- 1. 图片文件（优先显示） -->
+              <div v-if="submission.files && submission.files.length > 0" class="mb-4">
+                <h4 class="font-pixel text-[10px] uppercase text-black mb-3">提交图片</h4>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div
+                    v-for="(file, index) in submission.files"
+                    :key="index"
+                    class="bg-white border-2 border-black shadow-pixel-sm p-3 relative group"
+                  >
+                    <!-- 图片预览 -->
+                    <div class="aspect-square bg-gray-100 border border-black mb-2 overflow-hidden">
+                      <img 
+                        :src="file.url" 
+                        :alt="file.name"
+                        class="w-full h-full object-cover cursor-pointer hover:scale-110 transition-transform"
+                        @click="previewFile(file)"
+                      />
                     </div>
+                    <!-- 文件信息 -->
+                    <div class="font-vt323 text-xs text-black mb-2">
+                      <div class="font-medium truncate">{{ file.name }}</div>
+                      <div class="text-black/60">({{ formatFileSize(file.size) }})</div>
+                    </div>
+                    <!-- 操作按钮 -->
                     <div class="flex gap-2">
                       <PixelButton
-                        @click="previewFile(submission.mainFile)"
+                        @click="previewFile(file)"
                         variant="secondary"
                         size="sm"
+                        :block="true"
                       >
                         预览
                       </PixelButton>
                       <PixelButton
-                        @click="downloadFile(submission.mainFile)"
+                        @click="downloadFile(file)"
                         variant="primary"
                         size="sm"
+                        :block="true"
                       >
                         下载
                       </PixelButton>
                     </div>
                   </div>
-                  <p class="font-vt323 text-xs text-black/70 mt-2">主要证明文件</p>
                 </div>
-                <div v-else class="bg-gray-50 border-2 border-dashed border-black/30 p-4 text-center">
-                  <p class="font-vt323 text-sm text-black/60">未提交文件</p>
-                </div>
+              </div>
 
-                <!-- 附加文件 -->
-                <div v-if="submission.additionalFiles && submission.additionalFiles.length > 0">
-                  <h4 class="font-pixel text-[10px] uppercase text-black mb-2">附加文件</h4>
-                  <div class="space-y-2">
-                    <div
-                      v-for="(file, index) in submission.additionalFiles"
-                      :key="index"
-                      class="bg-white border-2 border-black shadow-pixel-sm p-3"
-                    >
-                      <div class="flex items-center gap-3">
-                        <span class="text-xl">📎</span>
-                        <div class="flex-1">
-                          <div class="font-vt323 text-sm text-black font-medium">{{ file.name }}</div>
-                          <div class="font-vt323 text-xs text-black/60">({{ formatFileSize(file.size) }})</div>
-                        </div>
-                        <div class="flex gap-2">
-                          <PixelButton
-                            @click="previewFile(file)"
-                            variant="secondary"
-                            size="sm"
-                          >
-                            预览
-                          </PixelButton>
-                          <PixelButton
-                            @click="downloadFile(file)"
-                            variant="secondary"
-                            size="sm"
-                          >
-                            下载
-                          </PixelButton>
-                        </div>
-                      </div>
+              <!-- 2. 位置信息（经纬度） -->
+              <div v-if="submission.gpsLocation" class="mb-4">
+                <h4 class="font-pixel text-[10px] uppercase text-black mb-3">位置信息</h4>
+                <div class="bg-white border-2 border-black shadow-pixel-sm p-4">
+                  <div class="flex items-center gap-2 mb-3">
+                    <span class="text-2xl">📍</span>
+                    <span class="font-pixel text-xs uppercase text-black">GPS定位</span>
+                  </div>
+                  <div class="font-vt323 text-sm text-black space-y-1">
+                    <div><span class="font-medium">纬度:</span> {{ submission.gpsLocation.latitude.toFixed(6) }}</div>
+                    <div><span class="font-medium">经度:</span> {{ submission.gpsLocation.longitude.toFixed(6) }}</div>
+                    <div v-if="submission.gpsLocation.accuracy" class="text-black/60">
+                      <span class="font-medium">精度:</span> ±{{ Math.round(submission.gpsLocation.accuracy) }}米
+                    </div>
+                    <div v-if="submission.gpsLocation.timestamp" class="text-black/60 mt-2">
+                      <span class="font-medium">获取时间:</span> {{ formatDate(new Date(submission.gpsLocation.timestamp).toISOString()) }}
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- GPS定位信息 -->
-            <div v-if="requiresGPS" class="pt-4 border-t-2 border-black/20">
-              <h3 class="font-pixel text-xs uppercase text-black mb-4">位置定位信息</h3>
-              <div v-if="submission.gpsLocation" class="bg-white border-2 border-black shadow-pixel-sm p-4">
-                <div class="flex items-center gap-2 mb-3">
-                  <span class="text-2xl">📍</span>
-                  <span class="font-pixel text-xs uppercase text-black">位置已验证</span>
-                </div>
-                <div class="font-vt323 text-sm text-black space-y-1">
-                  <div>纬度: {{ submission.gpsLocation.latitude.toFixed(6) }}</div>
-                  <div>经度: {{ submission.gpsLocation.longitude.toFixed(6) }}</div>
-                  <div v-if="submission.gpsLocation.accuracy">精度: ±{{ Math.round(submission.gpsLocation.accuracy) }}米</div>
-                  <div v-if="submission.gpsLocation.timestamp" class="text-black/60 mt-2">
-                    获取时间: {{ formatDate(new Date(submission.gpsLocation.timestamp).toISOString()) }}
-                  </div>
+              <!-- 3. 文字说明 -->
+              <div v-if="submission.description && submission.description.trim()">
+                <h4 class="font-pixel text-[10px] uppercase text-black mb-3">文字说明</h4>
+                <div class="bg-white border-2 border-black shadow-pixel-sm p-4">
+                  <p class="font-vt323 text-base text-black whitespace-pre-wrap">{{ submission.description }}</p>
                 </div>
               </div>
-              <div v-else class="bg-gray-50 border-2 border-dashed border-black/30 p-4 text-center">
-                <p class="font-vt323 text-sm text-black/60">未提供位置信息</p>
+
+              <!-- 空状态 -->
+              <div v-if="!submission.files?.length && !submission.gpsLocation && !submission.description" class="bg-gray-50 border-2 border-dashed border-black/30 p-4 text-center">
+                <p class="font-vt323 text-sm text-black/60">未提交任何内容</p>
               </div>
             </div>
 
@@ -386,12 +378,13 @@ const rejectOption = ref<'resubmit' | 'reclaim' | 'end' | ''>('')
 
 // 任务数据
 const task = ref<{
-  id: number
+  id: string
   title: string
   description: string
   reward: number
   deadline: string
-  creatorId: number
+  submitDeadline?: string
+  creatorId: string
   proofConfig?: any
 }>({
   id: taskId,
@@ -399,7 +392,8 @@ const task = ref<{
   description: '',
   reward: 0,
   deadline: '',
-  creatorId: 0,
+  submitDeadline: '',
+  creatorId: '',
   proofConfig: null
 })
 
@@ -416,21 +410,17 @@ const submission = ref<{
   }
   timestamp: string
   description: string
-  mainFile: {
+  files: Array<{
     name: string
     size: number
     url: string
-  } | null
-  additionalFiles: Array<{
-    name: string
-    size: number
-    url: string
+    type?: string
   }>
   gpsLocation?: {
     latitude: number
     longitude: number
-    accuracy: number
-    timestamp: number
+    accuracy?: number
+    timestamp?: number
   } | null
 }>({
   submitter: {
@@ -439,8 +429,7 @@ const submission = ref<{
   },
   timestamp: '',
   description: '',
-  mainFile: null,
-  additionalFiles: [],
+  files: [],
   gpsLocation: null
 })
 
@@ -492,29 +481,55 @@ const formatFileSize = (bytes: number): string => {
 }
 
 // 下载文件
-const downloadFile = (file: { name: string; url: string }) => {
-  console.log('下载文件:', file.name)
-  // 如果文件有 URL，打开下载链接
-  if (file.url) {
-    // 对于 data URL，直接打开
+const downloadFile = async (file: { name: string; url: string }) => {
+  if (!file.url) {
+    toast.add({
+      title: '无法下载',
+      description: '文件URL不存在',
+      color: 'red'
+    })
+    return
+  }
+  
+  try {
+    // 对于 data URL，直接下载
     if (file.url.startsWith('data:')) {
-      window.open(file.url, '_blank')
-    } else {
-      // 对于其他 URL，创建下载链接
       const link = document.createElement('a')
       link.href = file.url
       link.download = file.name
-      link.target = '_blank'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      return
     }
-  } else {
-    // 这里可以添加实际的下载逻辑
+    
+    // 对于 HTTP/HTTPS URL，先获取文件内容再下载
+    const response = await fetch(file.url)
+    if (!response.ok) {
+      throw new Error('下载失败')
+    }
+    
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = file.name
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(blobUrl)
+    
     toast.add({
-      title: '下载文件',
-      description: `准备下载 ${file.name}`,
-      color: 'blue'
+      title: '下载成功',
+      description: `已下载 ${file.name}`,
+      color: 'green'
+    })
+  } catch (error) {
+    console.error('下载文件失败:', error)
+    toast.add({
+      title: '下载失败',
+      description: '无法下载文件，请稍后重试',
+      color: 'red'
     })
   }
 }
@@ -582,8 +597,9 @@ const loadTask = async () => {
       title: taskData.title,
       description: taskData.description,
       reward: taskData.reward,
-      deadline: taskData.deadline || taskData.createdAt,
-      creatorId: taskData.creatorId,
+      deadline: taskData.deadline || taskData.createdAt || '', // 报名截止日期
+      submitDeadline: taskData.submitDeadline || taskData.deadline || taskData.createdAt || '', // 提交截止日期
+      creatorId: taskData.creatorId || '',
       proofConfig: taskData.proofConfig || null
     }
     
@@ -592,49 +608,67 @@ const loadTask = async () => {
     
     // 从任务数据中获取提交信息
     if (taskData.claimerName && taskData.submittedAt) {
-      // 解析提交内容（可能包含GPS位置信息）
+      // 解析提交内容（JSON格式：{description, files, gps, submittedAt}）
       let proofContent = taskData.proof || ''
-      let gpsLocation = null
+      let files: Array<{ name: string; size: number; url: string; type?: string }> = []
+      let gpsLocation: { latitude: number; longitude: number; accuracy?: number; timestamp?: number } | null = null
+      let description = ''
       
-      // 尝试解析GPS位置信息（如果proof是JSON格式）
+      // 尝试解析JSON格式的提交内容
       try {
         if (proofContent.trim().startsWith('{')) {
           const parsed = JSON.parse(proofContent)
-          if (parsed.latitude && parsed.longitude) {
-            // 提取GPS位置信息
+          
+          // 解析文件列表
+          if (parsed.files && Array.isArray(parsed.files)) {
+            files = parsed.files.map((file: any) => ({
+              name: file.name || '未命名文件',
+              size: file.size || 0,
+              url: file.url || '',
+              type: file.type || ''
+            }))
+          }
+          
+          // 解析GPS位置信息
+          if (parsed.gps) {
+            gpsLocation = {
+              latitude: parsed.gps.latitude || parsed.gps.lat || 0,
+              longitude: parsed.gps.longitude || parsed.gps.lng || 0,
+              accuracy: parsed.gps.accuracy,
+              timestamp: parsed.gps.timestamp
+            }
+          } else if (parsed.latitude && parsed.longitude) {
+            // 向后兼容：直接在根级别有经纬度
             gpsLocation = {
               latitude: parsed.latitude,
               longitude: parsed.longitude,
-              accuracy: parsed.accuracy || null,
-              timestamp: parsed.timestamp || null
+              accuracy: parsed.accuracy,
+              timestamp: parsed.timestamp
             }
-            // 如果有description字段，使用它作为文字描述
-            proofContent = parsed.description || ''
           }
+          
+          // 解析文字描述
+          description = parsed.description || ''
         } else if (proofContent.startsWith('位置:')) {
           // 处理 "位置: lat, lng" 格式（向后兼容）
           const match = proofContent.match(/位置:\s*([\d.]+),\s*([\d.]+)/)
           if (match) {
             gpsLocation = {
               latitude: parseFloat(match[1]),
-              longitude: parseFloat(match[2]),
-              accuracy: null,
-              timestamp: null
+              longitude: parseFloat(match[2])
             }
-            proofContent = ''
+            description = ''
+          } else {
+            description = proofContent
           }
+        } else {
+          // 纯文本格式，作为描述
+          description = proofContent
         }
       } catch (e) {
         // 如果不是JSON格式，保持原样作为文字描述
+        description = proofContent
       }
-      
-      // 判断是否需要文件（根据proofConfig）
-      const needsFile = taskData.proofConfig?.photo?.enabled
-      const mainFile = needsFile && proofContent && !gpsLocation ? {
-        name: '任务完成凭证.txt',
-        size: new Blob([proofContent]).size,
-        url: `data:text/plain;charset=utf-8,${encodeURIComponent(proofContent)}`
-      } : null
       
       submission.value = {
         submitter: {
@@ -642,9 +676,8 @@ const loadTask = async () => {
           role: '参与者'
         },
         timestamp: taskData.submittedAt,
-        description: proofContent || (taskData.proofConfig?.description?.enabled ? '无' : ''),
-        mainFile: mainFile,
-        additionalFiles: [],
+        description: description,
+        files: files,
         gpsLocation: gpsLocation
       }
     } else {
@@ -717,16 +750,24 @@ const submitReview = async () => {
 const confirmReject = async () => {
   if (!rejectOption.value || !reviewResult.value.comments.trim()) return
   
+  // 保存拒绝选项，因为后面会重置
+  const selectedOption = rejectOption.value
   isSubmitting.value = true
   
   try {
     const baseUrl = getApiBaseUrl()
-    // 将 'end' 映射为 'reclaim'（后端不支持 'end' 选项）
-    let normalizedOption = rejectOption.value as 'resubmit' | 'reclaim' | 'end'
-    if (normalizedOption === 'end') {
+    let normalizedOption: 'resubmit' | 'reclaim' | undefined
+    
+    // 处理不同的拒绝选项
+    if (selectedOption === 'end') {
+      // 结束任务：需要特殊处理，可能需要调用不同的API
+      // 暂时使用 'reclaim' 选项，但需要确保后端将任务状态设置为 rejected
       normalizedOption = 'reclaim'
+    } else {
+      normalizedOption = selectedOption as 'resubmit' | 'reclaim'
     }
-    const result = await rejectTask(taskId, reviewResult.value.comments, baseUrl, normalizedOption as 'resubmit' | 'reclaim' | undefined)
+    
+    const result = await rejectTask(taskId, reviewResult.value.comments, baseUrl, normalizedOption)
     
     if (result.success) {
       toast.add({
@@ -735,12 +776,18 @@ const confirmReject = async () => {
         color: 'green'
       })
       
-      // 关闭弹窗
+      // 关闭弹窗（必须在跳转前关闭）
       showRejectModal.value = false
       rejectOption.value = ''
       
-      // 提交成功后跳转到任务详情页
-      router.push(`/tasks/${taskId}?reviewed=true`)
+      // 如果选择结束任务，确保任务状态更新为 rejected
+      // 提交成功后跳转到任务详情页，并刷新数据
+      if (selectedOption === 'end') {
+        // 延迟一下，确保后端状态已更新
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+      
+      router.push(`/tasks/${taskId}?reviewed=true&rejected=${selectedOption === 'end' ? 'true' : 'false'}`)
     } else {
       toast.add({
         title: '审核失败',

@@ -84,8 +84,9 @@ export interface Task {
   claimerName?: string           // 接单者名称
   createdAt?: string             // 创建时间
   updatedAt?: string             // 更新时间
-  startDate?: string             // 开始日期（创建时设置）
-  deadline?: string              // 截止日期（创建时设置）
+  startDate?: string             // 报名开始日期
+  deadline?: string              // 报名截止日期
+  submitDeadline?: string        // 提交截止日期
   claimedAt?: string             // 领取时间
   submittedAt?: string           // 提交时间
   completedAt?: string           // 完成时间
@@ -559,7 +560,8 @@ export interface CreateTaskParams {
   description: string
   reward: number
   startDate: string
-  deadline: string
+  deadline: string  // 报名截止日期
+  submitDeadline?: string  // 提交截止日期
   proofConfig?: any
   allowRepeatClaim?: boolean  // 是否允许重复领取
   participantLimit?: number | null
@@ -586,6 +588,7 @@ export const createTask = async (params: CreateTaskParams, baseUrl: string): Pro
     reward: params.reward,
         startDate: params.startDate,
         deadline: params.deadline,
+        submitDeadline: params.submitDeadline,
         proofConfig: params.proofConfig || null,
         allowRepeatClaim: params.allowRepeatClaim || false,
         participantLimit: params.participantLimit ?? null,

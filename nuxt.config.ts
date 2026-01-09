@@ -9,7 +9,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3001',
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://mycoseed-backend.fly.dev',
       amapApiKey: process.env.AMAP_API_KEY || 'YOUR_AMAP_API_KEY_HERE'
     }
   },

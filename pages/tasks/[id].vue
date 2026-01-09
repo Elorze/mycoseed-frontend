@@ -104,12 +104,16 @@
                 <div class="flex justify-between items-center pb-2 border-b border-black/10">
                   <span class="text-black/70">报名开始时间:</span>
                   <span class="text-black font-medium">
-                    {{ task.claimedAt ? formatDate(task.claimedAt) : (task.startDate ? formatDate(task.startDate) : '未开始') }}
+                    {{ task.startDate ? formatDate(task.startDate) : '未设置' }}
                   </span>
                 </div>
                 <div class="flex justify-between items-center pb-2 border-b border-black/10">
+                  <span class="text-black/70">报名截止时间:</span>
+                  <span class="text-black font-medium">{{ task.deadline ? formatDate(task.deadline) : '未设置' }}</span>
+                </div>
+                <div class="flex justify-between items-center pb-2 border-b border-black/10">
                   <span class="text-black/70">提交截止时间:</span>
-                  <span class="text-black font-medium">{{ formatDate(task.deadline) }}</span>
+                  <span class="text-black font-medium">{{ task.submitDeadline ? formatDate(task.submitDeadline) : (task.deadline ? formatDate(task.deadline) : '未设置') }}</span>
                 </div>
               </div>
             </div>
@@ -194,8 +198,9 @@
               variant="success"
               size="lg"
               :block="true"
+              :disabled="isTaskOverdue"
             >
-              提交任务
+              {{ isTaskOverdue ? '已截止' : '提交任务' }}
             </PixelButton>
             
             <PixelButton
@@ -260,6 +265,7 @@ const task = ref<any>({
   reward: 0,
   status: 'unclaimed',
   deadline: '',
+  submitDeadline: '',
   startDate: '',
   creator: '',
   creatorId: '',  // ✅ 改为空字符串，因为creatorId是UUID (string)
@@ -282,12 +288,22 @@ const isTaskStarted = computed(() => {
   return now >= startDate
 })
 
-// 检查任务是否已过期
+// 检查任务是否已过期（过了报名截止日期且未领取）
 const isTaskExpired = computed(() => {
-  if (!task.value.deadline) return false // 如果没有截止时间，认为未过期
+  if (!task.value.deadline) return false // 如果没有报名截止时间，认为未过期
   const now = new Date()
   const deadline = new Date(task.value.deadline)
-  return now > deadline
+  // 过了报名截止日期且未领取的任务才算过期
+  return now > deadline && !task.value.isClaimed
+})
+
+// 检查任务是否已截止（过了提交截止日期且已领取但未提交）
+const isTaskOverdue = computed(() => {
+  if (!task.value.submitDeadline) return false // 如果没有提交截止时间，认为未截止
+  const now = new Date()
+  const submitDeadline = new Date(task.value.submitDeadline)
+  // 过了提交截止日期且已领取但未提交的任务才算已截止
+  return now > submitDeadline && task.value.isClaimed && task.value.status !== 'completed' && task.value.status !== 'under_review'
 })
 
 // 状态类型
@@ -406,6 +422,16 @@ const updateTimeline = () => {
     })
   }
   
+  // 确保审核驳回的时间线项格式正确（显示时间 + "已驳回"标签）
+  if (task.value.status === 'rejected') {
+    // 更新最后一个时间线项，确保格式正确
+    const rejectedUpdate = updates.find(u => u.status === 'rejected')
+    if (rejectedUpdate) {
+      rejectedUpdate.title = '审核驳回'
+      rejectedUpdate.description = '任务审核未通过，已驳回'
+    }
+  }
+  
   // 如果任务正在进行中，添加实时更新标记
   if (task.value.status === 'in_progress') {
     updates.push({
@@ -444,8 +470,10 @@ const loadTask = async () => {
       description: taskData.description,
       reward: taskData.reward,
       status: taskData.status,
-      deadline: taskData.deadline || taskData.createdAt, // 使用截止日期，如果没有则使用创建时间作为后备
-      startDate: taskData.startDate, // 保存开始日期
+      deadline: taskData.deadline || taskData.createdAt, // 报名截止日期
+      submitDeadline: taskData.submitDeadline || taskData.deadline || taskData.createdAt, // 提交截止日期
+      startDate: taskData.startDate, // 报名开始日期
+      isClaimed: taskData.isClaimed, // 是否已领取
       creator: taskData.creatorName || '发布者',
       creatorId: taskData.creatorId,
       participantsList: taskData.claimerId ? [{

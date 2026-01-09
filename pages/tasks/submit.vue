@@ -41,7 +41,10 @@
                 <span class="px-3 py-1.5 bg-mario-coin text-white border-2 border-black shadow-pixel-sm font-pixel text-[10px] uppercase">
                   {{ task.reward }} {{ taskRewardSymbol }}
                 </span>
-                <span class="font-vt323 text-sm text-black">截止: {{ formatDate(task.deadline) }}</span>
+                <div class="flex flex-col gap-1">
+                  <span class="font-vt323 text-sm text-black">报名截止: {{ formatDate(task.deadline) }}</span>
+                  <span class="font-vt323 text-sm text-black">提交截止: {{ formatDate(task.submitDeadline || task.deadline) }}</span>
+                </div>
               </div>
             </div>
 
@@ -286,6 +289,7 @@ const task = ref<{
   description: string
   reward: number
   deadline: string
+  submitDeadline?: string
   submissionInstructions: string
   proofConfig?: any
 }>({
@@ -294,6 +298,7 @@ const task = ref<{
   description: '',
   reward: 0,
   deadline: '',
+  submitDeadline: '',
   submissionInstructions: '请按照任务要求完成并提交相关凭证。',
   proofConfig: null
 })
@@ -320,7 +325,8 @@ const loadTask = async () => {
       title: taskData.title,
       description: taskData.description,
       reward: taskData.reward,
-      deadline: taskData.deadline || taskData.createdAt, // 使用截止日期，如果没有则使用创建时间作为后备
+      deadline: taskData.deadline || taskData.createdAt, // 报名截止日期
+      submitDeadline: taskData.submitDeadline || taskData.deadline || taskData.createdAt, // 提交截止日期
       submissionInstructions: taskData.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
       proofConfig: taskData.proofConfig || null // 保存证明配置用于动态设置文件类型
     }

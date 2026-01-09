@@ -76,15 +76,57 @@
           👛 钱包
         </PixelButton>
 
-        <!-- User Avatar (Replacing Address) -->
-        <div 
-          class="cursor-pointer hover:scale-110 transition-transform"
-          @click="navigateTo('profile')"
-          title="个人主页"
-        >
-           <PixelAvatar seed="Alice" size="md" />
+        <!-- User Avatar and Logout -->
+        <div class="flex items-center gap-2">
+          <div 
+            class="cursor-pointer hover:scale-110 transition-transform"
+            @click="navigateTo('profile')"
+            title="个人主页"
+          >
+            <PixelAvatar seed="Alice" size="md" />
+          </div>
+          
+          <!-- Logout Button -->
+          <button
+            v-if="userStore.isAuthenticated"
+            @click="handleLogoutClick"
+            class="w-10 h-10 flex items-center justify-center border-2 border-black bg-red-500 hover:bg-red-600 text-white font-pixel text-xs transition-all hover:scale-110 shadow-pixel"
+            title="登出"
+          >
+            🚪
+          </button>
         </div>
       </nav>
+      
+      <!-- Logout Confirmation Modal -->
+      <Transition name="modal">
+        <div 
+          v-if="showLogoutModal"
+          class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          @click.self="showLogoutModal = false"
+        >
+          <div class="bg-white border-4 border-black shadow-pixel p-6 max-w-sm w-full mx-4">
+            <h3 class="font-pixel text-xl mb-4">确认登出</h3>
+            <p class="font-vt323 text-gray-700 mb-6">确定要登出吗？登出后需要重新登录。</p>
+            <div class="flex gap-3">
+              <PixelButton
+                variant="primary"
+                @click="confirmLogout"
+                :block="true"
+              >
+                确认登出
+              </PixelButton>
+              <PixelButton
+                variant="secondary"
+                @click="showLogoutModal = false"
+                :block="true"
+              >
+                取消
+              </PixelButton>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </div>
   </header>
 </template>
@@ -105,6 +147,22 @@
   opacity: 0;
   transform: translateY(-10px);
 }
+
+/* Modal transition */
+.modal-enter-active,
+.modal-leave-active {
+  transition: all 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-from > div,
+.modal-leave-to > div {
+  transform: scale(0.9);
+}
 </style>
 
 <script setup lang="ts">
@@ -113,6 +171,7 @@ import { useRouter } from 'vue-router'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import { useCommunityStore } from '~/stores/community'
+import { useUserStore } from '~/stores/user'
 import type { Community } from '~/utils/api'
 
 interface Props {
@@ -127,8 +186,10 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const communityStore = useCommunityStore()
+const userStore = useUserStore()
 const isDropdownOpen = ref(false)
 const communities = ref<Community[]>([])
+const showLogoutModal = ref(false)
 
 const currentCommunityName = computed(() => {
   return communityStore.currentCommunity?.name || null
@@ -199,5 +260,21 @@ const navigateTo = (page: string) => {
   } else {
     emit('navigate', page)
   }
+}
+
+const handleLogoutClick = () => {
+  showLogoutModal.value = true
+}
+
+const confirmLogout = async () => {
+  showLogoutModal.value = false
+  // 执行登出
+  await userStore.signout()
+  // 清除当前标识符（localStorage）
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('current_identifier')
+  }
+  // 跳转到登录页
+  router.push('/auth/login')
 }
 </script>

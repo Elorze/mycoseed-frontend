@@ -139,7 +139,7 @@
             </div>
 
             <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">提交截止时间 *</label>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">报名截止时间 *</label>
               <div class="relative">
                 <input 
                   v-model="taskForm.deadline" 
@@ -155,6 +155,31 @@
                   <Icon name="heroicons:calendar" class="w-6 h-6 text-black" />
                 </div>
               </div>
+              <p class="mt-1 font-vt323 text-xs text-black/70">
+                过了此时间后，未领取的任务将无法再领取
+              </p>
+            </div>
+
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">提交截止时间 *</label>
+              <div class="relative">
+                <input 
+                  v-model="taskForm.submitDeadline" 
+                  type="datetime-local"
+                  :min="taskForm.deadline || taskForm.startDate || minStart"
+                  ref="submitDeadlineInput"
+                  class="w-full h-12 px-4 pr-12 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                />
+                <div 
+                  class="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer z-10"
+                  @click.stop="openSubmitDeadlinePicker"
+                >
+                  <Icon name="heroicons:calendar" class="w-6 h-6 text-black" />
+                </div>
+              </div>
+              <p class="mt-1 font-vt323 text-xs text-black/70">
+                已领取任务必须在此时间前提交，否则将标记为已截止
+              </p>
               <p v-if="dateError" class="mt-1 font-vt323 text-xs text-mario-red">
                 {{ dateError }}
               </p>
@@ -328,6 +353,7 @@ const navigateTo = (path: string) => router.push(path)
 // 时间输入框引用
 const startDateInput = ref<HTMLInputElement | null>(null)
 const deadlineInput = ref<HTMLInputElement | null>(null)
+const submitDeadlineInput = ref<HTMLInputElement | null>(null)
 
 // 打开日期选择器的方法
 const openStartDatePicker = () => {
@@ -354,6 +380,18 @@ const openDeadlinePicker = () => {
   }
 }
 
+const openSubmitDeadlinePicker = () => {
+  if (submitDeadlineInput.value) {
+    submitDeadlineInput.value.focus()
+    // 优先使用 showPicker()（现代浏览器支持），否则使用 click()
+    if (typeof submitDeadlineInput.value.showPicker === 'function') {
+      submitDeadlineInput.value.showPicker()
+    } else {
+      submitDeadlineInput.value.click()
+    }
+  }
+}
+
 // 任务表单数据
 const taskForm = ref({
   title: '',
@@ -361,6 +399,7 @@ const taskForm = ref({
   reward: '',
   startDate: '',
   deadline: '',
+  submitDeadline: '',
   participantLimit: 1,
   submissionInstructions: ''
 })
@@ -415,6 +454,7 @@ const canPublish = computed(() => {
          taskForm.value.reward && 
          taskForm.value.startDate && 
          taskForm.value.deadline &&
+         taskForm.value.submitDeadline &&
          // 参与人数校验：如果限制人数，则必须填写有效的人数
          (
            !limitParticipants.value ||
@@ -466,24 +506,30 @@ const validateParticipants = () => {
   return true
 }
 
-// 日期校验：开始时间不得早于当前时间，截止时间不得早于开始时间
+// 日期校验：开始时间不得早于当前时间，报名截止时间不得早于开始时间，提交截止时间不得早于报名截止时间
 const validateDates = () => {
   dateError.value = ''
-  if (!taskForm.value.startDate || !taskForm.value.deadline) {
+  if (!taskForm.value.startDate || !taskForm.value.deadline || !taskForm.value.submitDeadline) {
     return true
   }
 
   const now = new Date()
   const start = new Date(taskForm.value.startDate)
   const deadline = new Date(taskForm.value.deadline)
+  const submitDeadline = new Date(taskForm.value.submitDeadline)
 
   if (start < now) {
-    dateError.value = '开始时间不能早于当前时间'
+    dateError.value = '报名开始时间不能早于当前时间'
     return false
   }
 
   if (deadline < start) {
-    dateError.value = '截止时间不能早于开始时间'
+    dateError.value = '报名截止时间不能早于报名开始时间'
+    return false
+  }
+
+  if (submitDeadline < deadline) {
+    dateError.value = '提交截止时间不能早于报名截止时间'
     return false
   }
 
@@ -495,7 +541,7 @@ watch(() => [taskForm.value.participantLimit, limitParticipants.value], () => {
   validateParticipants()
 })
 
-watch(() => [taskForm.value.startDate, taskForm.value.deadline], () => {
+watch(() => [taskForm.value.startDate, taskForm.value.deadline, taskForm.value.submitDeadline], () => {
   validateDates()
 })
 
@@ -532,6 +578,7 @@ const publishTask = async () => {
       reward: parseFloat(taskForm.value.reward),
       startDate: taskForm.value.startDate,
       deadline: taskForm.value.deadline,
+      submitDeadline: taskForm.value.submitDeadline,
       participantLimit: !limitParticipants.value ? null : taskForm.value.participantLimit,
       rewardDistributionMode: !limitParticipants.value ? 'total' : rewardDistributionMode.value, // 不限制人数时默认使用总积分模式
       submissionInstructions: taskForm.value.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
