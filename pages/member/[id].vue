@@ -460,7 +460,7 @@
                     <span :class="getStatusBadgeClass(task.status)">
                       {{ getStatusText(task.status) }}
                     </span>
-                    <span v-if="task.status === 'in_progress'" class="font-pixel text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                    <span v-if="task.status === 'claimed' || task.status === 'unsubmit'" class="font-pixel text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
                       进行中
                     </span>
                   </div>
@@ -927,7 +927,8 @@ const loadClaimedTasks = async () => {
 const getStatusText = (status: Task['status']): string => {
   const statusMap: Record<string, string> = {
     'unclaimed': '未领取',
-    'in_progress': '进行中',
+    'claimed': '已领取',
+    'unsubmit': '待提交',
     'under_review': '审核中',
     'completed': '已完成',
     'rejected': '已驳回'
@@ -939,7 +940,8 @@ const getStatusText = (status: Task['status']): string => {
 const getTaskIcon = (status: Task['status']): string => {
   const iconMap: Record<string, string> = {
     'unclaimed': '📋',
-    'in_progress': '🔄',
+    'claimed': '✅',
+    'unsubmit': '🔄',
     'under_review': '⏳',
     'completed': '✅',
     'rejected': '❌'
@@ -951,7 +953,8 @@ const getTaskIcon = (status: Task['status']): string => {
 const getStatusBadgeClass = (status: Task['status']): string => {
   const classMap: Record<string, string> = {
     'unclaimed': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-yellow-600 text-yellow-600 bg-yellow-50',
-    'in_progress': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-blue-600 text-blue-600 bg-blue-50',
+    'claimed': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-blue-600 text-blue-600 bg-blue-50',
+    'unsubmit': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-blue-600 text-blue-600 bg-blue-50',
     'under_review': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-orange-600 text-orange-600 bg-orange-50',
     'completed': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-green-600 text-green-600 bg-green-50',
     'rejected': 'font-pixel text-[10px] px-2 py-0.5 rounded border border-red-600 text-red-600 bg-red-50'

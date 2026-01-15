@@ -135,19 +135,23 @@ const handleNavigate = (page: string) => {
   const targetPath = page === 'hub' ? '/' : '/' + page
 
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/af348509-5d27-4b86-baea-9c27926471bf', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: 'debug-session',
-      runId: 'nav-structure',
-      hypothesisId: 'H1',
-      location: 'layouts/default.vue:handleNavigate',
-      message: 'handleNavigate called',
-      data: { page, targetPath },
-      timestamp: Date.now()
-    })
-  }).catch(() => {})
+  try {
+    fetch('http://127.0.0.1:7242/ingest/af348509-5d27-4b86-baea-9c27926471bf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'nav-structure',
+        hypothesisId: 'H1',
+        location: 'layouts/default.vue:handleNavigate',
+        message: 'handleNavigate called',
+        data: { page, targetPath },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+  } catch (error) {
+    // 静默忽略分析服务连接错误
+  }
   // #endregion
 
   // Map 'hub' to root index

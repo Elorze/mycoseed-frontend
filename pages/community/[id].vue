@@ -235,7 +235,7 @@ const events = ref<any[]>([])
 // 计算当前任务数量（未领取和进行中的任务）
 const activeTasksCount = computed(() => {
   return tasks.value.filter(task => 
-    task.status === 'unclaimed' || task.status === 'in_progress'
+    task.status === 'unclaimed' || task.status === 'claimed' || task.status === 'unsubmit'
   ).length
 })
 
@@ -304,7 +304,8 @@ const formatTimeAgo = (dateString: string): string => {
 const getStatusLabel = (status: string): string => {
   const statusMap: Record<string, string> = {
     'unclaimed': '未领取',
-    'in_progress': '进行中',
+    'claimed': '已领取',
+    'unsubmit': '待提交',
     'under_review': '审核中',
     'completed': '已完成',
     'rejected': '已驳回'
@@ -338,7 +339,7 @@ const loadCommunityTasks = async () => {
     
     // 只显示未领取和进行中的任务
     tasks.value = communityTasks.filter(task => 
-      task.status === 'unclaimed' || task.status === 'in_progress'
+      task.status === 'unclaimed' || task.status === 'claimed' || task.status === 'unsubmit'
     )
   } catch (error) {
     console.error('Failed to load community tasks:', error)

@@ -197,7 +197,8 @@ const activity = ref({
 const getStatusText = (status) => {
   const statusMap = {
     'completed': '已完成',
-    'in_progress': '进行中',
+    'claimed': '已领取',
+    'unsubmit': '待提交',
     'pending': '待审核',
     'under_review': '审核中',
     'rejected': '已驳回'

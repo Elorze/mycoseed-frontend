@@ -71,6 +71,62 @@
               </p>
             </div>
 
+            <!-- 指定参与人员 -->
+            <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <h4 class="font-pixel text-xs uppercase text-black">指定参与人员</h4>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    v-model="assignUser"
+                    class="sr-only peer"
+                  />
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
+                </label>
+              </div>
+              
+              <div v-if="assignUser" class="space-y-3 mt-3">
+                <div>
+                  <label class="block font-pixel text-[10px] uppercase mb-1 text-black">选择用户</label>
+                  <div class="relative user-selector-container">
+                    <input
+                      v-model="userSearchQuery"
+                      @input="filterUsers"
+                      @focus="showUserDropdown = true"
+                      type="text"
+                      placeholder="搜索用户..."
+                      class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                    />
+                    <!-- 下拉列表 -->
+                    <div 
+                      v-if="showUserDropdown && filteredUsers.length > 0"
+                      class="absolute z-50 w-full mt-1 bg-white border-2 border-black shadow-pixel-sm max-h-60 overflow-y-auto"
+                    >
+                      <button
+                        v-for="user in filteredUsers"
+                        :key="user.id"
+                        @click="selectUser(user)"
+                        class="w-full px-4 py-2 text-left hover:bg-mario-yellow font-vt323 text-base border-b border-black/10 last:border-b-0"
+                      >
+                        {{ user.name }}
+                      </button>
+                    </div>
+                  </div>
+                  <p v-if="selectedUser" class="mt-2 font-vt323 text-sm text-black/70">
+                    已选择：{{ selectedUser.name }}
+                  </p>
+                  <p v-else-if="assignUser" class="mt-2 font-vt323 text-sm text-black/70">
+                    请选择一个用户
+                  </p>
+                </div>
+              </div>
+              <p v-else class="mt-2 font-vt323 text-sm text-black/70">
+                默认所有用户都可以领取
+              </p>
+            </div>
+
             <!-- 移动端单列，桌面端双列 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -340,7 +396,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
-import { createTask, getApiBaseUrl } from '~/utils/api'
+import { createTask, getApiBaseUrl, getCookie, AUTH_TOKEN_KEY } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 
 definePageMeta({
@@ -430,6 +486,14 @@ const limitParticipants = ref(false)
 const unlimitedParticipants = computed(() => !limitParticipants.value)
 const participantError = ref('')
 
+// 指定参与人员相关
+const assignUser = ref(false)
+const selectedUser = ref<{ id: string; name: string } | null>(null)
+const allUsers = ref<Array<{ id: string; name: string; phone?: string; email?: string }>>([])
+const filteredUsers = ref<Array<{ id: string; name: string; phone?: string; email?: string }>>([])
+const userSearchQuery = ref('')
+const showUserDropdown = ref(false)
+
 // 奖励积分分配模式：'per_person' 每人积分，'total' 总积分
 const rewardDistributionMode = ref<'per_person' | 'total'>('total')
 
@@ -513,25 +577,41 @@ const validateDates = () => {
     return true
   }
 
+  // 验证时间格式和顺序
+  if (!taskForm.value.startDate || !taskForm.value.deadline || !taskForm.value.submitDeadline) {
+    dateError.value = '请填写所有时间字段'
+    return false
+  }
+  
   const now = new Date()
+  
+  // 解析时间（datetime-local 输入返回的是本地时间字符串 YYYY-MM-DDTHH:mm）
   const start = new Date(taskForm.value.startDate)
   const deadline = new Date(taskForm.value.deadline)
   const submitDeadline = new Date(taskForm.value.submitDeadline)
-
-  if (start < now) {
-    dateError.value = '报名开始时间不能早于当前时间'
+  
+  // 检查时间是否有效
+  if (isNaN(start.getTime()) || isNaN(deadline.getTime()) || isNaN(submitDeadline.getTime())) {
+    dateError.value = '时间格式无效'
     return false
   }
 
-  if (deadline < start) {
-    dateError.value = '报名截止时间不能早于报名开始时间'
+  // 验证时间顺序：报名开始时间 < 报名截止时间 < 提交截止时间
+  if (start >= deadline) {
+    dateError.value = '报名开始时间必须早于报名截止时间'
     return false
   }
 
-  if (submitDeadline < deadline) {
-    dateError.value = '提交截止时间不能早于报名截止时间'
+  if (deadline >= submitDeadline) {
+    dateError.value = '报名截止时间必须早于提交截止时间'
     return false
   }
+  
+  // 可选：检查报名开始时间是否早于当前时间（允许创建未来任务）
+  // if (start < now) {
+  //   dateError.value = '报名开始时间不能早于当前时间'
+  //   return false
+  // }
 
   return true
 }
@@ -550,6 +630,17 @@ const publishTask = async () => {
   // 最终前再做一轮校验，给出明确提示
   const participantsOK = validateParticipants()
   const datesOK = validateDates()
+  
+  // 检查是否指定了用户但没有选择
+  if (assignUser.value && !selectedUser.value) {
+    const toast = useToast()
+    toast.add({
+      title: '请选择指定用户',
+      description: '您已开启"指定参与人员"，请选择一个用户',
+      color: 'red'
+    })
+    return
+  }
 
   if (!participantsOK || !datesOK || !canPublish.value) {
     const toast = useToast()
@@ -567,12 +658,34 @@ const publishTask = async () => {
   isPublishing.value = true
   
   try {
+    console.log('[CREATE TASK] 开始创建任务...')
+    console.log('[CREATE TASK] 表单数据:', {
+      title: taskForm.value.title,
+      description: taskForm.value.objective,
+      reward: taskForm.value.reward,
+      startDate: taskForm.value.startDate,
+      deadline: taskForm.value.deadline,
+      submitDeadline: taskForm.value.submitDeadline,
+      participantLimit: !limitParticipants.value ? null : taskForm.value.participantLimit,
+      rewardDistributionMode: !limitParticipants.value ? 'total' : rewardDistributionMode.value
+    })
+    
     // 模拟钱包签名和发布
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     // 创建任务
     const baseUrl = getApiBaseUrl()
-    const newTask = await createTask({
+    console.log('[CREATE TASK] API Base URL:', baseUrl)
+    
+    // 检查是否指定了用户
+    const assignedUserId = assignUser.value && selectedUser.value ? selectedUser.value.id : undefined
+    console.log('[CREATE TASK] 指定用户检查:', {
+      assignUser: assignUser.value,
+      selectedUser: selectedUser.value,
+      assignedUserId: assignedUserId
+    })
+    
+    const taskParams = {
       title: taskForm.value.title,
       description: taskForm.value.objective,
       reward: parseFloat(taskForm.value.reward),
@@ -582,8 +695,15 @@ const publishTask = async () => {
       participantLimit: !limitParticipants.value ? null : taskForm.value.participantLimit,
       rewardDistributionMode: !limitParticipants.value ? 'total' : rewardDistributionMode.value, // 不限制人数时默认使用总积分模式
       submissionInstructions: taskForm.value.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
-      proofConfig: proofConfig.value
-    }, baseUrl)
+      proofConfig: proofConfig.value,
+      assignedUserId: assignedUserId  // 指定参与人员ID
+    }
+    
+    console.log('[CREATE TASK] 发送请求参数:', taskParams)
+    
+    const newTask = await createTask(taskParams, baseUrl)
+    
+    console.log('[CREATE TASK] 创建成功，返回的任务:', newTask)
     
     // 显示成功消息
     const toast = useToast()
@@ -594,17 +714,96 @@ const publishTask = async () => {
     })
     
     // 跳转到任务列表
+    console.log('[CREATE TASK] 准备跳转到任务列表...')
     await navigateTo('/tasks')
+    console.log('[CREATE TASK] 跳转完成')
   } catch (error) {
-    console.error('发布任务失败:', error)
+    console.error('[CREATE TASK] 发布任务失败:', error)
+    console.error('[CREATE TASK] 错误详情:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    })
+    
     const toast = useToast()
+    const errorMessage = error instanceof Error ? error.message : '请稍后重试'
     toast.add({
       title: '发布失败',
-      description: error instanceof Error ? error.message : '请稍后重试',
+      description: errorMessage,
       color: 'red'
     })
   } finally {
+    console.log('[CREATE TASK] 完成，重置发布状态')
     isPublishing.value = false
+  }
+}
+
+// 加载用户列表
+const loadUsers = async () => {
+  try {
+    const baseUrl = getApiBaseUrl()
+    const token = getCookie(AUTH_TOKEN_KEY)
+    
+    if (!token) {
+      console.warn('未找到认证token，无法加载用户列表')
+      return
+    }
+    
+    const response = await fetch(`${baseUrl}/api/auth/users`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (!response.ok) {
+      console.error('加载用户列表失败:', response.status, response.statusText)
+      if (response.status === 404) {
+        console.error('API路由不存在，请确保后端服务器已重启并包含最新的路由')
+      }
+      return
+    }
+    
+    const data = await response.json()
+    if (data.result === 'ok' && data.users) {
+      allUsers.value = data.users
+      filteredUsers.value = data.users
+    } else {
+      console.error('用户列表数据格式错误:', data)
+    }
+  } catch (error) {
+    console.error('加载用户列表失败:', error)
+  }
+}
+
+// 过滤用户
+const filterUsers = () => {
+  if (!userSearchQuery.value.trim()) {
+    filteredUsers.value = allUsers.value
+  } else {
+    const query = userSearchQuery.value.toLowerCase()
+    filteredUsers.value = allUsers.value.filter(user => 
+      user.name.toLowerCase().includes(query) ||
+      user.phone?.toLowerCase().includes(query) ||
+      user.email?.toLowerCase().includes(query)
+    )
+  }
+}
+
+// 选择用户
+const selectUser = (user: { id: string; name: string }) => {
+  console.log('[SELECT USER] 选择用户:', user)
+  selectedUser.value = user
+  userSearchQuery.value = user.name
+  showUserDropdown.value = false
+  console.log('[SELECT USER] selectedUser.value:', selectedUser.value)
+}
+
+// 点击外部关闭下拉列表
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (!target.closest('.user-selector-container')) {
+    showUserDropdown.value = false
   }
 }
 
@@ -614,6 +813,14 @@ onMounted(() => {
   now.setSeconds(0, 0)
   // datetime-local 需要到分钟的字符串：YYYY-MM-DDTHH:MM
   minStart.value = now.toISOString().slice(0, 16)
+  
+  // 加载用户列表
+  loadUsers()
+  
+  // 添加点击外部关闭下拉列表的事件监听
+  if (typeof window !== 'undefined') {
+    document.addEventListener('click', handleClickOutside)
+  }
 })
 </script>
 

@@ -37,13 +37,27 @@ export const getPointAbbr = (pointName: string | undefined): string => {
  * 根据任务获取对应的积分符号
  * @param task 任务对象
  * @param communities 社区列表（可选，如果不提供会从API获取）
+ * @param baseUrl API 基础 URL（可选，如果不提供会从环境变量读取）
  */
-export const getTaskRewardSymbol = async (task: any, communities?: any[]): Promise<string> => {
+export const getTaskRewardSymbol = async (task: any, communities?: any[], baseUrl?: string): Promise<string> => {
   try {
-    const { getMemberById, getCommunities } = await import('./api')
+    const { getMemberById, getCommunities, getApiBaseUrl } = await import('./api')
+    
+    // 如果任务没有创建者ID，直接返回默认值
+    if (!task?.creatorId) {
+      return '积分'
+    }
+    
+    // 如果没有提供 baseUrl，从环境变量读取
+    if (!baseUrl) {
+      baseUrl = getApiBaseUrl()
+    }
     
     // 获取任务创建者的信息
-    const creator = await getMemberById(task.creatorId)
+    const creator = await getMemberById(task.creatorId, baseUrl)
+    
+    // 如果无法获取创建者信息或创建者没有社区，返回默认值
+    // 注意：当前数据库中没有社区表，所以 communities 为空数组是正常的
     if (!creator || !creator.communities || creator.communities.length === 0) {
       return '积分' // 默认显示"积分"
     }
@@ -62,6 +76,7 @@ export const getTaskRewardSymbol = async (task: any, communities?: any[]): Promi
     
     return '积分'
   } catch (error) {
+    // 静默处理错误，返回默认值
     console.error('Failed to get task reward symbol:', error)
     return '积分'
   }

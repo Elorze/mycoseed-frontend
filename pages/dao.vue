@@ -85,7 +85,7 @@
                   审核中
                 </span>
                 <span
-                  v-else-if="task.status === 'in_progress'"
+                  v-else-if="task.status === 'claimed' || task.status === 'unsubmit'"
                   class="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium whitespace-nowrap"
                 >
                   完成中

@@ -76,11 +76,11 @@
               <div v-if="submission.files && submission.files.length > 0" class="mb-4">
                 <h4 class="font-pixel text-[10px] uppercase text-black mb-3">提交图片</h4>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <div
+                    <div
                     v-for="(file, index) in submission.files"
-                    :key="index"
+                      :key="index"
                     class="bg-white border-2 border-black shadow-pixel-sm p-3 relative group"
-                  >
+                    >
                     <!-- 图片预览 -->
                     <div class="aspect-square bg-gray-100 border border-black mb-2 overflow-hidden">
                       <img 
@@ -94,45 +94,45 @@
                     <div class="font-vt323 text-xs text-black mb-2">
                       <div class="font-medium truncate">{{ file.name }}</div>
                       <div class="text-black/60">({{ formatFileSize(file.size) }})</div>
-                    </div>
+                        </div>
                     <!-- 操作按钮 -->
-                    <div class="flex gap-2">
-                      <PixelButton
-                        @click="previewFile(file)"
-                        variant="secondary"
-                        size="sm"
+                        <div class="flex gap-2">
+                          <PixelButton
+                            @click="previewFile(file)"
+                            variant="secondary"
+                            size="sm"
                         :block="true"
-                      >
-                        预览
-                      </PixelButton>
-                      <PixelButton
-                        @click="downloadFile(file)"
+                          >
+                            预览
+                          </PixelButton>
+                          <PixelButton
+                            @click="downloadFile(file)"
                         variant="primary"
-                        size="sm"
+                            size="sm"
                         :block="true"
-                      >
-                        下载
-                      </PixelButton>
-                    </div>
+                          >
+                            下载
+                          </PixelButton>
                   </div>
                 </div>
               </div>
+            </div>
 
               <!-- 2. 位置信息（经纬度） -->
               <div v-if="submission.gpsLocation" class="mb-4">
                 <h4 class="font-pixel text-[10px] uppercase text-black mb-3">位置信息</h4>
                 <div class="bg-white border-2 border-black shadow-pixel-sm p-4">
-                  <div class="flex items-center gap-2 mb-3">
-                    <span class="text-2xl">📍</span>
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-2xl">📍</span>
                     <span class="font-pixel text-xs uppercase text-black">GPS定位</span>
-                  </div>
-                  <div class="font-vt323 text-sm text-black space-y-1">
+                </div>
+                <div class="font-vt323 text-sm text-black space-y-1">
                     <div><span class="font-medium">纬度:</span> {{ submission.gpsLocation.latitude.toFixed(6) }}</div>
                     <div><span class="font-medium">经度:</span> {{ submission.gpsLocation.longitude.toFixed(6) }}</div>
                     <div v-if="submission.gpsLocation.accuracy" class="text-black/60">
                       <span class="font-medium">精度:</span> ±{{ Math.round(submission.gpsLocation.accuracy) }}米
                     </div>
-                    <div v-if="submission.gpsLocation.timestamp" class="text-black/60 mt-2">
+                  <div v-if="submission.gpsLocation.timestamp" class="text-black/60 mt-2">
                       <span class="font-medium">获取时间:</span> {{ formatDate(new Date(submission.gpsLocation.timestamp).toISOString()) }}
                     </div>
                   </div>
@@ -386,6 +386,15 @@ const task = ref<{
   submitDeadline?: string
   creatorId: string
   proofConfig?: any
+  participantLimit?: number | null
+  participantsList?: Array<{
+    id: string
+    name: string
+    claimedAt?: string
+    submittedAt?: string
+    proof?: string
+    status?: string
+  }>
 }>({
   id: taskId,
   title: '',
@@ -394,7 +403,9 @@ const task = ref<{
   deadline: '',
   submitDeadline: '',
   creatorId: '',
-  proofConfig: null
+  proofConfig: null,
+  participantLimit: null,
+  participantsList: []
 })
 
 // 权限检查：判断当前用户是否是任务创建者
@@ -402,9 +413,11 @@ const canReview = computed(() => {
   return userStore.user?.id === task.value.creatorId
 })
 
-// 提交数据
-const submission = ref<{
+// 所有参与者的提交数据（多人任务）
+const allSubmissions = ref<Array<{
+  taskId: string
   submitter: {
+    id: string
     name: string
     role: string
   }
@@ -422,15 +435,36 @@ const submission = ref<{
     accuracy?: number
     timestamp?: number
   } | null
-}>({
-  submitter: {
-    name: '',
-    role: '参与者'
-  },
-  timestamp: '',
-  description: '',
-  files: [],
-  gpsLocation: null
+  status: string
+  reward?: number
+}>>([])
+
+// 当前选中的提交（用于审核）
+const currentSubmissionIndex = ref(0)
+const currentSubmission = computed(() => allSubmissions.value[currentSubmissionIndex.value] || null)
+
+// 向后兼容：单个提交数据（用于单人任务）
+const submission = computed(() => {
+  if (allSubmissions.value.length === 0) {
+    return {
+      submitter: {
+        name: '',
+        role: '参与者'
+      },
+      timestamp: '',
+      description: '',
+      files: [],
+      gpsLocation: null
+    }
+  }
+  const sub = allSubmissions.value[currentSubmissionIndex.value]
+  return {
+    submitter: sub.submitter,
+    timestamp: sub.timestamp,
+    description: sub.description,
+    files: sub.files,
+    gpsLocation: sub.gpsLocation
+  }
 })
 
 // 判断是否需要显示文件上传部分
@@ -600,14 +634,94 @@ const loadTask = async () => {
       deadline: taskData.deadline || taskData.createdAt || '', // 报名截止日期
       submitDeadline: taskData.submitDeadline || taskData.deadline || taskData.createdAt || '', // 提交截止日期
       creatorId: taskData.creatorId || '',
-      proofConfig: taskData.proofConfig || null
+      proofConfig: taskData.proofConfig || null,
+      participantLimit: taskData.participantLimit || null,
+      participantsList: taskData.participantsList || []
     }
     
     // 获取任务奖励的积分符号
     taskRewardSymbol.value = await getTaskRewardSymbol(taskData)
     
-    // 从任务数据中获取提交信息
-    if (taskData.claimerName && taskData.submittedAt) {
+    // 处理多人任务：获取所有参与者的提交
+    if (taskData.participantsList && Array.isArray(taskData.participantsList) && taskData.participantsList.length > 0) {
+      allSubmissions.value = taskData.participantsList
+        .filter((p: any) => p.proof && p.submittedAt) // 只显示已提交的参与者
+        .map((p: any) => {
+          // 解析提交内容
+          let proofContent = p.proof || ''
+          let files: Array<{ name: string; size: number; url: string; type?: string }> = []
+          let gpsLocation: { latitude: number; longitude: number; accuracy?: number; timestamp?: number } | null = null
+          let description = ''
+          
+          try {
+            if (proofContent.trim().startsWith('{')) {
+              const parsed = JSON.parse(proofContent)
+              
+              if (parsed.files && Array.isArray(parsed.files)) {
+                files = parsed.files.map((file: any) => ({
+                  name: file.name || '未命名文件',
+                  size: file.size || 0,
+                  url: file.url || '',
+                  type: file.type || ''
+                }))
+              }
+              
+              if (parsed.gps) {
+                gpsLocation = {
+                  latitude: parsed.gps.latitude || parsed.gps.lat || 0,
+                  longitude: parsed.gps.longitude || parsed.gps.lng || 0,
+                  accuracy: parsed.gps.accuracy,
+                  timestamp: parsed.gps.timestamp
+                }
+              } else if (parsed.latitude && parsed.longitude) {
+                gpsLocation = {
+                  latitude: parsed.latitude,
+                  longitude: parsed.longitude,
+                  accuracy: parsed.accuracy,
+                  timestamp: parsed.timestamp
+                }
+              }
+              
+              description = parsed.description || ''
+            } else if (proofContent.startsWith('位置:')) {
+              const match = proofContent.match(/位置:\s*([\d.]+),\s*([\d.]+)/)
+              if (match) {
+                gpsLocation = {
+                  latitude: parseFloat(match[1]),
+                  longitude: parseFloat(match[2])
+                }
+              } else {
+                description = proofContent
+              }
+            } else {
+              description = proofContent
+            }
+          } catch (e) {
+            description = proofContent
+          }
+          
+          return {
+            taskId: p.id,
+            submitter: {
+              id: p.id,
+              name: p.name || '未知用户',
+              role: '参与者'
+            },
+            timestamp: p.submittedAt || '',
+            description: description,
+            files: files,
+            gpsLocation: gpsLocation,
+            status: p.status || 'submitted',
+            reward: taskData.reward // 使用任务的基础奖励，实际奖励可能根据权重系数计算
+          }
+        })
+      
+      // 如果有多个提交，默认显示第一个
+      if (allSubmissions.value.length > 0) {
+        currentSubmissionIndex.value = 0
+      }
+    } else if (taskData.claimerName && taskData.submittedAt) {
+      // 单人任务：向后兼容
       // 解析提交内容（JSON格式：{description, files, gps, submittedAt}）
       let proofContent = taskData.proof || ''
       let files: Array<{ name: string; size: number; url: string; type?: string }> = []
@@ -670,21 +784,29 @@ const loadTask = async () => {
         description = proofContent
       }
       
-      submission.value = {
+      // 单人任务：添加到提交列表
+      allSubmissions.value = [{
+        taskId: taskData.id,
         submitter: {
+          id: taskData.claimerId || '',
           name: taskData.claimerName,
           role: '参与者'
         },
         timestamp: taskData.submittedAt,
         description: description,
         files: files,
-        gpsLocation: gpsLocation
-      }
-    } else {
-      // 如果没有提交信息，显示提示
+        gpsLocation: gpsLocation,
+        status: taskData.status || 'submitted',
+        reward: taskData.reward
+      }]
+      currentSubmissionIndex.value = 0
+    }
+    
+    // 如果没有提交信息，显示提示
+    if (allSubmissions.value.length === 0) {
       toast.add({
         title: '提示',
-        description: '该任务尚未提交凭证',
+        description: '该任务尚未有参与者提交凭证',
         color: 'yellow'
       })
     }
@@ -715,14 +837,47 @@ const submitReview = async () => {
   
   try {
     const baseUrl = getApiBaseUrl()
-    const result = await approveTask(taskId, baseUrl, reviewResult.value.comments)
+    // 使用当前选中提交的任务ID
+    const targetTaskId = currentSubmission.value?.taskId || taskId
+    const result = await approveTask(targetTaskId, baseUrl, reviewResult.value.comments)
     
     if (result.success) {
+      // 更新当前提交的状态
+      if (currentSubmission.value) {
+        currentSubmission.value.status = reviewResult.value.decision === 'approved' ? 'completed' : 'rejected'
+      }
+      
       toast.add({
         title: '审核成功',
         description: result.message,
         color: 'green'
       })
+      
+      // 如果是多人任务，检查是否还有未审核的提交
+      if (task.value.participantLimit && task.value.participantLimit > 1) {
+        const unReviewedCount = allSubmissions.value.filter(
+          s => s.status !== 'completed' && s.status !== 'rejected'
+        ).length
+        
+        if (unReviewedCount > 0) {
+          // 自动切换到下一个未审核的提交
+          const nextIndex = allSubmissions.value.findIndex(
+            (s, idx) => idx > currentSubmissionIndex.value && s.status !== 'completed' && s.status !== 'rejected'
+          )
+          if (nextIndex !== -1) {
+            currentSubmissionIndex.value = nextIndex
+            // 重置审核表单
+            reviewResult.value = {
+              decision: '',
+              comments: ''
+            }
+            isSubmitting.value = false
+            return
+          }
+        }
+      }
+      
+      // 所有提交都已审核完成，返回任务详情页
       
       // 提交成功后跳转到任务详情页
       router.push(`/tasks/${taskId}?reviewed=true`)
@@ -756,20 +911,26 @@ const confirmReject = async () => {
   
   try {
     const baseUrl = getApiBaseUrl()
-    let normalizedOption: 'resubmit' | 'reclaim' | undefined
     
     // 处理不同的拒绝选项
+    let finalOption: 'resubmit' | 'reclaim' | 'rejected' | undefined
     if (selectedOption === 'end') {
-      // 结束任务：需要特殊处理，可能需要调用不同的API
-      // 暂时使用 'reclaim' 选项，但需要确保后端将任务状态设置为 rejected
-      normalizedOption = 'reclaim'
+      // 结束任务：使用 'rejected' 选项，任务状态变为 rejected，任务关闭并放入已失效
+      finalOption = 'rejected'
     } else {
-      normalizedOption = selectedOption as 'resubmit' | 'reclaim'
+      finalOption = selectedOption as 'resubmit' | 'reclaim'
     }
     
-    const result = await rejectTask(taskId, reviewResult.value.comments, baseUrl, normalizedOption)
+    console.log('[FRONTEND] 审核驳回 - 选项:', selectedOption, '最终选项:', finalOption)
+    console.log('[FRONTEND] 审核驳回 - 理由:', reviewResult.value.comments)
+    
+    const result = await rejectTask(taskId, reviewResult.value.comments, baseUrl, finalOption)
+    
+    console.log('[FRONTEND] 审核驳回 - 结果:', result)
     
     if (result.success) {
+      console.log('[FRONTEND] 审核驳回成功，准备关闭弹窗并跳转')
+      
       toast.add({
         title: '审核成功',
         description: result.message,
@@ -779,16 +940,23 @@ const confirmReject = async () => {
       // 关闭弹窗（必须在跳转前关闭）
       showRejectModal.value = false
       rejectOption.value = ''
+      reviewResult.value.comments = '' // 清空审核意见
+      
+      console.log('[FRONTEND] 弹窗已关闭，准备跳转')
       
       // 如果选择结束任务，确保任务状态更新为 rejected
       // 提交成功后跳转到任务详情页，并刷新数据
       if (selectedOption === 'end') {
+        console.log('[FRONTEND] 选择了结束任务，延迟500ms后跳转')
         // 延迟一下，确保后端状态已更新
         await new Promise(resolve => setTimeout(resolve, 500))
       }
       
-      router.push(`/tasks/${taskId}?reviewed=true&rejected=${selectedOption === 'end' ? 'true' : 'false'}`)
+      const redirectPath = `/tasks/${taskId}?reviewed=true&rejected=${selectedOption === 'end' ? 'true' : 'false'}`
+      console.log('[FRONTEND] 跳转到:', redirectPath)
+      await router.push(redirectPath)
     } else {
+      console.error('[FRONTEND] 审核驳回失败:', result.message)
       toast.add({
         title: '审核失败',
         description: result.message,

@@ -16,17 +16,30 @@
 
 <script setup lang="ts">
 const router = useRouter()
+const userStore = useUserStore()
 
-const navItems = [
+// 计算当前用户的 member 路径
+const getMyProfilePath = () => {
+  const user = userStore.user
+  if (user?.id) {
+    // 将 UUID 转换为数字 ID（与 getMemberById 中的逻辑一致）
+    const numericId = parseInt(user.id.slice(0, 8), 16) || 1
+    return `/member/${numericId}`
+  }
+  return '/member/1' // 默认值（未登录时）
+}
+
+const navItems = computed(() => [
   // 与桌面端 Header 保持一致：任务页作为主要入口
   { label: '社区广场', path: '/', icon: '🗺️' },
   { label: '任务', path: '/tasks', icon: '📋' },
   { label: '活动', path: '/activities-feed', icon: '📅' },
-  { label: '我的', path: '/member/1', icon: '👤' }
-]
+  { label: '我的', path: getMyProfilePath(), icon: '👤' }
+])
 
 const navigateTo = (path: string) => {
   // #region agent log
+  try {
   fetch('http://127.0.0.1:7242/ingest/af348509-5d27-4b86-baea-9c27926471bf', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -40,6 +53,9 @@ const navigateTo = (path: string) => {
       timestamp: Date.now()
     })
   }).catch(() => {})
+  } catch (error) {
+    // 静默忽略分析服务连接错误
+  }
   // #endregion
 
   router.push(path)

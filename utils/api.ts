@@ -61,6 +61,18 @@ export interface CreateActivityParams {
 /**
  * 任务数据结构
  */
+/**
+ * 任务时间线状态项（记录所有状态变化）
+ */
+export interface TimelineStatus {
+  status: 'unclaimed' | 'claimed' | 'unsubmit' | 'submitted' | 'under_review' | 'completed' | 'rejected' | 'resubmit' | 'reclaim'  // 状态值
+  actorId?: string                              // 操作者ID
+  actorName?: string                            // 操作者名称
+  action?: string                               // 操作选项（如 '审核驳回'、'重新提交'、'重新发布' 等）
+  reason?: string                               // 操作理由（如驳回原因、审核意见等）
+  timestamp: string                             // 状态变化时间
+}
+
 export interface Task {
   id: string                     // 任务ID (UUID)
   activityId: number             // 所属活动ID
@@ -69,26 +81,34 @@ export interface Task {
   reward: number                 // 奖金（ETH）
   participantLimit?: number | null // 参与人数上限（null 表示不限）
   rewardDistributionMode?: 'per_person' | 'total' // 奖励分配模式：每人积分或总积分
-  isClaimed: boolean             // 是否已被领取
   proof?: string                 // 完成凭证
   proofConfig?: any              // 证明配置（提交要求）
   submissionInstructions?: string // 提交说明（备注）
-  status: 'unclaimed' | 'in_progress' | 'under_review' | 'completed' | 'rejected'  // 任务状态
+  status: 'unclaimed' | 'claimed' | 'unsubmit' | 'submitted' | 'under_review' | 'completed' | 'rejected'  // 任务状态
   rejectReason?: string          // 驳回理由
+  rejectOption?: 'resubmit' | 'reclaim' | 'rejected'  // 驳回选项（用于区分驳回类型）
   discount?: number              // 打折百分数
   discountReason?: string        // 打折理由
-  allowRepeatClaim?: boolean     // 是否允许重复领取
   creatorId?: string             // 创建者ID (UUID)
   creatorName?: string           // 创建者名称
-  claimerId?: string             // 接单者ID (UUID)
-  claimerName?: string           // 接单者名称
+  claimerId?: string             // 接单者ID (UUID)（单人任务）
+  claimerName?: string           // 接单者名称（单人任务）
+  assignedUserId?: string        // 指定参与人员ID（可选，如果指定，则只有该用户可以领取）
+  participantsList?: Array<{    // 参与者列表（多人任务）
+    id: string
+    name: string
+    claimedAt: string
+    submittedAt?: string
+    proof?: string
+  }>
+  timeline?: TimelineStatus[]     // 任务时间线（状态数组，仅追加写入，通过最后一个元素获取最新状态）
   createdAt?: string             // 创建时间
   updatedAt?: string             // 更新时间
   startDate?: string             // 报名开始日期
   deadline?: string              // 报名截止日期
   submitDeadline?: string        // 提交截止日期
-  claimedAt?: string             // 领取时间
-  submittedAt?: string           // 提交时间
+  claimedAt?: string             // 领取时间（单人任务）
+  submittedAt?: string           // 提交时间（单人任务）
   completedAt?: string           // 完成时间
 }
 
@@ -512,14 +532,56 @@ export const getTaskById = async (id: string, baseUrl: string): Promise<Task | n
 
     if (!response.ok) {
       if (response.status === 404) {
-    return null
+        return null
       }
       const error = await response.json()
       throw new Error(error.error || '获取任务失败')
     }
 
-    const task: Task = await response.json()
-    return task
+    const data = await response.json()
+    
+    // 处理任务组格式（包含 taskInfo 和 participants）
+    if (data.taskInfo && data.participants && Array.isArray(data.participants)) {
+      // 获取第一个参与者任务（或当前任务ID对应的任务）
+      const participantTask = data.participants.find((p: Task) => p.id === id) || data.participants[0]
+      
+      // 合并 taskInfo 的数据到任务对象
+      return {
+        ...participantTask,
+        // 从 taskInfo 获取共享字段
+        title: data.taskInfo.title || participantTask.title,
+        description: data.taskInfo.description || participantTask.description,
+        activityId: data.taskInfo.activityId || participantTask.activityId,
+        startDate: data.taskInfo.startDate || participantTask.startDate,
+        deadline: data.taskInfo.deadline || participantTask.deadline,
+        submitDeadline: data.taskInfo.submitDeadline || participantTask.submitDeadline,
+        participantLimit: data.taskInfo.participantLimit ?? participantTask.participantLimit,
+        rewardDistributionMode: data.taskInfo.rewardDistributionMode || participantTask.rewardDistributionMode,
+        proofConfig: data.taskInfo.proofConfig || participantTask.proofConfig,
+        submissionInstructions: data.taskInfo.submissionInstructions || participantTask.submissionInstructions,
+        creatorId: data.taskInfo.creatorId || participantTask.creatorId,
+        assignedUserId: data.taskInfo.assignedUserId || participantTask.assignedUserId,  // 指定参与人员ID
+        // 保留参与者特定的字段（包括 timeline）
+        reward: participantTask.reward,
+        currency: participantTask.currency,
+        status: participantTask.status,
+        claimerId: participantTask.claimerId,
+        claimerName: participantTask.claimerName,
+        timeline: participantTask.timeline || [], // 确保 timeline 被传递
+        // 添加参与者列表
+        participantsList: data.participants.map((p: Task) => ({
+          id: p.id,
+          name: p.claimerName || '未领取',
+          claimedAt: p.claimedAt || '',
+          submittedAt: p.submittedAt,
+          proof: p.proof,
+          status: p.status
+        }))
+      } as Task
+    }
+    
+    // 处理单个任务格式（向后兼容）
+    return data as Task
   } catch (error: any) {
     console.error('Get task by id error:', error)
     throw error
@@ -563,10 +625,10 @@ export interface CreateTaskParams {
   deadline: string  // 报名截止日期
   submitDeadline?: string  // 提交截止日期
   proofConfig?: any
-  allowRepeatClaim?: boolean  // 是否允许重复领取
   participantLimit?: number | null
   rewardDistributionMode?: 'per_person' | 'total'
   submissionInstructions?: string
+  assignedUserId?: string  // 指定参与人员ID（可选）
 }
 
 /**
@@ -576,36 +638,60 @@ export interface CreateTaskParams {
  */
 export const createTask = async (params: CreateTaskParams, baseUrl: string): Promise<Task> => {
   try {
+    console.log('[API] createTask - 请求参数:', params)
+    console.log('[API] createTask - Base URL:', baseUrl)
+    
+    const requestBody = {
+      title: params.title,
+      description: params.description,
+      reward: params.reward,
+      startDate: params.startDate,
+      deadline: params.deadline,
+      submitDeadline: params.submitDeadline,
+      proofConfig: params.proofConfig || null,
+      participantLimit: params.participantLimit ?? null,
+      rewardDistributionMode: params.rewardDistributionMode || 'per_person',
+      submissionInstructions: params.submissionInstructions,
+      assignedUserId: params.assignedUserId || undefined,  // 指定参与人员ID
+    }
+    
+    console.log('[API] createTask - 请求体:', requestBody)
+    console.log('[API] createTask - Auth headers:', getAuthHeaders())
+    
     const response = await fetch(`${baseUrl}/api/tasks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...getAuthHeaders(),
       },
-      body: JSON.stringify({
-    title: params.title,
-    description: params.description,
-    reward: params.reward,
-        startDate: params.startDate,
-        deadline: params.deadline,
-        submitDeadline: params.submitDeadline,
-        proofConfig: params.proofConfig || null,
-        allowRepeatClaim: params.allowRepeatClaim || false,
-        participantLimit: params.participantLimit ?? null,
-        rewardDistributionMode: params.rewardDistributionMode || 'per_person',
-        submissionInstructions: params.submissionInstructions,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
+    console.log('[API] createTask - 响应状态:', response.status, response.statusText)
+    console.log('[API] createTask - 响应头:', Object.fromEntries(response.headers.entries()))
+
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || '创建任务失败')
+      let errorMessage = '创建任务失败'
+      try {
+        const errorData = await response.json()
+        console.error('[API] createTask - 错误响应:', errorData)
+        errorMessage = errorData.error || errorData.message || errorMessage
+      } catch (e) {
+        const text = await response.text()
+        console.error('[API] createTask - 错误响应文本:', text)
+        errorMessage = text || errorMessage
+      }
+      throw new Error(errorMessage)
     }
 
     const task: Task = await response.json()
+    console.log('[API] createTask - 成功，返回任务:', task)
     return task
   } catch (error: any) {
-    console.error('Create task error:', error)
+    console.error('[API] createTask - 捕获错误:', error)
+    console.error('[API] createTask - 错误类型:', typeof error)
+    console.error('[API] createTask - 错误消息:', error?.message)
+    console.error('[API] createTask - 错误堆栈:', error?.stack)
     throw error
   }
 }
@@ -672,7 +758,7 @@ export const getMyTasks = async (baseUrl: string): Promise<Task[]> => {
       const user = await getMe(baseUrl)
       // TODO: 如果后端提供了根据用户ID获取任务的接口，应该调用那个接口
       // 目前先返回所有任务，前端可以根据需要进一步过滤
-      return allTasks.filter(task => task.isClaimed)
+      return allTasks.filter(task => !!task.claimerId)
     } catch (e) {
       // 如果未登录，返回空数组
       return []
@@ -775,9 +861,12 @@ export const approveTask = async (taskId: string, baseUrl: string, comments?: st
  * @param taskId 任务 ID (UUID string)
  * @param reason 驳回理由
  * @param baseUrl API 基础 URL
- * @param rejectOption 驳回选项：'resubmit' 重新提交证明，'reclaim' 重新发布任务
+ * @param rejectOption 驳回选项：
+ *   - 'resubmit': 重新提交证明（状态回到 unsubmit）
+ *   - 'reclaim': 重新发布任务（状态回到 unclaimed）
+ *   - 'rejected': 终止任务（状态变为 rejected，任务关闭并放入已失效）
  */
-export const rejectTask = async (taskId: string, reason: string, baseUrl: string, rejectOption?: 'resubmit' | 'reclaim'): Promise<{ success: boolean; message: string }> =>
+export const rejectTask = async (taskId: string, reason: string, baseUrl: string, rejectOption?: 'resubmit' | 'reclaim' | 'rejected'): Promise<{ success: boolean; message: string }> =>
 {
   try
   {
@@ -786,6 +875,11 @@ export const rejectTask = async (taskId: string, reason: string, baseUrl: string
     if (rejectOption) {
       body.rejectOption = rejectOption
     }
+    
+    console.log('[API] rejectTask 调用 - taskId:', taskId)
+    console.log('[API] rejectTask 调用 - reason:', reason)
+    console.log('[API] rejectTask 调用 - rejectOption:', rejectOption)
+    console.log('[API] rejectTask 调用 - body:', JSON.stringify(body, null, 2))
     
     const response = await fetch(`${baseUrl}/api/tasks/${taskId}/reject`,
       {
@@ -799,17 +893,21 @@ export const rejectTask = async (taskId: string, reason: string, baseUrl: string
       }
     )
 
+    console.log('[API] rejectTask 响应 - status:', response.status, response.statusText)
+
     if (!response.ok)
     {
       const error = await response.json()
+      console.error('[API] rejectTask 错误响应:', error)
       return { success: false, message: error.message || '审核失败'}
     }
 
     const result = await response.json()
+    console.log('[API] rejectTask 成功响应:', result)
     return result
   } catch (error: any)
   {
-    console.error('Reject task error:', error)
+    console.error('[API] rejectTask 异常:', error)
     return { success: false, message: error.message || '审核失败' }
   }
 }
@@ -832,50 +930,8 @@ export const discountTask = async (
 
 // ==================== 用户相关 API ====================
 
-// 钱包地址映射表（硬编码，基于手机号）
-const phoneToWalletMap: Record<string, string> = {
-  '13800138000': '0x4fc3a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8',
-  '13800138001': '0x5fd4b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f9',
-  '13800138002': '0x6fe5c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7fa',
-  '13900139000': '0x7af6d4e5f6a7b8c9d0e1f2a3b4c5d6e7fb',
-  '13900139001': '0x8bf7e5f6a7b8c9d0e1f2a3b4c5d6e7fc',
-}
-
-// 邮箱到钱包地址映射表
-const emailToWalletMap: Record<string, string> = {
-  'test@example.com': '0x9cf8f6a7b8c9d0e1f2a3b4c5d6e7fd',
-  'admin@example.com': '0xad09g7b8c9d0e1f2a3b4c5d6e7fe',
-  'user@example.com': '0xbe1ah8c9d0e1f2a3b4c5d6e7ff',
-}
-
-// 存储用户数据（模拟数据库）
-const userDatabase: Record<string, any> = {}
-const communityDatabase: Record<string, any> = {}
-
-// 根据手机号或邮箱获取钱包地址
-const getWalletAddress = (identifier: string): string => {
-  // 判断是手机号还是邮箱
-  if (/^\d{11}$/.test(identifier)) {
-    // 手机号
-    return phoneToWalletMap[identifier] || `0x${identifier.slice(-8).padStart(40, '0')}`
-  } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
-    // 邮箱
-    return emailToWalletMap[identifier] || `0x${identifier.slice(0, 8).padStart(40, '0')}`
-  }
-  return '0x0000000000000000000000000000000000000000'
-}
-
-// Mock 用户数据
-const mockUser = {
-  id: 1,
-  phone: '13800138000',
-  email: null,
-  evm_chain_address: '0x4fc3a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8',
-  encrypted_keys: null,
-  userType: 'member' as 'member' | 'community',
-  isProfileSetup: false,
-  created_at: '2025-01-01T00:00:00Z'
-}
+// 注意：钱包相关功能保留，但钱包地址应从后端数据库的 evm_chain_address 字段获取
+// 钱包地址由外部身份系统同步到本地数据库，不再使用硬编码映射表
 
 // Mock API 函数
 /**
@@ -980,7 +1036,14 @@ export const getMe = async (baseUrl: string): Promise<any> => {
     }
     throw new Error('Failed to get user info')
   }
-  return response.json()
+  const userData = await response.json()
+  
+  // 统一字段名：确保 avatar 字段存在（后端已处理，这里做双重保险）
+  if (userData && !userData.avatar && userData.image_url) {
+    userData.avatar = userData.image_url
+  }
+  
+  return userData
 }
 
 export const setEncryptedKeys = async (keys: string): Promise<{ result: string }> => {
@@ -1201,22 +1264,12 @@ export interface CommunityProfile {
 }
 
 export const updateCommunityProfile = async (communityId: number, profile: CommunityProfile): Promise<{ success: boolean; message: string }> => {
+  // TODO: 等待后端实现社区资料更新 API
   await new Promise(resolve => setTimeout(resolve, 500))
   console.log('[Mock] 更新社区信息:', communityId, profile)
   
-  // 更新社区数据库
-  if (typeof window !== 'undefined') {
-    const currentIdentifier = localStorage.getItem('current_identifier')
-    if (currentIdentifier && communityDatabase[currentIdentifier]) {
-      communityDatabase[currentIdentifier] = {
-        ...communityDatabase[currentIdentifier],
-        name: profile.name,
-        description: profile.description,
-        avatar: profile.avatar,
-        isProfileSetup: true
-      }
-    }
-  }
+  // 注意：社区数据库已移除，此功能需要后端 API 支持
+  // 社区信息应存储在数据库中，通过后端 API 更新
   
   return { success: true, message: '社区信息更新成功' }
 }
@@ -1388,13 +1441,66 @@ export const getMembers = async (): Promise<Member[]> => {
 
 /**
  * 根据 ID 获取单个成员详情
- * TODO: 等待后端实现成员 API
+ * 调用后端 API 获取用户信息，并转换为 Member 格式
+ * 
+ * @param id 用户ID（UUID 字符串或数字）
+ * @param baseUrl API 基础 URL（可选，如果不提供会从环境变量读取）
  */
-export const getMemberById = async (id: number | string): Promise<Member | null> => {
-  // 暂时返回null，因为后端可能还没有成员API
-  // 如果继续使用Mock，需要支持string类型的id
-  console.warn('Members API not implemented yet')
+export const getMemberById = async (id: number | string, baseUrl?: string): Promise<Member | null> => {
+  try {
+    // 如果没有提供 baseUrl，从环境变量读取
+    if (!baseUrl) {
+      baseUrl = getApiBaseUrl()
+    }
+    
+    const userId = String(id) // 确保是字符串类型（UUID）
+    
+    const response = await fetch(`${baseUrl}/api/auth/users/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // 用户不存在，返回 null
   return null
+      }
+      throw new Error(`Failed to get member: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    
+    if (data.result !== 'ok' || !data.user) {
+      return null
+    }
+
+    const user = data.user
+
+    // 将后端 User 格式转换为前端 Member 格式
+    // 注意：部分字段（如 reputation, totalContributions 等）暂时使用默认值
+    // 等后续实现了这些功能后再从数据库获取
+    const member: Member = {
+      id: typeof id === 'number' ? id : parseInt(user.id.slice(0, 8), 16) || 0, // 将 UUID 转换为数字 ID（临时方案，用于兼容前端）
+      name: user.name || '未知用户',
+      title: undefined, // 暂时没有头衔字段
+      reputation: 0, // 暂时使用默认值，后续可以从任务完成数等计算
+      totalContributions: 0, // 暂时使用默认值
+      completedTasks: 0, // 暂时使用默认值，后续可以从任务表统计
+      totalReward: 0, // 暂时使用默认值，后续可以从任务表统计
+      skills: [], // 暂时使用空数组
+      communities: [], // 暂时使用空数组（数据库中没有社区表）
+      participationScore: 0, // 暂时使用默认值
+      activityScore: 0, // 暂时使用默认值
+      avatarSeed: user.id, // 使用用户 ID 作为头像种子
+    }
+
+    return member
+  } catch (error) {
+    console.error('Failed to get member by ID:', error)
+    return null
+  }
 }
 
 /**

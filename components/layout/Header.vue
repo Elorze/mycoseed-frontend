@@ -78,12 +78,12 @@
 
         <!-- User Avatar and Logout -->
         <div class="flex items-center gap-2">
-          <div 
-            class="cursor-pointer hover:scale-110 transition-transform"
-            @click="navigateTo('profile')"
-            title="个人主页"
-          >
-            <PixelAvatar seed="Alice" size="md" />
+        <div 
+          class="cursor-pointer hover:scale-110 transition-transform"
+          @click="navigateTo('profile')"
+          title="个人主页"
+        >
+           <PixelAvatar seed="Alice" size="md" />
           </div>
           
           <!-- Logout Button -->
@@ -239,6 +239,7 @@ onMounted(async () => {
 
 const navigateTo = (page: string) => {
   // #region agent log
+  try {
   fetch('http://127.0.0.1:7242/ingest/af348509-5d27-4b86-baea-9c27926471bf', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -252,11 +253,22 @@ const navigateTo = (page: string) => {
       timestamp: Date.now()
     })
   }).catch(() => {})
+  } catch (error) {
+    // 静默忽略分析服务连接错误
+  }
   // #endregion
 
   if (page === 'profile') {
-    // Mock ID 1 for current user
-    emit('navigate', 'member/1')
+    // 使用当前登录用户的 ID
+    const user = userStore.user
+    if (user?.id) {
+      // 将 UUID 转换为数字 ID（与 getMemberById 中的逻辑一致）
+      const numericId = parseInt(user.id.slice(0, 8), 16) || 1
+      emit('navigate', `member/${numericId}`)
+    } else {
+      // 未登录时跳转到登录页
+      router.push('/auth/login')
+    }
   } else {
     emit('navigate', page)
   }
