@@ -1,4 +1,5 @@
 <template>
+  <!-- 手机端：固定在底部 -->
   <div class="fixed bottom-0 left-0 w-full bg-black text-white border-t-4 border-white z-50 md:hidden">
     <div class="flex justify-around items-center h-16">
       <div 
@@ -9,6 +10,23 @@
       >
         <span class="text-xl mb-1">{{ item.icon }}</span>
         <span class="font-pixel text-[10px]">{{ item.label }}</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 桌面端：固定在底部 -->
+  <div class="hidden md:block fixed bottom-0 left-0 w-full bg-black text-white border-t-4 border-white z-50">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex justify-around items-center h-16">
+        <div 
+          v-for="item in navItems" 
+          :key="item.path"
+          class="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-gray-800 transition-colors"
+          @click="navigateTo(item.path)"
+        >
+          <span class="text-xl mb-1">{{ item.icon }}</span>
+          <span class="font-pixel text-[10px]">{{ item.label }}</span>
+        </div>
       </div>
     </div>
   </div>

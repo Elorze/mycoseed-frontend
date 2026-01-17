@@ -7,6 +7,9 @@
 
       <div class="flex flex-col gap-6 py-4">
         <div class="text-center font-vt323 text-lg">
+          <div v-if="setPassword" class="mb-2 text-mario-green font-bold text-xl">
+            设置密码验证
+          </div>
           请输入发送到
           <span class="text-mario-red font-bold">
             {{ maskedIdentifier }}
@@ -71,6 +74,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '~/composables/useApi'
 import { useUserStore } from '~/stores/user'
+import { getApiBaseUrl } from '~/utils/api'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 
@@ -88,6 +92,8 @@ const identifier = computed(() => route.query.identifier as string || '')
 const identifierType = computed(() => (route.query.type as string) || 'phone')
 const userType = computed(() => (route.query.userType as string) || 'member')
 const isLogin = computed(() => route.query.isLogin === 'true')
+const setPassword = computed(() => route.query.setPassword === 'true')
+const password = computed(() => route.query.password as string || '')
 
 const loading = ref(false)
 const countdown = ref(60)
@@ -186,7 +192,59 @@ const onSubmit = async () => {
     // 保存当前标识符
     setCurrentIdentifier(identifier.value)
 
-    // 验证码验证
+    // 如果是设置密码流程
+    if (setPassword.value && password.value) {
+      const baseUrl = getApiBaseUrl()
+      const response = await fetch(`${baseUrl}/api/auth/set-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: identifier.value,
+          code: pinCode,
+          password: password.value
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.result === 'ok' && data.auth_token) {
+        // 保存认证token
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('auth_token', data.auth_token)
+        }
+        
+        // 获取用户信息
+        const user = await getMe()
+        if (user) {
+          const userWithMetadata = {
+            ...user,
+            isProfileSetup: !!user.name,
+            userType: user.userType || 'member'
+          }
+          userStore.setUser(userWithMetadata)
+        }
+        
+        toast.add({
+          title: '密码设置成功',
+          description: '已自动登录',
+          color: 'green'
+        })
+        
+        // 跳转到首页
+        await router.push('/')
+        return
+      } else {
+        toast.add({
+          title: '设置密码失败',
+          description: data.message || '验证码错误或设置失败'
+        })
+        return
+      }
+    }
+
+    // 验证码验证（原有逻辑）
     let response
     if (identifierType.value === 'phone') {
       response = await signIn(identifier.value, pinCode)

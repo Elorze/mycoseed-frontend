@@ -1,5 +1,5 @@
 <template>
-  <header class="h-16 md:h-20 border-b-4 border-black bg-white sticky top-0 z-50 shadow-pixel">
+  <header class="h-16 md:h-20 border-b-4 border-black bg-white sticky top-0 z-50 shadow-pixel flex-shrink-0">
     <div class="w-full md:max-w-7xl md:mx-auto px-2 md:px-4 h-full flex items-center justify-between">
       <!-- Community Switcher -->
       <div class="relative">
@@ -78,22 +78,33 @@
 
         <!-- User Avatar and Logout -->
         <div class="flex items-center gap-2">
-        <div 
-          class="cursor-pointer hover:scale-110 transition-transform"
-          @click="navigateTo('profile')"
-          title="个人主页"
-        >
-           <PixelAvatar seed="Alice" size="md" />
+          <div 
+            v-if="userStore.isAuthenticated"
+            class="cursor-pointer hover:scale-110 transition-transform"
+            @click="navigateTo('profile')"
+            title="个人主页"
+          >
+            <PixelAvatar seed="Alice" size="md" />
           </div>
           
-          <!-- Logout Button -->
+          <!-- Logout Button - 始终显示（如果已登录） -->
           <button
             v-if="userStore.isAuthenticated"
             @click="handleLogoutClick"
-            class="w-10 h-10 flex items-center justify-center border-2 border-black bg-red-500 hover:bg-red-600 text-white font-pixel text-xs transition-all hover:scale-110 shadow-pixel"
+            class="w-10 h-10 flex items-center justify-center border-2 border-black bg-red-500 hover:bg-red-600 text-white font-pixel text-xs transition-all hover:scale-110 shadow-pixel flex-shrink-0"
             title="登出"
           >
             🚪
+          </button>
+          
+          <!-- 登录按钮（如果未登录） -->
+          <button
+            v-else
+            @click="router.push('/auth/login')"
+            class="px-4 py-2 border-2 border-black bg-mario-green hover:bg-green-600 text-white font-pixel text-xs transition-all hover:scale-110 shadow-pixel"
+            title="登录"
+          >
+            登录
           </button>
         </div>
       </nav>
@@ -235,6 +246,10 @@ onMounted(async () => {
   await communityStore.initialize()
   // 加载社区列表
   await loadCommunities()
+  // 确保用户信息已加载（用于显示登出按钮）
+  if (!userStore.user) {
+    await userStore.getUser()
+  }
 })
 
 const navigateTo = (page: string) => {
@@ -282,11 +297,16 @@ const confirmLogout = async () => {
   showLogoutModal.value = false
   // 执行登出
   await userStore.signout()
-  // 清除当前标识符（localStorage）
+  // 清除所有本地存储
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('current_identifier')
+    localStorage.clear()
+    sessionStorage.clear()
   }
-  // 跳转到登录页
-  router.push('/auth/login')
+  // 使用 replace 而不是 push，防止返回
+  await router.replace('/auth/login')
+  // 强制刷新页面，清除所有状态
+  if (typeof window !== 'undefined') {
+    window.location.href = '/auth/login'
+  }
 }
 </script>

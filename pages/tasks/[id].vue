@@ -19,33 +19,6 @@
 
       <!-- 任务详情 -->
       <div v-else class="space-y-4 md:space-y-6">
-        <!-- 多人任务：参与者导航栏（仅创建者可见） -->
-        <PixelCard 
-          v-if="canReview && task.participantLimit && task.participantLimit > 1"
-          class="mb-4"
-        >
-          <template #header>
-            参与者列表 ({{ claimedParticipantsCount }}/{{ task.participantLimit }})
-          </template>
-          <div class="flex gap-2 overflow-x-auto pb-2">
-            <button
-              v-for="(participant, index) in task.participantsList"
-              :key="participant.id || index"
-              @click="switchParticipant(participant.id || task.id)"
-              class="flex-shrink-0 px-4 py-2 border-2 border-black shadow-pixel-sm font-pixel text-xs uppercase transition-all"
-              :class="currentParticipantId === (participant.id || task.id)
-                ? 'bg-mario-blue text-white' 
-                : 'bg-white text-black hover:bg-mario-yellow'"
-            >
-              {{ participant.name || '未领取' }}
-              <span v-if="participant.status === 'completed'" class="ml-1">✓</span>
-              <span v-else-if="participant.status === 'rejected'" class="ml-1">✗</span>
-              <span v-else-if="participant.submittedAt" class="ml-1">📤</span>
-              <span v-else-if="participant.claimedAt" class="ml-1">📋</span>
-            </button>
-          </div>
-        </PixelCard>
-        
         <!-- 任务介绍 -->
         <PixelCard>
           <template #header>
@@ -123,22 +96,39 @@
             </div>
             
             <div class="pt-4 border-t-2 border-black/20">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-vt323 text-base">
+              <div class="space-y-3 font-vt323 text-base">
+                <!-- 第一行：发布者 -->
                 <div class="flex justify-between items-center pb-2 border-b border-black/10">
                   <span class="text-black/70">发布者:</span>
                   <span class="text-black font-medium">{{ task.creator }}</span>
                 </div>
-                <div class="flex justify-between items-center pb-2 border-b border-black/10">
+                
+                <!-- 预留用户列表（如果指定了用户） -->
+                <div v-if="task.assignedUserIds && task.assignedUserIds.length > 0" class="flex flex-wrap items-center gap-2 pb-2 border-b border-black/10">
+                  <span class="text-black/70">预留用户:</span>
+                  <span
+                    v-for="(assignedUserId, index) in task.assignedUserIds"
+                    :key="assignedUserId"
+                    class="font-medium text-black"
+                  >
+                    {{ getUserName(assignedUserId) || '未知用户' }}<span v-if="index < task.assignedUserIds.length - 1">、</span>
+                  </span>
+                </div>
+                
+                <!-- 领取者信息 -->
+                <div v-if="task.claimerName" class="flex justify-between items-center pb-2 border-b border-black/10">
+                  <span class="text-black/70">领取者:</span>
+                  <span class="text-black font-medium">{{ task.claimerName }}</span>
+                </div>
+                
+                <!-- 第三行：时间信息 -->
+                <div class="flex justify-between items-center pb-2 border-b border-black/10 gap-4">
                   <span class="text-black/70">报名开始时间:</span>
                   <span class="text-black font-medium">
                     {{ task.startDate ? formatDate(task.startDate) : '未设置' }}
                   </span>
-                </div>
-                <div class="flex justify-between items-center pb-2 border-b border-black/10">
                   <span class="text-black/70">报名截止时间:</span>
                   <span class="text-black font-medium">{{ task.deadline ? formatDate(task.deadline) : '未设置' }}</span>
-                </div>
-                <div class="flex justify-between items-center pb-2 border-b border-black/10">
                   <span class="text-black/70">提交截止时间:</span>
                   <span class="text-black font-medium">{{ task.submitDeadline ? formatDate(task.submitDeadline) : (task.deadline ? formatDate(task.deadline) : '未设置') }}</span>
                 </div>
@@ -151,6 +141,37 @@
                 {{ task.submissionInstructions }}
               </p>
             </div>
+          </div>
+        </PixelCard>
+
+        <!-- 多人任务：参与者切换栏（仅创建者可见，放在任务介绍和任务进度之间） -->
+        <PixelCard 
+          v-if="canReview && task.participantLimit && task.participantLimit > 1 && task.participantsList && task.participantsList.length > 0"
+          class="mb-4"
+        >
+          <template #header>
+            参与者列表 ({{ claimedParticipantsCount }}/{{ task.participantLimit }})
+          </template>
+          <div class="flex gap-2 overflow-x-auto pb-2">
+            <button
+              v-for="(participant, index) in task.participantsList"
+              :key="participant.id || index"
+              @click="switchParticipant(participant.id || task.id)"
+              class="flex-shrink-0 px-4 py-2 border-2 border-black shadow-pixel-sm font-pixel text-xs uppercase transition-all"
+              :class="{
+                'bg-mario-blue text-white': currentParticipantId === (participant.id || task.id),
+                'border-mario-yellow': participant.claimerId === task.creatorId, // 创建者自己的任务行特殊标记
+                'bg-white text-black hover:bg-mario-yellow': currentParticipantId !== (participant.id || task.id),
+                'text-gray-400': !participant.claimerId && isAssignedUserUnclaimed(participant.claimerId, index) // 指定用户未领取时灰色
+              }"
+            >
+              {{ getParticipantDisplayName(participant, index) }}
+              <span v-if="participant.claimerId === task.creatorId" class="ml-1">👑</span>
+              <span v-if="participant.status === 'completed'" class="ml-1">✓</span>
+              <span v-else-if="participant.status === 'rejected'" class="ml-1">✗</span>
+              <span v-else-if="participant.submittedAt" class="ml-1">📤</span>
+              <span v-else-if="participant.claimedAt" class="ml-1">📋</span>
+            </button>
           </div>
         </PixelCard>
 
@@ -209,15 +230,16 @@
           </template>
           <div class="space-y-3">
             <!-- 未领取状态 - 显示领取按钮或满员提示 -->
+            <!-- 对于多人任务，即使当前行已领取，如果还有其他未领取的位置，也应该显示领取按钮 -->
             <PixelButton
-              v-if="task.status === 'unclaimed' && canClaim"
+              v-if="canClaim"
               @click="handleClaimTask"
               variant="primary"
               size="lg"
               :block="true"
-              :disabled="loading || !isTaskStarted || isTaskExpired"
+              :disabled="loading || !canClaim"
             >
-              {{ loading ? '领取中...' : (isTaskExpired ? '已过期' : (isTaskStarted ? '领取任务' : '待任务开始')) }}
+              {{ loading ? '领取中...' : '领取任务' }}
             </PixelButton>
             
             <!-- 领取错误提示 -->
@@ -230,9 +252,39 @@
               </p>
             </div>
             
+            <!-- 任务未开始提示 -->
+            <div
+              v-if="!isTaskStarted && !canClaim"
+              class="text-center py-4"
+            >
+              <p class="font-vt323 text-base text-black/60">
+                任务未开始
+              </p>
+            </div>
+            
+            <!-- 任务已过期提示（报名截止日期） -->
+            <div
+              v-else-if="isTaskExpired && !canClaim"
+              class="text-center py-4"
+            >
+              <p class="font-vt323 text-base text-black/60">
+                报名已截止
+              </p>
+            </div>
+            
+            <!-- 任务已截止提示（提交截止日期） -->
+            <div
+              v-else-if="isTaskOverdue && !canClaim"
+              class="text-center py-4"
+            >
+              <p class="font-vt323 text-base text-black/60">
+                任务已截止
+              </p>
+            </div>
+            
             <!-- 任务已指定给其他用户提示 -->
             <div
-              v-if="task.status === 'unclaimed' && !canClaim && task.assignedUserId && task.assignedUserId !== userStore.user?.id && !claimError"
+              v-else-if="shouldShowAssignedToOthersMessage && !claimError"
               class="text-center py-4"
             >
               <p class="font-vt323 text-base text-black/60">
@@ -240,13 +292,13 @@
               </p>
             </div>
             
-            <!-- 多人任务未领完提示 -->
+            <!-- 多人任务提示 -->
             <div
-              v-if="task.status === 'unclaimed' && !canClaim && (!task.assignedUserId || task.assignedUserId === userStore.user?.id) && task.participantLimit && task.participantLimit > 1"
+              v-else-if="!canClaim && task.participantLimit && task.participantLimit > 1"
               class="text-center py-4"
             >
               <p class="font-vt323 text-base text-black/60">
-                {{ task.participantsList && task.participantsList.filter((p: any) => p.id && p.claimedAt).length >= task.participantLimit 
+                {{ task.participantsList && task.participantsList.filter((p: any) => p.claimerId && p.claimedAt).length >= task.participantLimit 
                   ? '任务参与人数已满' 
                   : '您已经领取过这个任务' }}
               </p>
@@ -254,7 +306,7 @@
             
             <!-- 单人任务已被领取提示 -->
             <div
-              v-if="task.status === 'unclaimed' && !canClaim && (!task.assignedUserId || task.assignedUserId === userStore.user?.id) && (!task.participantLimit || task.participantLimit === 1)"
+              v-else-if="!canClaim && (!task.participantLimit || task.participantLimit === 1)"
               class="text-center py-4"
             >
               <p class="font-vt323 text-base text-black/60">
@@ -280,9 +332,9 @@
               variant="success"
               size="lg"
               :block="true"
-              :disabled="isTaskOverdue"
+              :disabled="isTaskSubmissionOverdue"
             >
-              {{ isTaskOverdue ? '已截止' : '提交任务' }}
+              {{ isTaskSubmissionOverdue ? '已截止' : '提交任务' }}
             </PixelButton>
             
             <!-- 已领取但非领取者查看 - 显示提示 -->
@@ -386,7 +438,6 @@ const userStore = useUserStore()
 const taskRewardSymbol = ref('积分') // 任务奖励的积分符号
 
 // 当前查看的参与者ID（用于多人任务导航）
-const currentParticipantId = ref<string>(taskId)
 
 // 任务数据
 const task = ref<any>({
@@ -400,11 +451,15 @@ const task = ref<any>({
   startDate: '',
   creator: '',
   creatorId: '',  // ✅ 改为空字符串，因为creatorId是UUID (string)
-  participantsList: [],
   submissionInstructions: '',
   proofConfig: null,
-  updates: []
+  updates: [],
+  participantLimit: null as number | null,
+  participantsList: [] as any[]
 })
+
+// 当前查看的参与者任务ID（用于多人任务切换）
+const currentParticipantId = ref<string>(taskId)
 
 // 权限检查：判断当前用户是否是任务创建者
 const canReview = computed(() => {
@@ -416,51 +471,210 @@ const isClaimer = computed(() => {
   return userStore.user?.id === task.value.claimerId
 })
 
+// 获取用户名（用于显示预留用户）
+const getUserName = (userId: string) => {
+  // 从assignedUserNames中获取
+  if (task.value.assignedUserNames && task.value.assignedUserNames[userId]) {
+    return task.value.assignedUserNames[userId]
+  }
+  return null
+}
+
 // 计算已领取的参与者数量
 const claimedParticipantsCount = computed(() => {
   if (!task.value.participantsList || task.value.participantsList.length === 0) {
     return 0
   }
-  return task.value.participantsList.filter((p: any) => p.id && p.claimedAt).length
+  return task.value.participantsList.filter((p: any) => p.claimerId && p.claimedAt).length
 })
 
-// 检查任务是否可以领取（多人任务：检查是否还有未领取的位置）
-const canClaim = computed(() => {
-  // 如果任务已过期或未开始，不能领取
-  if (isTaskExpired.value || !isTaskStarted.value) {
+// 检查创建者是否已领取
+const isCreatorClaimed = computed(() => {
+  if (!task.value.participantsList || task.value.participantsList.length === 0) {
     return false
   }
+  return task.value.participantsList.some(
+    (p: any) => p.claimerId === task.value.creatorId && p.claimedAt
+  )
+})
+
+// 获取创建者自己的任务行ID
+const creatorTaskId = computed(() => {
+  if (!task.value.participantsList || task.value.participantsList.length === 0) {
+    return null
+  }
+  const creatorTask = task.value.participantsList.find(
+    (p: any) => p.claimerId === task.value.creatorId
+  )
+  return creatorTask?.id || null
+})
+
+// 获取参与者显示名称（支持指定用户未领取时显示用户名）
+const getParticipantDisplayName = (participant: any, index: number) => {
+  // 如果已领取，显示领取者名称
+  if (participant.claimerId && participant.name && participant.name !== '未领取') {
+    return participant.name
+  }
   
-  // 检查是否指定了参与人员
-  if (task.value.assignedUserId) {
-    // 如果指定了参与人员，只有该用户才能领取
-    if (task.value.assignedUserId !== userStore.user?.id) {
-      return false
+  // 如果未领取，检查是否是指定用户
+  if (task.value.assignedUserIds && task.value.assignedUserIds.length > 0) {
+    // 尝试从 assignedUserIds 中找到对应的用户
+    // 注意：这里需要根据 participantIndex 或 index 来匹配
+    // 由于后端返回的 participantsList 是按 participant_index 排序的
+    // 我们可以通过索引来匹配 assignedUserIds
+    if (task.value.assignedUserIds[index]) {
+      const assignedUserId = task.value.assignedUserIds[index]
+      const userName = getUserName(assignedUserId)
+      if (userName) {
+        return userName // 显示指定用户的名称（灰色）
+      }
     }
   }
   
-  // 如果是多人任务
+  // 默认显示"未领取"
+  return '未领取'
+}
+
+// 检查是否是指定用户但未领取（用于灰色标记）
+const isAssignedUserUnclaimed = (claimerId: string | null, index: number) => {
+  // 如果已领取，不是灰色
+  if (claimerId) {
+    return false
+  }
+  
+  // 如果未领取，检查是否是指定用户
+  if (task.value.assignedUserIds && task.value.assignedUserIds.length > 0) {
+    if (task.value.assignedUserIds[index]) {
+      return true // 是指定用户但未领取，显示灰色
+    }
+  }
+  
+  return false
+}
+
+// 检查任务是否可以领取（多人任务：检查是否还有未领取的位置）
+// 判断逻辑顺序（按优先级）：
+// 1. 任务是否已开始
+// 2. 任务是否已过期（报名截止日期）
+// 3. 任务是否已截止（提交截止日期）
+// 4. 是否指定了参与人员（如果指定了，只有指定用户才能领取）
+// 5. 用户是否已经领取过（多人任务）
+// 6. 是否还有未领取的位置（多人任务）或是否已被领取（单人任务）
+const canClaim = computed(() => {
+  // 1. 检查任务是否已开始
+  if (!isTaskStarted.value) {
+    return false
+  }
+  
+  // 2. 检查任务是否已过期（报名截止日期）
+  if (isTaskExpired.value) {
+    return false
+  }
+  
+  // 3. 检查任务是否已截止（提交截止日期）- 如果过了提交截止日期，不能再领取
+  if (isTaskOverdue.value) {
+    return false
+  }
+  
+  // 4. 检查是否指定了参与人员（支持多个用户）
+  // 对于多人任务：如果指定的人数少于总人数，未指定的席位任何人都可以领取
+  if (task.value.assignedUserIds && task.value.assignedUserIds.length > 0) {
+    // 如果是多人任务，检查是否所有席位都被指定
+    if (task.value.participantLimit && task.value.participantLimit > 1) {
+      // 如果所有席位都被指定，只有指定的用户才能领取
+      if (task.value.assignedUserIds.length >= task.value.participantLimit) {
+        if (!userStore.user?.id || !task.value.assignedUserIds.includes(userStore.user.id)) {
+          return false
+        }
+      }
+      // 如果还有未指定的席位，任何人都可以领取（包括指定的用户）
+    } else {
+      // 单人任务：如果指定了用户，只有该用户才能领取
+      if (!userStore.user?.id || !task.value.assignedUserIds.includes(userStore.user.id)) {
+        return false
+      }
+    }
+  } else if (task.value.assignedUserId) {
+    // 向后兼容：单个assignedUserId
+    // 对于多人任务，如果只有一个用户被指定，其他席位仍然可以领取
+    if (task.value.participantLimit && task.value.participantLimit > 1) {
+      // 多人任务：如果指定了用户，该用户可以领取，其他人也可以领取未指定的席位
+      // 这里不阻止，让后续逻辑判断
+    } else {
+      // 单人任务：如果指定了用户，只有该用户才能领取
+      if (task.value.assignedUserId !== userStore.user?.id) {
+        return false
+      }
+    }
+  }
+  
+  // 5. 如果是多人任务
   if (task.value.participantLimit && task.value.participantLimit > 1) {
-    // 检查当前用户是否已经领取过
+    // 5.1 检查当前用户是否已经领取过（允许创建者领取自己的任务）
     if (task.value.participantsList && task.value.participantsList.length > 0) {
       const userClaimed = task.value.participantsList.some(
-        (p: any) => p.id === userStore.user?.id && p.claimedAt
+        (p: any) => p.claimerId === userStore.user?.id && p.claimedAt
       )
       if (userClaimed) {
         return false // 用户已经领取过
       }
     }
     
-    // 检查是否还有未领取的位置
+    // 5.2 检查是否还有未领取的位置
     const claimedCount = task.value.participantsList?.filter(
-      (p: any) => p.id && p.claimedAt
+      (p: any) => p.claimerId && p.claimedAt
     ).length || 0
     
     return claimedCount < task.value.participantLimit
   } else {
-    // 单人任务：检查是否已被领取
+    // 6. 单人任务：检查是否已被领取
     return !task.value.claimerId
   }
+})
+
+// 检查是否应该显示"已指定给其他用户"的提示
+const shouldShowAssignedToOthersMessage = computed(() => {
+  // 如果用户可以领取，不显示这个提示
+  if (canClaim.value) {
+    return false
+  }
+  
+  // 如果用户已经领取了，不显示这个提示（因为已经有其他状态显示）
+  if (task.value.claimerId === userStore.user?.id) {
+    return false
+  }
+  
+  // 检查是否所有席位都被指定
+  if (task.value.assignedUserIds && task.value.assignedUserIds.length > 0) {
+    // 如果是多人任务
+    if (task.value.participantLimit && task.value.participantLimit > 1) {
+      // 如果所有席位都被指定，且用户不在指定列表中，显示提示
+      if (task.value.assignedUserIds.length >= task.value.participantLimit) {
+        if (!userStore.user?.id || !task.value.assignedUserIds.includes(userStore.user.id)) {
+          return true
+        }
+      }
+      // 如果还有未指定的席位，不显示这个提示
+    } else {
+      // 单人任务：如果指定了用户，且用户不在指定列表中，显示提示
+      if (!userStore.user?.id || !task.value.assignedUserIds.includes(userStore.user.id)) {
+        return true
+      }
+    }
+  } else if (task.value.assignedUserId) {
+    // 向后兼容：单个assignedUserId
+    // 如果是多人任务，且只有一个用户被指定，不显示这个提示（因为还有未指定的席位）
+    if (task.value.participantLimit && task.value.participantLimit > 1) {
+      return false
+    } else {
+      // 单人任务：如果指定了其他用户，显示提示
+      if (task.value.assignedUserId !== userStore.user?.id) {
+        return true
+      }
+    }
+  }
+  
+  return false
 })
 
 // 检查任务是否已开始
@@ -471,17 +685,44 @@ const isTaskStarted = computed(() => {
   return now >= startDate
 })
 
-// 检查任务是否已过期（过了报名截止日期且未领取）
+// 检查任务是否已过期（过了报名截止日期）
+// 对于多人任务：过了报名截止日期就不能再领取
+// 对于单人任务：过了报名截止日期且未领取才算过期
 const isTaskExpired = computed(() => {
   if (!task.value.deadline) return false // 如果没有报名截止时间，认为未过期
   const now = new Date()
   const deadline = new Date(task.value.deadline)
-  // 过了报名截止日期且未领取的任务才算过期
-  return now > deadline && !task.value.claimerId
+  
+  // 如果过了报名截止日期
+  if (now > deadline) {
+    // 多人任务：过了报名截止日期就不能再领取
+    if (task.value.participantLimit && task.value.participantLimit > 1) {
+      return true
+    }
+    // 单人任务：过了报名截止日期且未领取才算过期
+    return !task.value.claimerId
+  }
+  
+  return false
 })
 
-// 检查任务是否已截止（过了提交截止日期且已领取但未提交）
+// 检查任务是否已截止（过了提交截止日期）
+// 如果过了提交截止日期，不能再领取新任务
 const isTaskOverdue = computed(() => {
+  // 优先使用提交截止日期
+  const submitDeadline = task.value.submitDeadline || task.value.deadline
+  if (!submitDeadline) return false // 如果没有提交截止时间，认为未截止
+  
+  const now = new Date()
+  const deadline = new Date(submitDeadline)
+  
+  // 如果过了提交截止日期，不能再领取
+  return now > deadline
+})
+
+// 检查任务是否已截止（用于已领取任务的提交按钮）
+// 过了提交截止日期且已领取但未提交的任务才算已截止
+const isTaskSubmissionOverdue = computed(() => {
   if (!task.value.submitDeadline) return false // 如果没有提交截止时间，认为未截止
   const now = new Date()
   const submitDeadline = new Date(task.value.submitDeadline)
@@ -580,7 +821,12 @@ const hasAnyProofConfig = (proofConfig: any) => {
 const updateTimeline = () => {
   // 如果任务有 timeline 字段，直接使用（这是后端维护的仅追加写入的时间线）
   if (task.value.timeline && Array.isArray(task.value.timeline) && task.value.timeline.length > 0) {
-    console.log('Using timeline from database:', task.value.timeline)
+    console.log('[UPDATE TIMELINE] 使用数据库时间线:', {
+      taskId: task.value.id,
+      claimerId: task.value.claimerId,
+      timelineLength: task.value.timeline.length,
+      timeline: task.value.timeline
+    })
     
     // 按时间戳排序，确保时间线按时间顺序显示
     const sortedTimeline = [...task.value.timeline].sort((a: any, b: any) => {
@@ -650,6 +896,8 @@ const updateTimeline = () => {
         case 'rejected':
           title = action || '审核驳回'
           description = `任务审核未通过，已驳回${actorName ? `（审核者：${actorName}）` : ''}${reason ? `，驳回原因：${reason}` : ''}`
+          // 确保驳回状态在时间线中正确显示
+          status = 'rejected'
           break
         default:
           title = action || '状态更新'
@@ -685,41 +933,19 @@ const updateTimeline = () => {
     status: 'completed'
   })
   
-  // 任务领取（多人任务需要显示所有领取者）
-  if (task.value.participantsList && task.value.participantsList.length > 0) {
-    task.value.participantsList.forEach((participant: any, index: number) => {
-      updates.push({
-        id: `2-${index}`,
-        title: '任务领取',
-        description: `任务已被${participant.name}领取`,
-        timestamp: participant.claimedAt || task.value.claimedAt || new Date().toISOString(),
-        status: 'completed'
-      })
-    })
-  } else if (['claimed', 'unsubmit', 'submitted', 'under_review', 'completed'].includes(task.value.status)) {
+  // 任务领取（只显示当前任务行的领取信息，不使用 participantsList 避免混合多个参与者的时间线）
+  if (['claimed', 'unsubmit', 'submitted', 'under_review', 'completed'].includes(task.value.status) && task.value.claimerId) {
     updates.push({
       id: '2',
       title: '任务领取',
-      description: '任务已被领取，开始执行',
+      description: `任务已被${task.value.claimerName || '参与者'}领取`,
       timestamp: task.value.claimedAt || new Date().toISOString(),
       status: 'completed'
     })
   }
   
-  // 凭证提交（多人任务需要显示所有提交者）
-  if (task.value.participantsList && task.value.participantsList.length > 0) {
-    task.value.participantsList.forEach((participant: any, index: number) => {
-      if (participant.submittedAt) {
-        updates.push({
-          id: `3-${index}`,
-          title: '凭证提交',
-          description: `任务完成凭证已由${participant.name}提交，等待审核`,
-          timestamp: participant.submittedAt,
-          status: 'completed'
-        })
-      }
-    })
-  } else if (['under_review', 'completed'].includes(task.value.status)) {
+  // 凭证提交（只显示当前任务行的提交信息，不使用 participantsList 避免混合多个参与者的时间线）
+  if (['submitted', 'under_review', 'completed'].includes(task.value.status) && task.value.submittedAt) {
     updates.push({
       id: '3',
       title: '凭证提交',
@@ -742,7 +968,7 @@ const updateTimeline = () => {
     // 根据 rejectOption 显示不同的文本
     const rejectOption = (task.value as any).rejectOption
     if (rejectOption === 'rejected') {
-      updates.push({
+    updates.push({
         id: '4',
         title: '审核驳回',
         description: '任务审核未通过，已驳回',
@@ -798,7 +1024,8 @@ const loadTask = async () => {
   claimError.value = null // 清除之前的错误消息
   try {
     const baseUrl = getApiBaseUrl()
-    const taskData = await getTaskById(taskId, baseUrl)
+    // 第一次加载使用缓存，后续加载不使用缓存以确保数据最新
+    const taskData = await getTaskById(taskId, baseUrl, true, 5000)
     if (!taskData) {
       toast.add({
         title: '任务不存在',
@@ -809,42 +1036,75 @@ const loadTask = async () => {
       return
     }
     
-    // 处理任务组格式（多人任务）
-    let participantsList: any[] = []
+    // 处理多人任务：确定要显示的任务行
     let currentTaskData = taskData
+    let targetTaskId = taskId
     
-    if (taskData.participantsList && Array.isArray(taskData.participantsList) && taskData.participantsList.length > 0) {
-      // 多人任务：使用 participantsList
-      participantsList = taskData.participantsList
-      
-      // 如果当前用户是创建者，默认显示第一个参与者
-      // 否则显示当前用户领取的任务
+    // 如果是多人任务（participantLimit > 1）
+    if (taskData.participantLimit && taskData.participantLimit > 1 && taskData.participantsList && taskData.participantsList.length > 0) {
+      // 判断用户角色
       if (userStore.user?.id === taskData.creatorId) {
-        // 创建者：显示第一个已领取的参与者，或第一个参与者
-        const firstClaimed = participantsList.find((p: any) => p.id && p.claimedAt) || participantsList[0]
-        currentTaskData = await getTaskById(firstClaimed.id || taskData.id, baseUrl) || taskData
-        currentParticipantId.value = firstClaimed.id || taskData.id
+        // 创建者：如果已领取，默认显示自己的任务行；否则显示第一个已领取的任务行
+        if (creatorTaskId.value) {
+          // 创建者已领取，显示自己的任务行
+          targetTaskId = creatorTaskId.value
+          const creatorTask = taskData.participantsList.find((p: any) => p.id === creatorTaskId.value)
+          if (creatorTask) {
+            // 需要重新获取创建者任务行的完整数据（包括时间线）
+            currentTaskData = await getTaskById(creatorTaskId.value, baseUrl, true, 5000) || taskData
+          }
+        } else {
+          // 创建者未领取，显示第一个已领取的任务行，或第一个任务行
+          const firstClaimed = taskData.participantsList.find((p: any) => p.claimerId && p.claimedAt) || taskData.participantsList[0]
+          if (firstClaimed && firstClaimed.id) {
+            targetTaskId = firstClaimed.id
+            currentTaskData = await getTaskById(firstClaimed.id, baseUrl, true, 5000) || taskData
+          }
+        }
+        currentParticipantId.value = targetTaskId
       } else {
-        // 非创建者：显示自己领取的任务
-        const myTask = participantsList.find((p: any) => p.id && userStore.user?.id === p.id)
-        if (myTask) {
-          currentTaskData = await getTaskById(myTask.id, baseUrl) || taskData
+        // 非创建者：显示自己领取的任务行
+        const myTask = taskData.participantsList.find((p: any) => p.claimerId === userStore.user?.id)
+        if (myTask && myTask.id) {
+          targetTaskId = myTask.id
+          currentTaskData = await getTaskById(myTask.id, baseUrl, true, 5000) || taskData
           currentParticipantId.value = myTask.id
         } else {
-          currentParticipantId.value = taskData.id
+          // 未领取，显示第一个未领取的任务行
+          const firstUnclaimed = taskData.participantsList.find((p: any) => !p.claimerId) || taskData.participantsList[0]
+          if (firstUnclaimed && firstUnclaimed.id) {
+            targetTaskId = firstUnclaimed.id
+            currentTaskData = await getTaskById(firstUnclaimed.id, baseUrl, true, 5000) || taskData
+          }
+          currentParticipantId.value = targetTaskId
         }
       }
     } else {
       // 单人任务
-      participantsList = taskData.claimerId ? [{
-        id: taskData.id,
-        name: taskData.claimerName || '接单者',
-        role: '参与者',
-        claimedAt: taskData.claimedAt,
-        submittedAt: taskData.submittedAt,
-        status: taskData.status
-      }] : []
-      currentParticipantId.value = taskData.id
+      currentParticipantId.value = taskId
+    }
+    
+    // 构建 assignedUserNames 映射（从 participantsList 中获取，或从 assignedUserIds 中获取）
+    let assignedUserNames: Record<string, string> = {}
+    if (taskData.assignedUserIds && taskData.assignedUserIds.length > 0) {
+      // 如果后端返回了 assignedUserNames，直接使用
+      if (taskData.assignedUserNames && typeof taskData.assignedUserNames === 'object') {
+        assignedUserNames = taskData.assignedUserNames
+      } else {
+        // 否则从 participantsList 中构建
+        taskData.assignedUserIds.forEach((userId: string, index: number) => {
+          // 先从 participantsList 中查找（如果已领取）
+          if (taskData.participantsList && taskData.participantsList.length > index) {
+            const participant = taskData.participantsList[index]
+            if (participant && participant.claimerId === userId && participant.name && participant.name !== '未领取') {
+              assignedUserNames[userId] = participant.name
+              return
+            }
+          }
+          // 如果 participantsList 中没有，标记为未知用户
+          assignedUserNames[userId] = '未知用户'
+        })
+      }
     }
     
     // 转换API数据为页面需要的格式
@@ -860,14 +1120,16 @@ const loadTask = async () => {
       isClaimed: !!currentTaskData.claimerId, // 是否已领取（通过 claimerId 判断）
       creator: currentTaskData.creatorName || taskData.creatorName || '发布者',
       creatorId: currentTaskData.creatorId || taskData.creatorId,
-      participantLimit: taskData.participantLimit || null, // 保存多人任务限制
       claimerId: currentTaskData.claimerId || null, // 保存当前查看的领取者ID，用于权限检查
       claimerName: currentTaskData.claimerName || null, // 保存当前查看的领取者名称，用于显示
-      assignedUserId: currentTaskData.assignedUserId || taskData.assignedUserId || null, // 指定参与人员ID
-      participantsList: participantsList, // 保存所有参与者列表
+      assignedUserId: currentTaskData.assignedUserId || taskData.assignedUserId || null, // 指定参与人员ID（向后兼容）
+      assignedUserIds: currentTaskData.assignedUserIds || taskData.assignedUserIds || (currentTaskData.assignedUserId ? [currentTaskData.assignedUserId] : []) || (taskData.assignedUserId ? [taskData.assignedUserId] : []), // 指定参与人员ID列表
+      assignedUserNames: assignedUserNames || currentTaskData.assignedUserNames || taskData.assignedUserNames || {} as Record<string, string>,
+      participantLimit: taskData.participantLimit || null, // 多人任务限制
+      participantsList: taskData.participantsList || [], // 参与者列表
       submissionInstructions: currentTaskData.submissionInstructions || taskData.submissionInstructions || '',
       proofConfig: currentTaskData.proofConfig || taskData.proofConfig || null, // 获取证明配置
-      timeline: currentTaskData.timeline || [], // 保存当前参与者的时间线数据
+      timeline: currentTaskData.timeline || [], // 保存当前任务行的时间线数据
       updates: [],
       // 保存原始API数据字段用于时间线
       createdAt: currentTaskData.createdAt || taskData.createdAt,
@@ -882,11 +1144,20 @@ const loadTask = async () => {
       currentTaskData: currentTaskData.assignedUserId,
       taskData: taskData.assignedUserId,
       final: task.value.assignedUserId,
+      assignedUserIds: task.value.assignedUserIds,
+      assignedUserNames: task.value.assignedUserNames,
       currentUserId: userStore.user?.id
     })
     
     // 调试：打印时间线数据
-    console.log('Task timeline data loaded:', task.value.timeline)
+    console.log('[LOAD TASK] 时间线数据加载:', {
+      taskId: task.value.id,
+      currentParticipantId: currentParticipantId.value,
+      timelineLength: task.value.timeline?.length || 0,
+      timeline: task.value.timeline,
+      claimerId: task.value.claimerId,
+      claimerName: task.value.claimerName
+    })
     
     // 获取任务奖励的积分符号
     taskRewardSymbol.value = await getTaskRewardSymbol(taskData)
@@ -905,46 +1176,6 @@ const loadTask = async () => {
   }
 }
 
-// 切换参与者（多人任务）
-const switchParticipant = async (participantTaskId: string) => {
-  if (currentParticipantId.value === participantTaskId) return
-  
-  currentParticipantId.value = participantTaskId
-  loading.value = true
-  
-  try {
-    const baseUrl = getApiBaseUrl()
-    const participantTaskData = await getTaskById(participantTaskId, baseUrl)
-    
-    if (participantTaskData) {
-      // 更新当前显示的任务数据
-      task.value.id = participantTaskData.id
-      task.value.status = participantTaskData.status
-      task.value.claimerId = participantTaskData.claimerId
-      task.value.claimerName = participantTaskData.claimerName
-      task.value.reward = participantTaskData.reward
-      task.value.timeline = participantTaskData.timeline || []
-      task.value.claimedAt = participantTaskData.claimedAt
-      task.value.submittedAt = participantTaskData.submittedAt
-      task.value.completedAt = participantTaskData.completedAt
-      
-      // 更新任务奖励的积分符号
-      taskRewardSymbol.value = await getTaskRewardSymbol(participantTaskData)
-      
-      // 重新生成时间线
-      updateTimeline()
-    }
-  } catch (error) {
-    console.error('切换参与者失败:', error)
-    toast.add({
-      title: '切换失败',
-      description: '无法加载参与者信息',
-      color: 'red'
-    })
-  } finally {
-    loading.value = false
-  }
-}
 
 // 领取任务
 const handleClaimTask = async () => {
@@ -987,13 +1218,61 @@ const handleClaimTask = async () => {
 
 // 提交任务
 const submitTask = () => {
-      router.push(`/tasks/submit?id=${taskId}`)
+      // 使用当前查看的任务行ID（对于多人任务，这应该是用户实际领取的任务行ID）
+      router.push(`/tasks/submit?id=${task.value.id}`)
+}
+
+// 切换参与者（多人任务）
+const switchParticipant = async (participantTaskId: string) => {
+  if (currentParticipantId.value === participantTaskId) return
+  
+  currentParticipantId.value = participantTaskId
+  loading.value = true
+  
+  try {
+    const baseUrl = getApiBaseUrl()
+    
+    // 清除缓存，确保获取最新的时间线数据
+    const { responseCache } = await import('~/utils/cache')
+    responseCache.delete(`task:${participantTaskId}`)
+    
+    // 从 API 获取最新的任务数据
+    const participantTaskData = await getTaskById(participantTaskId, baseUrl, false, 0)
+    
+    if (participantTaskData) {
+      // 更新当前显示的任务数据（确保只使用当前任务行的时间线）
+      task.value.id = participantTaskData.id
+      task.value.status = participantTaskData.status
+      task.value.claimerId = participantTaskData.claimerId
+      task.value.claimerName = participantTaskData.claimerName
+      task.value.reward = participantTaskData.reward
+      task.value.timeline = Array.isArray(participantTaskData.timeline) ? participantTaskData.timeline : []
+      task.value.claimedAt = participantTaskData.claimedAt
+      task.value.submittedAt = participantTaskData.submittedAt
+      task.value.completedAt = participantTaskData.completedAt
+      
+      // 更新任务奖励的积分符号
+      taskRewardSymbol.value = await getTaskRewardSymbol(participantTaskData)
+      
+      // 重新生成时间线（只使用当前任务行的时间线）
+      updateTimeline()
+    }
+  } catch (error) {
+    console.error('切换参与者失败:', error)
+    toast.add({
+      title: '切换失败',
+      description: '无法加载参与者信息',
+      color: 'red'
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 // 审核任务
 const reviewTask = () => {
       // 使用当前查看的参与者任务ID
-      router.push(`/tasks/review?id=${currentParticipantId.value}`)
+      router.push(`/tasks/review?id=${task.value.id}`)
 }
 
 // 导航到成员页面
@@ -1016,6 +1295,7 @@ const startProgressPolling = () => {
   }
   
   // 每10秒轮询一次任务状态（减少频率，避免过度刷新）
+  // 注意：对于多人任务，非创建者不应该轮询，因为他们只能看到自己的任务
   pollingInterval = setInterval(async () => {
     try {
       // 只在任务未完成时轮询
@@ -1024,10 +1304,27 @@ const startProgressPolling = () => {
       }
       
       const baseUrl = getApiBaseUrl()
-      const updatedTask = await getTaskById(taskId, baseUrl)
+      // 轮询时使用当前任务行ID（对于多人任务，这应该是当前查看的任务行ID）
+      const taskIdToPoll = currentParticipantId.value || taskId
+      
+      // 轮询时使用缓存，但设置较短的缓存时间（2秒），只检查状态变化
+      const updatedTask = await getTaskById(taskIdToPoll, baseUrl, true, 2000)
       if (updatedTask && updatedTask.status !== task.value.status) {
-        // 状态发生变化，重新加载任务
-        await loadTask()
+        // 状态发生变化，只更新状态相关字段，不重新加载整个任务
+        task.value.status = updatedTask.status
+        task.value.claimerId = updatedTask.claimerId
+        task.value.claimerName = updatedTask.claimerName
+        task.value.timeline = Array.isArray(updatedTask.timeline) ? updatedTask.timeline : [] // 确保只使用当前任务行的时间线
+        task.value.claimedAt = updatedTask.claimedAt
+        task.value.submittedAt = updatedTask.submittedAt
+        task.value.completedAt = updatedTask.completedAt
+        
+        // 重新生成时间线（只使用当前任务行的时间线）
+        updateTimeline()
+        
+        // 清除相关缓存，确保下次获取最新数据
+        const { responseCache } = await import('~/utils/cache')
+        responseCache.delete(`task:${taskIdToPoll}`)
       }
     } catch (error) {
       console.error('轮询任务状态失败:', error)
@@ -1051,6 +1348,10 @@ onMounted(async () => {
   
   // 检查是否从提交页面返回
   if (route.query.submitted === 'true') {
+    // 清除缓存，确保获取最新数据
+    const { responseCache } = await import('~/utils/cache')
+    responseCache.delete(`task:${taskId}`)
+    
     // 重新加载任务以获取最新状态
     await loadTask()
     // 清理URL参数

@@ -169,13 +169,25 @@ const isTaskClaimed = (task: Task): boolean => {
   return !!task.claimerId
 }
 
-// 检查任务是否已过期（过了报名截止日期且未领取）
+// 检查任务是否已过期（过了报名截止日期）
+// 对于多人任务：过了报名截止日期就不能再领取
+// 对于单人任务：过了报名截止日期且未领取才算过期
 const isTaskExpired = (task: Task): boolean => {
   if (!task.deadline) return false // 如果没有报名截止时间，认为未过期
   const now = new Date()
   const deadline = new Date(task.deadline)
-  // 过了报名截止日期且未领取的任务才算过期
-  return now.getTime() > deadline.getTime() && !isTaskClaimed(task)
+  
+  // 如果过了报名截止日期
+  if (now.getTime() > deadline.getTime()) {
+    // 多人任务：过了报名截止日期就不能再领取
+    if (task.participantLimit && task.participantLimit > 1) {
+      return true
+    }
+    // 单人任务：过了报名截止日期且未领取才算过期
+    return !isTaskClaimed(task)
+  }
+  
+  return false
 }
 
 // 检查任务是否已截止（过了提交截止日期且已领取但未提交）
@@ -252,19 +264,8 @@ const taskItems = computed<TaskItem[]>(() => {
 const isTaskNotFullyClaimed = (task: Task): boolean => {
   // 如果任务有参与人数限制
   if (task.participantLimit && task.participantLimit > 1) {
-    // 检查当前已领取人数（通过 participantsList）
-    const currentParticipants = task.participantsList?.filter(p => p.id && p.claimedAt).length || 0
-    
-    // 如果已领取人数等于限制，检查是否所有参与者都已完成
-    if (currentParticipants >= task.participantLimit) {
-      // 如果所有参与者都已完成或被驳回，不应该显示"未领完"
-      const allCompletedOrRejected = task.participantsList?.every(p => 
-        p.status === 'completed' || p.status === 'rejected'
-      ) || false
-      if (allCompletedOrRejected) {
-        return false // 全部完成，不显示"未领完"
-      }
-    }
+    // 检查当前已领取人数（通过 participantsList，检查 claimerId 和 claimedAt）
+    const currentParticipants = task.participantsList?.filter(p => p.claimerId && p.claimedAt).length || 0
     
     // 未领完：已领取人数小于限制（包括0人领取的情况）
     return currentParticipants < task.participantLimit

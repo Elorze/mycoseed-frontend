@@ -32,99 +32,94 @@
               ></textarea>
             </div>
 
-            <!-- 参与人数配置 -->
+            <!-- 参与人数和指定参与人员（同一行） -->
             <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-3">
-                  <h4 class="font-pixel text-xs uppercase text-black">限制参与人数</h4>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    v-model="limitParticipants"
-                    class="sr-only peer"
-                  />
-                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
-                </label>
-              </div>
-              
-              <div v-if="limitParticipants" class="space-y-3 mt-3">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 左边：参与人数 -->
                 <div>
-                  <label class="block font-pixel text-[10px] uppercase mb-1 text-black">参与人数</label>
+                  <label class="block font-pixel text-xs uppercase mb-2 text-black">参与人数</label>
                   <input
                     v-model.number="taskForm.participantLimit"
                     type="number"
                     min="1"
                     placeholder="1"
-                    class="w-32 h-12 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                    class="w-full h-12 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                   />
+                  <p v-if="participantError" class="mt-1 font-vt323 text-xs text-mario-red">
+                    {{ participantError }}
+                  </p>
+                  <p v-else-if="taskForm.participantLimit" class="mt-2 font-vt323 text-sm text-black/70">
+                    最多 {{ taskForm.participantLimit }} 人可以参与此任务
+                  </p>
                 </div>
-                <p v-if="participantError" class="mt-1 font-vt323 text-xs text-mario-red">
-                  {{ participantError }}
-                </p>
-                <p v-if="!participantError && taskForm.participantLimit" class="mt-2 font-vt323 text-sm text-black/70">
-                  最多 {{ taskForm.participantLimit }} 人可以参与此任务
-                </p>
-              </div>
-              <p v-else class="mt-2 font-vt323 text-sm text-black/70">
-                默认不限报名人数
-              </p>
-            </div>
 
-            <!-- 指定参与人员 -->
-            <div class="p-3 md:p-4 bg-gray-50 border-2 border-black shadow-pixel-sm">
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-3">
-                  <h4 class="font-pixel text-xs uppercase text-black">指定参与人员</h4>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    v-model="assignUser"
-                    class="sr-only peer"
-                  />
-                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
-                </label>
-              </div>
-              
-              <div v-if="assignUser" class="space-y-3 mt-3">
+                <!-- 右边：指定参与人员 -->
                 <div>
-                  <label class="block font-pixel text-[10px] uppercase mb-1 text-black">选择用户</label>
-                  <div class="relative user-selector-container">
-                    <input
-                      v-model="userSearchQuery"
-                      @input="filterUsers"
-                      @focus="showUserDropdown = true"
-                      type="text"
-                      placeholder="搜索用户..."
-                      class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-                    />
-                    <!-- 下拉列表 -->
-                    <div 
-                      v-if="showUserDropdown && filteredUsers.length > 0"
-                      class="absolute z-50 w-full mt-1 bg-white border-2 border-black shadow-pixel-sm max-h-60 overflow-y-auto"
-                    >
-                      <button
-                        v-for="user in filteredUsers"
-                        :key="user.id"
-                        @click="selectUser(user)"
-                        class="w-full px-4 py-2 text-left hover:bg-mario-yellow font-vt323 text-base border-b border-black/10 last:border-b-0"
-                      >
-                        {{ user.name }}
-                      </button>
-                    </div>
+                  <div class="flex items-center justify-between mb-2">
+                    <label class="block font-pixel text-xs uppercase text-black">指定参与人员</label>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        v-model="assignUser"
+                        class="sr-only peer"
+                      />
+                      <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black border-2 border-black peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-2 after:border-black after:h-5 after:w-5 after:transition-all peer-checked:bg-mario-green"></div>
+                    </label>
                   </div>
-                  <p v-if="selectedUser" class="mt-2 font-vt323 text-sm text-black/70">
-                    已选择：{{ selectedUser.name }}
-                  </p>
-                  <p v-else-if="assignUser" class="mt-2 font-vt323 text-sm text-black/70">
-                    请选择一个用户
-                  </p>
+                  
+                  <div v-if="assignUser" class="space-y-3">
+                    <div class="relative user-selector-container">
+                      <input
+                        v-model="userSearchQuery"
+                        @input="filterUsers"
+                        @focus="showUserDropdown = true"
+                        type="text"
+                        placeholder="搜索用户..."
+                        class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                      />
+                      <!-- 下拉列表 -->
+                      <div 
+                        v-if="showUserDropdown && filteredUsers.length > 0"
+                        class="absolute z-50 w-full mt-1 bg-white border-2 border-black shadow-pixel-sm max-h-60 overflow-y-auto"
+                      >
+                        <button
+                          v-for="user in filteredUsers"
+                          :key="user.id"
+                          @click="selectUser(user)"
+                          :disabled="isUserSelected(user.id)"
+                          class="w-full px-4 py-2 text-left hover:bg-mario-yellow font-vt323 text-base border-b border-black/10 last:border-b-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {{ user.name }}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <!-- 已选择的用户列表（多人任务） -->
+                    <div v-if="selectedUsers.length > 0" class="space-y-2">
+                      <div class="font-pixel text-[10px] uppercase text-black">已选择用户 ({{ selectedUsers.length }}/{{ taskForm.participantLimit }})</div>
+                      <div class="flex flex-wrap gap-2">
+                        <div
+                          v-for="(user, index) in selectedUsers"
+                          :key="user.id"
+                          class="flex items-center gap-2 px-3 py-1 bg-mario-yellow border-2 border-black shadow-pixel-sm"
+                        >
+                          <span class="font-vt323 text-sm">{{ user.name }}</span>
+                          <button
+                            @click="removeUser(index)"
+                            class="text-mario-red hover:text-red-700 font-bold"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <p v-if="assignUser && selectedUsers.length === 0" class="font-vt323 text-sm text-black/70">
+                      请选择用户（最多 {{ taskForm.participantLimit }} 人）
+                    </p>
+                  </div>
                 </div>
               </div>
-              <p v-else class="mt-2 font-vt323 text-sm text-black/70">
-                默认所有用户都可以领取
-              </p>
             </div>
 
             <!-- 移动端单列，桌面端双列 -->
@@ -140,8 +135,8 @@
                   class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                 />
                 
-                <!-- 奖励分配方式选择器（仅在设置了参与人数上限时显示） -->
-                <div v-if="limitParticipants && taskForm.participantLimit" class="mt-3 space-y-2">
+                <!-- 奖励分配方式选择器 -->
+                <div v-if="taskForm.participantLimit" class="mt-3 space-y-2">
                   <label class="block font-pixel text-[10px] uppercase text-black">奖励分配方式</label>
                   <div class="flex gap-3">
                     <label class="flex items-center cursor-pointer">
@@ -481,14 +476,12 @@ const proofConfig = ref({
 // 加载状态
 const isPublishing = ref(false)
 
-// 参与人数：限制人数开关、不限人数开关与错误信息
-const limitParticipants = ref(false)
-const unlimitedParticipants = computed(() => !limitParticipants.value)
+// 参与人数错误信息
 const participantError = ref('')
 
 // 指定参与人员相关
 const assignUser = ref(false)
-const selectedUser = ref<{ id: string; name: string } | null>(null)
+const selectedUsers = ref<Array<{ id: string; name: string }>>([]) // 改为数组，支持多人
 const allUsers = ref<Array<{ id: string; name: string; phone?: string; email?: string }>>([])
 const filteredUsers = ref<Array<{ id: string; name: string; phone?: string; email?: string }>>([])
 const userSearchQuery = ref('')
@@ -519,11 +512,10 @@ const canPublish = computed(() => {
          taskForm.value.startDate && 
          taskForm.value.deadline &&
          taskForm.value.submitDeadline &&
-         // 参与人数校验：如果限制人数，则必须填写有效的人数
-         (
-           !limitParticipants.value ||
-           (!!taskForm.value.participantLimit && taskForm.value.participantLimit >= 1)
-         ) &&
+         // 参与人数校验：必须填写有效的人数
+         (!!taskForm.value.participantLimit && taskForm.value.participantLimit >= 1) &&
+         // 如果指定了用户，必须选择用户
+         (!assignUser.value || selectedUsers.value.length > 0) &&
          // 日期关系校验（没有错误信息）
          !dateError.value
 })
@@ -535,38 +527,35 @@ const rewardExplanation = computed(() => {
     return ''
   }
   
-  // 不限制人数时，使用总积分模式（默认）
-  if (!limitParticipants.value) {
-    return `总奖励 ${reward} 积分，将根据实际参与人数平均分配（不限人数）`
+  const limit = taskForm.value.participantLimit || 1
+  
+  // 根据分配模式显示不同的说明
+  if (rewardDistributionMode.value === 'per_person') {
+    // 每人积分模式
+    const totalReward = reward * limit
+    return `每个完成任务的参与者将获得 ${reward} 积分（共 ${limit} 人，总奖励 ${totalReward} 积分）`
   } else {
-    const limit = taskForm.value.participantLimit || 1
-    
-    // 根据分配模式显示不同的说明
-    if (rewardDistributionMode.value === 'per_person') {
-      // 每人积分模式
-      const totalReward = reward * limit
-      return `每个完成任务的参与者将获得 ${reward} 积分（共 ${limit} 人，总奖励 ${totalReward} 积分）`
-    } else {
-      // 总积分模式
-      const perPersonReward = Math.floor(reward / limit)
-      return `总奖励 ${reward} 积分，将根据实际参与人数平均分配（最多 ${limit} 人，每人最多可获得 ${perPersonReward} 积分）`
-    }
+    // 总积分模式
+    const perPersonReward = Math.floor(reward / limit)
+    return `总奖励 ${reward} 积分，将根据实际参与人数平均分配（最多 ${limit} 人，每人最多可获得 ${perPersonReward} 积分）`
   }
 })
 
 // 校验参与人数
 const validateParticipants = () => {
   participantError.value = ''
-  if (!limitParticipants.value) {
-    // 不限制人数时忽略具体数值
-    taskForm.value.participantLimit = null as unknown as number
-    return true
-  }
   const value = taskForm.value.participantLimit
   if (!value || value < 1) {
     participantError.value = '参与人数至少为 1 人'
     return false
   }
+  
+  // 如果指定了用户，检查选择的用户数量是否超过参与人数限制
+  if (assignUser.value && selectedUsers.value.length > value) {
+    participantError.value = `选择的用户数量（${selectedUsers.value.length}）不能超过参与人数限制（${value}）`
+    return false
+  }
+  
   return true
 }
 
@@ -582,7 +571,7 @@ const validateDates = () => {
     dateError.value = '请填写所有时间字段'
     return false
   }
-  
+
   const now = new Date()
   
   // 解析时间（datetime-local 输入返回的是本地时间字符串 YYYY-MM-DDTHH:mm）
@@ -617,7 +606,7 @@ const validateDates = () => {
 }
 
 // 监听字段变化做实时校验
-watch(() => [taskForm.value.participantLimit, limitParticipants.value], () => {
+watch(() => [taskForm.value.participantLimit, assignUser.value, selectedUsers.value.length], () => {
   validateParticipants()
 })
 
@@ -632,11 +621,22 @@ const publishTask = async () => {
   const datesOK = validateDates()
   
   // 检查是否指定了用户但没有选择
-  if (assignUser.value && !selectedUser.value) {
+  if (assignUser.value && selectedUsers.value.length === 0) {
     const toast = useToast()
     toast.add({
       title: '请选择指定用户',
-      description: '您已开启"指定参与人员"，请选择一个用户',
+      description: '您已开启"指定参与人员"，请至少选择一个用户',
+      color: 'red'
+    })
+    return
+  }
+  
+  // 检查选择的用户数量是否超过参与人数限制
+  if (assignUser.value && selectedUsers.value.length > taskForm.value.participantLimit) {
+    const toast = useToast()
+    toast.add({
+      title: '用户数量超出限制',
+      description: `选择的用户数量（${selectedUsers.value.length}）不能超过参与人数限制（${taskForm.value.participantLimit}）`,
       color: 'red'
     })
     return
@@ -666,8 +666,8 @@ const publishTask = async () => {
       startDate: taskForm.value.startDate,
       deadline: taskForm.value.deadline,
       submitDeadline: taskForm.value.submitDeadline,
-      participantLimit: !limitParticipants.value ? null : taskForm.value.participantLimit,
-      rewardDistributionMode: !limitParticipants.value ? 'total' : rewardDistributionMode.value
+      participantLimit: taskForm.value.participantLimit,
+      rewardDistributionMode: rewardDistributionMode.value
     })
     
     // 模拟钱包签名和发布
@@ -677,12 +677,14 @@ const publishTask = async () => {
     const baseUrl = getApiBaseUrl()
     console.log('[CREATE TASK] API Base URL:', baseUrl)
     
-    // 检查是否指定了用户
-    const assignedUserId = assignUser.value && selectedUser.value ? selectedUser.value.id : undefined
+    // 检查是否指定了用户（多人任务支持多个用户）
+    const assignedUserIds = assignUser.value && selectedUsers.value.length > 0 
+      ? selectedUsers.value.map(u => u.id) 
+      : undefined
     console.log('[CREATE TASK] 指定用户检查:', {
       assignUser: assignUser.value,
-      selectedUser: selectedUser.value,
-      assignedUserId: assignedUserId
+      selectedUsers: selectedUsers.value,
+      assignedUserIds: assignedUserIds
     })
     
     const taskParams = {
@@ -692,11 +694,11 @@ const publishTask = async () => {
       startDate: taskForm.value.startDate,
       deadline: taskForm.value.deadline,
       submitDeadline: taskForm.value.submitDeadline,
-      participantLimit: !limitParticipants.value ? null : taskForm.value.participantLimit,
-      rewardDistributionMode: !limitParticipants.value ? 'total' : rewardDistributionMode.value, // 不限制人数时默认使用总积分模式
+      participantLimit: taskForm.value.participantLimit,
+      rewardDistributionMode: rewardDistributionMode.value,
       submissionInstructions: taskForm.value.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
       proofConfig: proofConfig.value,
-      assignedUserId: assignedUserId  // 指定参与人员ID
+      assignedUserIds: assignedUserIds  // 指定参与人员ID列表（多人任务）
     }
     
     console.log('[CREATE TASK] 发送请求参数:', taskParams)
@@ -790,13 +792,39 @@ const filterUsers = () => {
   }
 }
 
-// 选择用户
+// 检查用户是否已选择
+const isUserSelected = (userId: string) => {
+  return selectedUsers.value.some(u => u.id === userId)
+}
+
+// 选择用户（支持多人）
 const selectUser = (user: { id: string; name: string }) => {
+  // 检查是否已选择
+  if (isUserSelected(user.id)) {
+    return
+  }
+  
+  // 检查是否超过参与人数限制
+  if (selectedUsers.value.length >= taskForm.value.participantLimit) {
+    const toast = useToast()
+    toast.add({
+      title: '已达到人数限制',
+      description: `最多只能选择 ${taskForm.value.participantLimit} 个用户`,
+      color: 'red'
+    })
+    return
+  }
+  
   console.log('[SELECT USER] 选择用户:', user)
-  selectedUser.value = user
-  userSearchQuery.value = user.name
+  selectedUsers.value.push(user)
+  userSearchQuery.value = ''
   showUserDropdown.value = false
-  console.log('[SELECT USER] selectedUser.value:', selectedUser.value)
+  console.log('[SELECT USER] selectedUsers.value:', selectedUsers.value)
+}
+
+// 移除用户
+const removeUser = (index: number) => {
+  selectedUsers.value.splice(index, 1)
 }
 
 // 点击外部关闭下拉列表

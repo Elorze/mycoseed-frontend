@@ -517,12 +517,28 @@ export const getTasks = async (activityId: number, baseUrl: string): Promise<Tas
 }
 
 /**
- * 根据 ID 获取单个任务详情
+ * 根据 ID 获取单个任务详情（带缓存）
  * @param id 任务 ID (UUID string)
  * @param baseUrl API 基础 URL
+ * @param useCache 是否使用缓存，默认 true
+ * @param cacheTTL 缓存时间（毫秒），默认 5000ms
  */
-export const getTaskById = async (id: string, baseUrl: string): Promise<Task | null> => {
+export const getTaskById = async (
+  id: string, 
+  baseUrl: string, 
+  useCache: boolean = true,
+  cacheTTL: number = 5000
+): Promise<Task | null> => {
   try {
+    // 检查缓存
+    if (useCache) {
+      const { responseCache } = await import('./cache')
+      const cached = responseCache.get<Task>(`task:${id}`)
+      if (cached) {
+        return cached
+      }
+    }
+
     const response = await fetch(`${baseUrl}/api/tasks/${id}`, {
       method: 'GET',
       headers: {
@@ -540,47 +556,7 @@ export const getTaskById = async (id: string, baseUrl: string): Promise<Task | n
 
     const data = await response.json()
     
-    // 处理任务组格式（包含 taskInfo 和 participants）
-    if (data.taskInfo && data.participants && Array.isArray(data.participants)) {
-      // 获取第一个参与者任务（或当前任务ID对应的任务）
-      const participantTask = data.participants.find((p: Task) => p.id === id) || data.participants[0]
-      
-      // 合并 taskInfo 的数据到任务对象
-      return {
-        ...participantTask,
-        // 从 taskInfo 获取共享字段
-        title: data.taskInfo.title || participantTask.title,
-        description: data.taskInfo.description || participantTask.description,
-        activityId: data.taskInfo.activityId || participantTask.activityId,
-        startDate: data.taskInfo.startDate || participantTask.startDate,
-        deadline: data.taskInfo.deadline || participantTask.deadline,
-        submitDeadline: data.taskInfo.submitDeadline || participantTask.submitDeadline,
-        participantLimit: data.taskInfo.participantLimit ?? participantTask.participantLimit,
-        rewardDistributionMode: data.taskInfo.rewardDistributionMode || participantTask.rewardDistributionMode,
-        proofConfig: data.taskInfo.proofConfig || participantTask.proofConfig,
-        submissionInstructions: data.taskInfo.submissionInstructions || participantTask.submissionInstructions,
-        creatorId: data.taskInfo.creatorId || participantTask.creatorId,
-        assignedUserId: data.taskInfo.assignedUserId || participantTask.assignedUserId,  // 指定参与人员ID
-        // 保留参与者特定的字段（包括 timeline）
-        reward: participantTask.reward,
-        currency: participantTask.currency,
-        status: participantTask.status,
-        claimerId: participantTask.claimerId,
-        claimerName: participantTask.claimerName,
-        timeline: participantTask.timeline || [], // 确保 timeline 被传递
-        // 添加参与者列表
-        participantsList: data.participants.map((p: Task) => ({
-          id: p.id,
-          name: p.claimerName || '未领取',
-          claimedAt: p.claimedAt || '',
-          submittedAt: p.submittedAt,
-          proof: p.proof,
-          status: p.status
-        }))
-      } as Task
-    }
-    
-    // 处理单个任务格式（向后兼容）
+    // 处理单个任务格式
     return data as Task
   } catch (error: any) {
     console.error('Get task by id error:', error)
@@ -628,7 +604,8 @@ export interface CreateTaskParams {
   participantLimit?: number | null
   rewardDistributionMode?: 'per_person' | 'total'
   submissionInstructions?: string
-  assignedUserId?: string  // 指定参与人员ID（可选）
+  assignedUserId?: string  // 指定参与人员ID（可选，向后兼容）
+  assignedUserIds?: string[]  // 指定参与人员ID列表（多人任务）
 }
 
 /**
@@ -652,7 +629,8 @@ export const createTask = async (params: CreateTaskParams, baseUrl: string): Pro
       participantLimit: params.participantLimit ?? null,
       rewardDistributionMode: params.rewardDistributionMode || 'per_person',
       submissionInstructions: params.submissionInstructions,
-      assignedUserId: params.assignedUserId || undefined,  // 指定参与人员ID
+      assignedUserId: params.assignedUserId || undefined,  // 指定参与人员ID（向后兼容）
+      assignedUserIds: params.assignedUserIds || undefined,  // 指定参与人员ID列表（多人任务）
     }
     
     console.log('[API] createTask - 请求体:', requestBody)

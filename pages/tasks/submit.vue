@@ -732,7 +732,9 @@ const submitForm = async () => {
         color: 'green'
       })
       // 提交成功后跳转到任务详情页，并更新任务状态
-      router.push(`/tasks/${taskId}?submitted=true`)
+      // 对于多人任务，使用当前任务行ID（task.value.id），否则使用taskId
+      const redirectTaskId = task.value.id || taskId
+      router.push(`/tasks/${redirectTaskId}?submitted=true`)
     } else {
       toast.add({
         title: '提交失败',

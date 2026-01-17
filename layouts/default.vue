@@ -1,9 +1,10 @@
 <template>
   <div class="min-h-screen flex flex-col font-vt323 bg-mario-sky bg-[size:40px_40px]" style="background-image: linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px);">
+    <!-- 桌面端Header：包含登出按钮 -->
     <LayoutHeader 
       :current-page="currentPage" 
       @navigate="handleNavigate"
-      class="hidden md:block"
+      class="hidden md:flex"
     />
     
     <!-- Mobile Header (Simplified) -->
@@ -55,9 +56,22 @@
           </div>
         </Transition>
       </div>
+      
+      <!-- 手机端登出按钮 -->
+      <button
+        v-if="mobileUserStore.isAuthenticated"
+        @click="handleMobileLogoutClick"
+        class="w-10 h-10 flex items-center justify-center border-2 border-black bg-red-500 hover:bg-red-600 text-white font-pixel text-xs transition-all active:scale-95 shadow-pixel ml-2"
+        title="登出"
+      >
+        🚪
+      </button>
     </div>
     
-    <main class="relative flex-grow w-full md:container md:mx-auto px-2 md:px-4 py-4 md:py-8 md:max-w-6xl mb-16 md:mb-0">
+    <!-- 主内容区域：确保在所有设备上都有足够的底部空间，避免被导航栏遮挡 -->
+    <!-- 手机端：为底部导航留出空间（pb-20 = 80px） -->
+    <!-- 桌面端：为底部导航留出空间（pb-20 = 80px，因为底部导航固定在底部） -->
+    <main class="relative flex-grow w-full md:container md:mx-auto px-2 md:px-4 py-4 md:py-8 md:max-w-6xl pb-20">
       <!-- Floating Cloud Decoration (CSS based) -->
       <div class="absolute top-10 left-10 w-16 h-8 bg-white/80 hidden md:block pixel-cloud opacity-50 -z-10"></div>
       <div class="absolute top-24 right-20 w-24 h-10 bg-white/80 hidden md:block pixel-cloud opacity-60 -z-10"></div>
@@ -65,6 +79,7 @@
       <NuxtPage />
     </main>
 
+    <!-- 底部导航：手机端固定，桌面端也显示 -->
     <LayoutBottomNav />
 
     <!-- Footer Ground (Desktop Only) -->
@@ -78,6 +93,34 @@
         © 2024 MYCOSEED • PRESS START
       </div>
     </footer>
+    
+    <!-- 手机端登出确认弹窗 -->
+    <Transition name="modal">
+      <div 
+        v-if="showMobileLogoutModal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        @click.self="showMobileLogoutModal = false"
+      >
+        <div class="bg-white border-4 border-black shadow-pixel p-6 max-w-sm w-full mx-4">
+          <h3 class="font-pixel text-xl mb-4">确认登出</h3>
+          <p class="font-vt323 text-gray-700 mb-6">确定要登出吗？登出后需要重新登录。</p>
+          <div class="flex gap-3">
+            <button
+              @click="confirmMobileLogout"
+              class="flex-1 px-4 py-2 bg-mario-red text-white border-2 border-black font-pixel text-sm hover:bg-red-600 transition-colors"
+            >
+              确认登出
+            </button>
+            <button
+              @click="showMobileLogoutModal = false"
+              class="flex-1 px-4 py-2 bg-gray-200 text-black border-2 border-black font-pixel text-sm hover:bg-gray-300 transition-colors"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -85,13 +128,16 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCommunityStore } from '~/stores/community'
+import { useUserStore } from '~/stores/user'
 import type { Community } from '~/utils/api'
 
 const router = useRouter()
 const mobileCommunityStore = useCommunityStore()
+const mobileUserStore = useUserStore()
 const currentPage = ref('hub')
 const isMobileDropdownOpen = ref(false)
 const mobileCommunities = ref<Community[]>([])
+const showMobileLogoutModal = ref(false)
 
 const mobileCurrentCommunityName = computed(() => {
   return mobileCommunityStore.currentCommunity?.name || null
@@ -122,6 +168,27 @@ const loadMobileCommunities = async () => {
     mobileCommunities.value = await mobileCommunityStore.getAllCommunities()
   } catch (error) {
     console.error('Failed to load communities:', error)
+  }
+}
+
+const handleMobileLogoutClick = () => {
+  showMobileLogoutModal.value = true
+}
+
+const confirmMobileLogout = async () => {
+  showMobileLogoutModal.value = false
+  // 执行登出
+  await mobileUserStore.signout()
+  // 清除所有本地存储
+  if (typeof window !== 'undefined') {
+    localStorage.clear()
+    sessionStorage.clear()
+  }
+  // 使用 replace 而不是 push，防止返回
+  await router.replace('/auth/login')
+  // 强制刷新页面，清除所有状态
+  if (typeof window !== 'undefined') {
+    window.location.href = '/auth/login'
   }
 }
 
@@ -183,5 +250,21 @@ const handleNavigate = (page: string) => {
 .dropdown-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+/* Modal transition */
+.modal-enter-active,
+.modal-leave-active {
+  transition: all 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-from > div,
+.modal-leave-to > div {
+  transform: scale(0.9);
 }
 </style>

@@ -72,10 +72,10 @@
             <div class="pt-4 border-t-2 border-black/20">
               <h3 class="font-pixel text-xs uppercase text-black mb-4">提交内容</h3>
               
-              <!-- 1. 图片文件（优先显示） -->
+              <!-- 1. 图片文件（优先显示）- 响应式设计：手机端2列，平板3列，电脑端4列 -->
               <div v-if="submission.files && submission.files.length > 0" class="mb-4">
                 <h4 class="font-pixel text-[10px] uppercase text-black mb-3">提交图片</h4>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     <div
                     v-for="(file, index) in submission.files"
                       :key="index"
@@ -89,12 +89,12 @@
                         class="w-full h-full object-cover cursor-pointer hover:scale-110 transition-transform"
                         @click="previewFile(file)"
                       />
-                    </div>
-                    <!-- 文件信息 -->
-                    <div class="font-vt323 text-xs text-black mb-2">
+                        </div>
+                    <!-- 文件信息 - 名称显示已关闭 -->
+                    <!-- <div class="font-vt323 text-xs text-black mb-2">
                       <div class="font-medium truncate">{{ file.name }}</div>
                       <div class="text-black/60">({{ formatFileSize(file.size) }})</div>
-                        </div>
+                        </div> -->
                     <!-- 操作按钮 -->
                         <div class="flex gap-2">
                           <PixelButton
@@ -134,9 +134,9 @@
                     </div>
                   <div v-if="submission.gpsLocation.timestamp" class="text-black/60 mt-2">
                       <span class="font-medium">获取时间:</span> {{ formatDate(new Date(submission.gpsLocation.timestamp).toISOString()) }}
-                    </div>
                   </div>
                 </div>
+              </div>
               </div>
 
               <!-- 3. 文字说明 -->
@@ -447,14 +447,14 @@ const currentSubmission = computed(() => allSubmissions.value[currentSubmissionI
 const submission = computed(() => {
   if (allSubmissions.value.length === 0) {
     return {
-      submitter: {
-        name: '',
-        role: '参与者'
-      },
-      timestamp: '',
-      description: '',
+  submitter: {
+    name: '',
+    role: '参与者'
+  },
+  timestamp: '',
+  description: '',
       files: [],
-      gpsLocation: null
+  gpsLocation: null
     }
   }
   const sub = allSubmissions.value[currentSubmissionIndex.value]
@@ -642,11 +642,13 @@ const loadTask = async () => {
     // 获取任务奖励的积分符号
     taskRewardSymbol.value = await getTaskRewardSymbol(taskData)
     
-    // 处理多人任务：获取所有参与者的提交
+    // 处理多人任务：获取所有参与者的提交（包括未领取和未提交的）
     if (taskData.participantsList && Array.isArray(taskData.participantsList) && taskData.participantsList.length > 0) {
-      allSubmissions.value = taskData.participantsList
-        .filter((p: any) => p.proof && p.submittedAt) // 只显示已提交的参与者
-        .map((p: any) => {
+      // 获取所有参与者，包括未领取的
+      const allParticipants = taskData.participantsList
+      
+      // 为每个参与者创建提交数据
+      allSubmissions.value = allParticipants.map((p: any) => {
           // 解析提交内容
           let proofContent = p.proof || ''
           let files: Array<{ name: string; size: number; url: string; type?: string }> = []
@@ -701,23 +703,51 @@ const loadTask = async () => {
           }
           
           return {
-            taskId: p.id,
+            taskId: p.id || taskData.id,
             submitter: {
-              id: p.id,
-              name: p.name || '未知用户',
+              id: p.id || '',
+              name: p.name || '未领取',
               role: '参与者'
             },
-            timestamp: p.submittedAt || '',
+            timestamp: p.submittedAt || p.claimedAt || '',
             description: description,
             files: files,
             gpsLocation: gpsLocation,
-            status: p.status || 'submitted',
+            status: p.status || (p.claimedAt ? (p.submittedAt ? 'submitted' : 'claimed') : 'unclaimed'),
             reward: taskData.reward // 使用任务的基础奖励，实际奖励可能根据权重系数计算
           }
         })
       
-      // 如果有多个提交，默认显示第一个
-      if (allSubmissions.value.length > 0) {
+      // 排序：未审核的（submitted, under_review）、未领取的（unclaimed, claimed, unsubmit）、已审核的（completed, rejected）
+      allSubmissions.value.sort((a, b) => {
+        const getStatusPriority = (status: string) => {
+          // 未审核的：优先级 1
+          if (status === 'submitted' || status === 'under_review') return 1
+          // 未领取的：优先级 2
+          if (status === 'unclaimed' || status === 'claimed' || status === 'unsubmit') return 2
+          // 已审核的：优先级 3
+          if (status === 'completed' || status === 'rejected') return 3
+          return 4
+        }
+        
+        const priorityA = getStatusPriority(a.status)
+        const priorityB = getStatusPriority(b.status)
+        
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB
+        }
+        
+        // 相同优先级内，按时间排序（最新的在前）
+        return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+      })
+      
+      // 如果有多个提交，默认显示第一个未审核的
+      const firstUnreviewedIndex = allSubmissions.value.findIndex(
+        s => s.status === 'submitted' || s.status === 'under_review'
+      )
+      if (firstUnreviewedIndex !== -1) {
+        currentSubmissionIndex.value = firstUnreviewedIndex
+      } else if (allSubmissions.value.length > 0) {
         currentSubmissionIndex.value = 0
       }
     } else if (taskData.claimerName && taskData.submittedAt) {
@@ -802,7 +832,7 @@ const loadTask = async () => {
       currentSubmissionIndex.value = 0
     }
     
-    // 如果没有提交信息，显示提示
+      // 如果没有提交信息，显示提示
     if (allSubmissions.value.length === 0) {
       toast.add({
         title: '提示',
@@ -853,34 +883,10 @@ const submitReview = async () => {
         color: 'green'
       })
       
-      // 如果是多人任务，检查是否还有未审核的提交
-      if (task.value.participantLimit && task.value.participantLimit > 1) {
-        const unReviewedCount = allSubmissions.value.filter(
-          s => s.status !== 'completed' && s.status !== 'rejected'
-        ).length
-        
-        if (unReviewedCount > 0) {
-          // 自动切换到下一个未审核的提交
-          const nextIndex = allSubmissions.value.findIndex(
-            (s, idx) => idx > currentSubmissionIndex.value && s.status !== 'completed' && s.status !== 'rejected'
-          )
-          if (nextIndex !== -1) {
-            currentSubmissionIndex.value = nextIndex
-            // 重置审核表单
-            reviewResult.value = {
-              decision: '',
-              comments: ''
-            }
-            isSubmitting.value = false
-            return
-          }
-        }
-      }
-      
-      // 所有提交都已审核完成，返回任务详情页
-      
-      // 提交成功后跳转到任务详情页
-      router.push(`/tasks/${taskId}?reviewed=true`)
+      // 审核通过后直接跳转到任务详情页（多人任务中每个任务都是独立的）
+      // 使用当前审核的任务ID（对于多人任务，这是当前参与者的任务ID）
+      const redirectTaskId = currentSubmission.value?.taskId || taskId
+      await router.push(`/tasks/${redirectTaskId}?reviewed=true`)
     } else {
       toast.add({
         title: '审核失败',
