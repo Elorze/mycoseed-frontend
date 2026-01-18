@@ -175,6 +175,51 @@
           </div>
         </PixelCard>
 
+        <!-- 凭证内容（仅创建者可见，多人任务时显示当前查看的参与者的凭证） -->
+        <PixelCard 
+          v-if="canReview && task.proof && task.claimerId && (task.status === 'submitted' || task.status === 'under_review' || task.status === 'completed' || task.status === 'rejected')"
+          class="mb-4"
+        >
+          <template #header>
+            提交凭证 - {{ task.claimerName || '参与者' }}
+          </template>
+          <div class="space-y-4">
+            <!-- 解析并显示凭证内容 -->
+            <div v-if="task.proof" class="font-vt323 text-base text-black">
+              <div v-if="typeof task.proof === 'string' && task.proof.trim().startsWith('{')" class="space-y-3">
+                <!-- JSON 格式的凭证 -->
+                <div v-if="parseProof(task.proof).description" class="p-3 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                  <div class="font-pixel text-xs uppercase text-black mb-2">文字描述</div>
+                  <p class="whitespace-pre-wrap">{{ parseProof(task.proof).description }}</p>
+                </div>
+                <div v-if="parseProof(task.proof).files && parseProof(task.proof).files.length > 0" class="p-3 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                  <div class="font-pixel text-xs uppercase text-black mb-2">提交文件</div>
+                  <div class="space-y-2">
+                    <a 
+                      v-for="(file, index) in parseProof(task.proof).files" 
+                      :key="index"
+                      :href="file.url" 
+                      target="_blank"
+                      class="block p-2 bg-white border border-black hover:bg-mario-yellow transition-colors"
+                    >
+                      📎 {{ file.name || '未命名文件' }}
+                    </a>
+                  </div>
+                </div>
+                <div v-if="parseProof(task.proof).gps" class="p-3 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                  <div class="font-pixel text-xs uppercase text-black mb-2">位置信息</div>
+                  <p>纬度: {{ parseProof(task.proof).gps.latitude || parseProof(task.proof).gps.lat }}</p>
+                  <p>经度: {{ parseProof(task.proof).gps.longitude || parseProof(task.proof).gps.lng }}</p>
+                </div>
+              </div>
+              <div v-else class="p-3 bg-gray-50 border-2 border-black shadow-pixel-sm">
+                <!-- 纯文本格式的凭证 -->
+                <p class="whitespace-pre-wrap">{{ task.proof }}</p>
+              </div>
+            </div>
+          </div>
+        </PixelCard>
+
         <!-- 任务进度 -->
         <PixelCard v-if="task.updates && task.updates.length > 0">
           <template #header>
@@ -453,6 +498,7 @@ const task = ref<any>({
   creatorId: '',  // ✅ 改为空字符串，因为creatorId是UUID (string)
   submissionInstructions: '',
   proofConfig: null,
+  proof: null as string | null, // 当前查看的参与者的凭证
   updates: [],
   participantLimit: null as number | null,
   participantsList: [] as any[]
@@ -816,6 +862,30 @@ const hasAnyProofConfig = (proofConfig: any) => {
   )
 }
 
+// 解析凭证内容（支持 JSON 和纯文本格式）
+const parseProof = (proof: string) => {
+  if (!proof) return { description: '', files: [], gps: null }
+  
+  try {
+    if (proof.trim().startsWith('{')) {
+      const parsed = JSON.parse(proof)
+      return {
+        description: parsed.description || '',
+        files: parsed.files || [],
+        gps: parsed.gps || (parsed.latitude && parsed.longitude ? { latitude: parsed.latitude, longitude: parsed.longitude } : null)
+      }
+    }
+  } catch (e) {
+    // 如果不是 JSON，返回纯文本
+  }
+  
+  return {
+    description: proof,
+    files: [],
+    gps: null
+  }
+}
+
 // 生成进度时间线
 // 优先使用任务的时间线字段（timeline），如果不存在则根据任务状态生成
 const updateTimeline = () => {
@@ -1129,6 +1199,7 @@ const loadTask = async () => {
       participantsList: taskData.participantsList || [], // 参与者列表
       submissionInstructions: currentTaskData.submissionInstructions || taskData.submissionInstructions || '',
       proofConfig: currentTaskData.proofConfig || taskData.proofConfig || null, // 获取证明配置
+      proof: currentTaskData.proof || null, // 保存当前任务行的凭证（用于创建者查看）
       timeline: currentTaskData.timeline || [], // 保存当前任务行的时间线数据
       updates: [],
       // 保存原始API数据字段用于时间线
@@ -1246,6 +1317,7 @@ const switchParticipant = async (participantTaskId: string) => {
       task.value.claimerId = participantTaskData.claimerId
       task.value.claimerName = participantTaskData.claimerName
       task.value.reward = participantTaskData.reward
+      task.value.proof = participantTaskData.proof || null // 更新当前查看的参与者的凭证
       task.value.timeline = Array.isArray(participantTaskData.timeline) ? participantTaskData.timeline : []
       task.value.claimedAt = participantTaskData.claimedAt
       task.value.submittedAt = participantTaskData.submittedAt

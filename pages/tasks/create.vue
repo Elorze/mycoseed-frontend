@@ -43,7 +43,7 @@
                     type="number"
                     min="1"
                     placeholder="1"
-                    class="w-full h-12 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
+                    class="w-full h-12 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <p v-if="participantError" class="mt-1 font-vt323 text-xs text-mario-red">
                     {{ participantError }}
@@ -139,7 +139,8 @@
                 <div v-if="taskForm.participantLimit" class="mt-3 space-y-2">
                   <label class="block font-pixel text-[10px] uppercase text-black">奖励分配方式</label>
                   <div class="flex gap-3">
-                    <label class="flex items-center cursor-pointer">
+                    <!-- 隐藏"每人积分"选项，因为现在没有实现这个功能 -->
+                    <!-- <label class="flex items-center cursor-pointer">
                       <input 
                         type="radio" 
                         v-model="rewardDistributionMode"
@@ -149,7 +150,7 @@
                       <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
                         每人积分
                       </div>
-                    </label>
+                    </label> -->
                     <label class="flex items-center cursor-pointer">
                       <input 
                         type="radio" 
