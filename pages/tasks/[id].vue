@@ -123,11 +123,11 @@
                 
                 <!-- 第三行：时间信息 -->
                 <div class="flex justify-between items-center pb-2 border-b border-black/10 gap-4">
-                  <span class="text-black/70">报名开始时间:</span>
+                  <span class="text-black/70">任务领取时间:</span>
                   <span class="text-black font-medium">
                     {{ task.startDate ? formatDate(task.startDate) : '未设置' }}
                   </span>
-                  <span class="text-black/70">报名截止时间:</span>
+                  <span class="text-black/70">领取截止时间:</span>
                   <span class="text-black font-medium">{{ task.deadline ? formatDate(task.deadline) : '未设置' }}</span>
                   <span class="text-black/70">提交截止时间:</span>
                   <span class="text-black font-medium">{{ task.submitDeadline ? formatDate(task.submitDeadline) : (task.deadline ? formatDate(task.deadline) : '未设置') }}</span>
@@ -307,13 +307,13 @@
               </p>
             </div>
             
-            <!-- 任务已过期提示（报名截止日期） -->
+            <!-- 任务已过期提示（领取截止日期） -->
             <div
               v-else-if="isTaskExpired && !canClaim"
               class="text-center py-4"
             >
               <p class="font-vt323 text-base text-black/60">
-                报名已截止
+                领取已截止
               </p>
             </div>
             
@@ -601,7 +601,7 @@ const isAssignedUserUnclaimed = (claimerId: string | null, index: number) => {
 // 检查任务是否可以领取（多人任务：检查是否还有未领取的位置）
 // 判断逻辑顺序（按优先级）：
 // 1. 任务是否已开始
-// 2. 任务是否已过期（报名截止日期）
+// 2. 任务是否已过期（领取截止日期）
 // 3. 任务是否已截止（提交截止日期）
 // 4. 是否指定了参与人员（如果指定了，只有指定用户才能领取）
 // 5. 用户是否已经领取过（多人任务）
@@ -612,7 +612,7 @@ const canClaim = computed(() => {
     return false
   }
   
-  // 2. 检查任务是否已过期（报名截止日期）
+  // 2. 检查任务是否已过期（领取截止日期）
   if (isTaskExpired.value) {
     return false
   }
@@ -731,21 +731,21 @@ const isTaskStarted = computed(() => {
   return now >= startDate
 })
 
-// 检查任务是否已过期（过了报名截止日期）
-// 对于多人任务：过了报名截止日期就不能再领取
-// 对于单人任务：过了报名截止日期且未领取才算过期
+// 检查任务是否已过期（过了领取截止日期）
+// 对于多人任务：过了领取截止日期就不能再领取
+// 对于单人任务：过了领取截止日期且未领取才算过期
 const isTaskExpired = computed(() => {
-  if (!task.value.deadline) return false // 如果没有报名截止时间，认为未过期
+  if (!task.value.deadline) return false // 如果没有领取截止时间，认为未过期
   const now = new Date()
   const deadline = new Date(task.value.deadline)
   
-  // 如果过了报名截止日期
+  // 如果过了领取截止日期
   if (now > deadline) {
-    // 多人任务：过了报名截止日期就不能再领取
+    // 多人任务：过了领取截止日期就不能再领取
     if (task.value.participantLimit && task.value.participantLimit > 1) {
       return true
     }
-    // 单人任务：过了报名截止日期且未领取才算过期
+    // 单人任务：过了领取截止日期且未领取才算过期
     return !task.value.claimerId
   }
   
@@ -1184,9 +1184,9 @@ const loadTask = async () => {
       description: currentTaskData.description || taskData.description,
       reward: currentTaskData.reward || taskData.reward,
       status: currentTaskData.status || taskData.status,
-      deadline: currentTaskData.deadline || taskData.deadline || currentTaskData.createdAt, // 报名截止日期
+      deadline: currentTaskData.deadline || taskData.deadline || currentTaskData.createdAt, // 领取截止日期
       submitDeadline: currentTaskData.submitDeadline || taskData.submitDeadline || currentTaskData.deadline || currentTaskData.createdAt, // 提交截止日期
-      startDate: currentTaskData.startDate || taskData.startDate, // 报名开始日期
+      startDate: currentTaskData.startDate || taskData.startDate, // 任务领取时间
       isClaimed: !!currentTaskData.claimerId, // 是否已领取（通过 claimerId 判断）
       creator: currentTaskData.creatorName || taskData.creatorName || '发布者',
       creatorId: currentTaskData.creatorId || taskData.creatorId,

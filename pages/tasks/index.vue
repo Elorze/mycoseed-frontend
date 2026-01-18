@@ -169,21 +169,21 @@ const isTaskClaimed = (task: Task): boolean => {
   return !!task.claimerId
 }
 
-// 检查任务是否已过期（过了报名截止日期）
-// 对于多人任务：过了报名截止日期就不能再领取
-// 对于单人任务：过了报名截止日期且未领取才算过期
+// 检查任务是否已过期（过了领取截止日期）
+// 对于多人任务：过了领取截止日期就不能再领取
+// 对于单人任务：过了领取截止日期且未领取才算过期
 const isTaskExpired = (task: Task): boolean => {
-  if (!task.deadline) return false // 如果没有报名截止时间，认为未过期
+  if (!task.deadline) return false // 如果没有领取截止时间，认为未过期
   const now = new Date()
   const deadline = new Date(task.deadline)
   
-  // 如果过了报名截止日期
+  // 如果过了领取截止日期
   if (now.getTime() > deadline.getTime()) {
-    // 多人任务：过了报名截止日期就不能再领取
+    // 多人任务：过了领取截止日期就不能再领取
     if (task.participantLimit && task.participantLimit > 1) {
       return true
     }
-    // 单人任务：过了报名截止日期且未领取才算过期
+    // 单人任务：过了领取截止日期且未领取才算过期
     return !isTaskClaimed(task)
   }
   
@@ -196,11 +196,11 @@ const isTaskOverdue = (task: Task): boolean => {
   // 优先使用提交截止日期
   const submitDeadline = task.submitDeadline
   if (!submitDeadline) {
-    // 如果没有提交截止时间，使用报名截止时间作为后备（向后兼容）
+    // 如果没有提交截止时间，使用领取截止时间作为后备（向后兼容）
     if (!task.deadline) return false
     const now = new Date()
     const deadline = new Date(task.deadline)
-    // 如果过了报名截止时间且已领取但未提交，也算已截止
+    // 如果过了领取截止时间且已领取但未提交，也算已截止
     const isClaimed = !!task.claimerId
     const isNotSubmitted = task.status !== 'completed' && task.status !== 'submitted' && task.status !== 'under_review'
     return now.getTime() > deadline.getTime() && isClaimed && isNotSubmitted

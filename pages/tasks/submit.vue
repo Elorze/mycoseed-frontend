@@ -42,7 +42,7 @@
                   {{ task.reward }} {{ taskRewardSymbol }}
                 </span>
                 <div class="flex flex-col gap-1">
-                  <span class="font-vt323 text-sm text-black">报名截止: {{ formatDate(task.deadline) }}</span>
+                  <span class="font-vt323 text-sm text-black">领取截止: {{ formatDate(task.deadline) }}</span>
                   <span class="font-vt323 text-sm text-black">提交截止: {{ formatDate(task.submitDeadline || task.deadline) }}</span>
                 </div>
               </div>
@@ -325,7 +325,7 @@ const loadTask = async () => {
       title: taskData.title,
       description: taskData.description,
       reward: taskData.reward,
-      deadline: taskData.deadline || taskData.createdAt, // 报名截止日期
+      deadline: taskData.deadline || taskData.createdAt, // 领取截止日期
       submitDeadline: taskData.submitDeadline || taskData.deadline || taskData.createdAt, // 提交截止日期
       submissionInstructions: taskData.submissionInstructions || '请按照任务要求完成并提交相关凭证。',
       proofConfig: taskData.proofConfig || null // 保存证明配置用于动态设置文件类型

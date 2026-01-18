@@ -171,7 +171,7 @@
               </div>
 
               <div>
-                <label class="block font-pixel text-xs uppercase mb-2 text-black">报名开始时间 *</label>
+                <label class="block font-pixel text-xs uppercase mb-2 text-black">任务领取时间（可选）</label>
                 <div class="relative">
                   <input 
                     v-model="taskForm.startDate" 
@@ -187,11 +187,14 @@
                     <Icon name="heroicons:calendar" class="w-6 h-6 text-black" />
                   </div>
                 </div>
+                <p class="mt-1 font-vt323 text-xs text-black/70">
+                  如果不填写，将使用发布任务时的当前时间
+                </p>
               </div>
             </div>
 
             <div>
-              <label class="block font-pixel text-xs uppercase mb-2 text-black">报名截止时间 *</label>
+              <label class="block font-pixel text-xs uppercase mb-2 text-black">领取截止时间 *</label>
               <div class="relative">
                 <input 
                   v-model="taskForm.deadline" 
@@ -208,7 +211,7 @@
                 </div>
               </div>
               <p class="mt-1 font-vt323 text-xs text-black/70">
-                过了此时间后，未领取的任务将无法再领取
+                过了此时间后，任务将无法再领取
               </p>
             </div>
 
@@ -510,7 +513,7 @@ const canPublish = computed(() => {
   return taskForm.value.title && 
          taskForm.value.objective && 
          taskForm.value.reward && 
-         taskForm.value.startDate && 
+         // startDate 现在是可选的，如果为空会使用当前时间
          taskForm.value.deadline &&
          taskForm.value.submitDeadline &&
          // 参与人数校验：必须填写有效的人数
@@ -560,23 +563,23 @@ const validateParticipants = () => {
   return true
 }
 
-// 日期校验：开始时间不得早于当前时间，报名截止时间不得早于开始时间，提交截止时间不得早于报名截止时间
+// 日期校验：任务领取时间（可选，默认为当前时间），领取截止时间不得早于开始时间，提交截止时间不得早于领取截止时间
 const validateDates = () => {
   dateError.value = ''
-  if (!taskForm.value.startDate || !taskForm.value.deadline || !taskForm.value.submitDeadline) {
-    return true
-  }
-
-  // 验证时间格式和顺序
-  if (!taskForm.value.startDate || !taskForm.value.deadline || !taskForm.value.submitDeadline) {
-    dateError.value = '请填写所有时间字段'
+  
+  // 验证必填字段：领取截止时间和提交截止时间
+  if (!taskForm.value.deadline || !taskForm.value.submitDeadline) {
+    dateError.value = '请填写领取截止时间和提交截止时间'
     return false
   }
 
   const now = new Date()
   
+  // 如果未填写任务领取时间，使用当前时间
+  const startDateStr = taskForm.value.startDate || getCurrentDateTimeString()
+  
   // 解析时间（datetime-local 输入返回的是本地时间字符串 YYYY-MM-DDTHH:mm）
-  const start = new Date(taskForm.value.startDate)
+  const start = new Date(startDateStr)
   const deadline = new Date(taskForm.value.deadline)
   const submitDeadline = new Date(taskForm.value.submitDeadline)
   
@@ -586,24 +589,29 @@ const validateDates = () => {
     return false
   }
 
-  // 验证时间顺序：报名开始时间 < 报名截止时间 < 提交截止时间
+  // 验证时间顺序：任务领取时间 < 领取截止时间 < 提交截止时间
   if (start >= deadline) {
-    dateError.value = '报名开始时间必须早于报名截止时间'
+    dateError.value = '任务领取时间必须早于领取截止时间'
     return false
   }
 
   if (deadline >= submitDeadline) {
-    dateError.value = '报名截止时间必须早于提交截止时间'
+    dateError.value = '领取截止时间必须早于提交截止时间'
     return false
   }
-  
-  // 可选：检查报名开始时间是否早于当前时间（允许创建未来任务）
-  // if (start < now) {
-  //   dateError.value = '报名开始时间不能早于当前时间'
-  //   return false
-  // }
 
   return true
+}
+
+// 获取当前时间的 datetime-local 格式字符串
+const getCurrentDateTimeString = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
 // 监听字段变化做实时校验
@@ -688,11 +696,14 @@ const publishTask = async () => {
       assignedUserIds: assignedUserIds
     })
     
+    // 如果未填写任务领取时间，使用当前时间
+    const startDate = taskForm.value.startDate || getCurrentDateTimeString()
+    
     const taskParams = {
       title: taskForm.value.title,
       description: taskForm.value.objective,
       reward: parseFloat(taskForm.value.reward),
-      startDate: taskForm.value.startDate,
+      startDate: startDate, // 如果为空，使用当前时间
       deadline: taskForm.value.deadline,
       submitDeadline: taskForm.value.submitDeadline,
       participantLimit: taskForm.value.participantLimit,
