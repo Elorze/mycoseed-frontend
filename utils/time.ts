@@ -27,12 +27,12 @@ export const getCurrentBeijingTime = (): string => {
 }
 
 /**
- * 获取当前北京时间的 Date 对象（用于时间比较）
- * 返回的 Date 对象的时间戳是 UTC 时间戳，但表示的是北京时间
+ * 获取当前时间的 Date 对象（用于时间比较）
+ * 返回 UTC 时间戳，用于与 parseBeijingTime 返回的 UTC 时间戳进行比较
  */
 export const getCurrentBeijingDate = (): Date => {
-  const now = new Date()
-  return new Date(now.getTime() + 8 * 60 * 60 * 1000)
+  // 直接返回当前 UTC 时间戳，用于与 parseBeijingTime 返回的 UTC 时间戳比较
+  return new Date()
 }
 
 /**
