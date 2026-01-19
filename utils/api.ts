@@ -734,9 +734,16 @@ export const getMyTasks = async (baseUrl: string): Promise<Task[]> => {
     // 尝试获取当前用户ID
     try {
       const user = await getMe(baseUrl)
-      // TODO: 如果后端提供了根据用户ID获取任务的接口，应该调用那个接口
-      // 目前先返回所有任务，前端可以根据需要进一步过滤
-      return allTasks.filter(task => !!task.claimerId)
+      if (!user?.id) {
+        return []
+      }
+      
+      // 返回用户发布的任务或用户领取的任务
+      // 包括所有状态：未领取、已领取、待提交、审核中、已完成、已驳回等
+      return allTasks.filter(task => 
+        task.creatorId === user.id ||  // 用户发布的任务
+        task.claimerId === user.id      // 用户领取的任务
+      )
     } catch (e) {
       // 如果未登录，返回空数组
       return []

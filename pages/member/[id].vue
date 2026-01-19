@@ -571,7 +571,6 @@ const communities = ref<any[]>([])
 const claimedTasks = ref<Task[]>([])
 const loadingTasks = ref(false)
 const taskRewardSymbols = ref<Record<number, string>>({}) // 存储每个任务对应的积分符号
-let refreshInterval: ReturnType<typeof setInterval> | null = null
 
 // 编辑表单数据
 const editingForm = ref({
@@ -1075,24 +1074,9 @@ onMounted(async () => {
       if (activeTab.value === 'HISTORY') {
         loadClaimedTasks()
       }
-      
-      // 设置定时刷新任务列表（每30秒刷新一次）
-      refreshInterval = setInterval(() => {
-        if (activeTab.value === 'HISTORY') {
-          loadClaimedTasks()
-        }
-      }, 30000)
     }
   } catch (error) {
     console.error('Failed to load member data:', error)
-  }
-})
-
-// 组件卸载时清除定时器
-onUnmounted(() => {
-  if (refreshInterval) {
-    clearInterval(refreshInterval)
-    refreshInterval = null
   }
 })
 </script>
