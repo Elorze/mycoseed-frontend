@@ -26,13 +26,28 @@
         <!-- 头像与等级 -->
         <div class="relative">
           <div v-if="!isEditing" class="relative">
-            <PixelAvatar :seed="member?.name || 'user'" size="xl" />
+            <!-- 优先使用 avatar URL,如果没有则使用 pixelavatar -->
+            <PixelAvatar 
+            v-if="member?.avatar"
+            :src="member.avatar"
+            size="xl"
+            />
+            <PixelAvatar
+            v-else
+            :seed="member?.name || member?.avatarSeed || 'user'" size="xl" />
             <div class="absolute -bottom-2 -right-2 bg-black text-white text-xs font-pixel px-2 py-1 border-2 border-white">
               LV. {{ memberLevel }}
             </div>
           </div>
           <div v-else class="relative">
-            <PixelAvatar :seed="editingForm.name || 'user'" size="xl" />
+            <PixelAvatar
+              v-if="editingForm.avatar"
+              :src="editingForm.avatar"
+              size="xl"
+            />
+            <PixelAvatar 
+            v-else
+            :seed="editingForm.name || 'user'" size="xl" />
             <button
               @click="changeAvatar"
               class="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs font-pixel hover:bg-black/70 transition-colors"
@@ -46,7 +61,11 @@
         <div class="text-center w-full max-w-xs">
           <div v-if="!isEditing">
             <h1 class="font-pixel text-2xl mb-1">{{ member?.name }}</h1>
-            <div class="text-sm text-gray-500 font-vt323 uppercase tracking-wider">{{ member?.title }}</div>
+            <div class="text-sm text-gray-500 font-vt323 uppercase tracking-wider mb-2">{{ member?.title }}</div>
+            <!-- 简介显示 -->
+            <div v-if="member?.bio" class="text-sm text-gray-600 font-vt323 mt-2 px-4 max-w-xs mx-auto">
+              {{ member.bio }}
+            </div>
           </div>
           <div v-else class="space-y-3">
             <div>
@@ -65,6 +84,16 @@
                 type="text"
                 class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                 placeholder="输入头衔"
+              />
+            </div>
+            <!-- 简介编辑 -->
+            <div>
+              <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">简介</label>
+              <textarea
+                v-model="editingForm.bio"
+                rows="3"
+                class="w-full px-3 py-2 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
+                placeholder="输入简介"
               />
             </div>
           </div>
@@ -618,6 +647,8 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null
 const editingForm = ref({
   name: '',
   title: '',
+  bio: '',
+  avatar: '',
   skills: [] as string[],
   avatarSeed: ''
 })
@@ -818,6 +849,8 @@ const startEdit = () => {
     editingForm.value = {
       name: member.value.name || '',
       title: member.value.title || '',
+      bio: member.value.bio || '',
+      avatar: member.value.avatar || '',
       skills: [...(member.value.skills || [])],
       avatarSeed: member.value.name || 'user'
     }
