@@ -174,25 +174,54 @@ const isTaskClaimed = (task: Task): boolean => {
 // 对于单人任务：过了领取截止日期且未领取才算过期
 // 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
 const isTaskExpired = (task: Task): boolean => {
-  if (!task.deadline) return false // 如果没有领取截止时间，认为未过期
+  if (!task.deadline) {
+    console.log('[isTaskExpired] task.deadline 为空，task:', task)
+    return false // 如果没有领取截止时间，认为未过期
+  }
+  
   const now = new Date()
   
+  // 添加调试日志
+  const formatMatch = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.deadline)
+  console.log('[isTaskExpired] 调试信息:', {
+    taskId: task.id,
+    deadline: task.deadline,
+    formatMatch: formatMatch,
+    now: now.toISOString(),
+    nowLocal: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  })
+  
   // 统一解析时间字符串为本地时间
-  let deadline: Date
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.deadline)) {
+  let deadline: Date | null = null
+  
+  if (formatMatch) {
     // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
     const [datePart, timePart] = task.deadline.split('T')
     const [year, month, day] = datePart.split('-').map(Number)
     const [hour, minute] = timePart.split(':').map(Number)
     deadline = new Date(year, month - 1, day, hour, minute)
+    console.log('[isTaskExpired] 解析结果 (YYYY-MM-DDTHH:mm):', {
+      parsed: deadline.toISOString(),
+      parsedLocal: `${deadline.getFullYear()}-${String(deadline.getMonth() + 1).padStart(2, '0')}-${String(deadline.getDate()).padStart(2, '0')}T${String(deadline.getHours()).padStart(2, '0')}:${String(deadline.getMinutes()).padStart(2, '0')}`
+    })
   } else {
     // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
     const cleanDateString = task.deadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/)
     if (match) {
       const [_, year, month, day, hour, minute] = match.map(Number)
       deadline = new Date(year, month - 1, day, hour, minute)
+      console.log('[isTaskExpired] 解析结果 (ISO格式):', {
+        cleanDateString,
+        parsed: deadline.toISOString(),
+        parsedLocal: `${deadline.getFullYear()}-${String(deadline.getMonth() + 1).padStart(2, '0')}-${String(deadline.getDate()).padStart(2, '0')}T${String(deadline.getHours()).padStart(2, '0')}:${String(deadline.getMinutes()).padStart(2, '0')}`
+      })
     } else {
+      console.warn('[isTaskExpired] 无法解析 deadline 格式:', {
+        original: task.deadline,
+        cleanDateString: cleanDateString
+      })
+      // 兜底逻辑：尝试直接解析（可能有时区问题，但至少不会崩溃）
       const tempDate = new Date(task.deadline)
       if (isNaN(tempDate.getTime())) {
         return false  // 无效时间，认为未过期
@@ -203,17 +232,41 @@ const isTaskExpired = (task: Task): boolean => {
       const hour = tempDate.getHours()
       const minute = tempDate.getMinutes()
       deadline = new Date(year, month, day, hour, minute)
+      console.log('[isTaskExpired] 兜底解析结果:', {
+        parsed: deadline.toISOString(),
+        parsedLocal: `${deadline.getFullYear()}-${String(deadline.getMonth() + 1).padStart(2, '0')}-${String(deadline.getDate()).padStart(2, '0')}T${String(deadline.getHours()).padStart(2, '0')}:${String(deadline.getMinutes()).padStart(2, '0')}`
+      })
     }
   }
   
+  if (!deadline) {
+    console.warn('[isTaskExpired] deadline 解析失败，返回 false')
+    return false
+  }
+  
   // 如果过了领取截止日期
-  if (now.getTime() > deadline.getTime()) {
+  const isExpired = now.getTime() > deadline.getTime()
+  console.log('[isTaskExpired] 时间比较结果:', {
+    now: now.getTime(),
+    deadline: deadline.getTime(),
+    diff: now.getTime() - deadline.getTime(),
+    diffMinutes: Math.floor((now.getTime() - deadline.getTime()) / 60000),
+    isExpired: isExpired
+  })
+  
+  if (isExpired) {
     // 多人任务：过了领取截止日期就不能再领取
     if (task.participantLimit && task.participantLimit > 1) {
+      console.log('[isTaskExpired] 多人任务已过期')
       return true
     }
     // 单人任务：过了领取截止日期且未领取才算过期
-    return !isTaskClaimed(task)
+    const isClaimed = isTaskClaimed(task)
+    console.log('[isTaskExpired] 单人任务检查:', {
+      isClaimed: isClaimed,
+      result: !isClaimed
+    })
+    return !isClaimed
   }
   
   return false
@@ -486,34 +539,34 @@ const formatTimeAgo = (dateString: string): string => {
   if (!dateString) return ''
   const now = new Date()
   
-  let date: Date
+  // 去除时区后缀（Z, +08:00 等），强制作为本地时间处理
   const cleanDateString = dateString.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
   
-  // 手动解析时间字符串并剔除时区后缀，强制将时间视为本地时间处理
-  const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  // 匹配 YYYY-MM-DDTHH:mm 格式（严格匹配，带 $ 结尾）
+  const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/)
+  
   if (match) {
     const [_, year, month, day, hour, minute] = match.map(Number)
     // Month 需要 -1（因为 Date 构造函数中月份从 0 开始）
-    date = new Date(year, month - 1, day, hour, minute)
-  } else {
-    // 兜底逻辑：如果格式不匹配，尝试直接解析
-    const tempDate = new Date(dateString)
-    if (isNaN(tempDate.getTime())) return ''
-    date = tempDate
+    const date = new Date(year, month - 1, day, hour, minute)
+    
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+    
+    if (diffMins < 60) {
+      return `${Math.max(0, diffMins)}分钟前`
+    } else if (diffHours < 24) {
+      return `${diffHours}小时前`
+    } else {
+      return `${diffDays}天前`
+    }
   }
-
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
   
-  if (diffMins < 60) {
-    return `${Math.max(0, diffMins)}分钟前`
-  } else if (diffHours < 24) {
-    return `${diffHours}小时前`
-  } else {
-    return `${diffDays}天前`
-  }
+  // 如果格式不匹配，返回空字符串（不应该发生，因为后端总是返回 YYYY-MM-DDTHH:mm）
+  console.warn(`[formatTimeAgo] 无法解析时间格式: ${dateString}, cleanDateString: ${cleanDateString}`)
+  return ''
 }
 
 
