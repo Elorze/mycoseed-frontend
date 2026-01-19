@@ -84,7 +84,16 @@
             @click="navigateTo('profile')"
             title="个人主页"
           >
-            <PixelAvatar seed="Alice" size="md" />
+            <PixelAvatar 
+              v-if="userStore.user?.avatar" 
+              :src="userStore.user.avatar" 
+              size="md" 
+            />
+            <PixelAvatar 
+              v-else 
+              :seed="userStore.user?.name || userStore.user?.id || 'user'" 
+              size="md" 
+            />
           </div>
           
           <!-- Logout Button - 始终显示（如果已登录） -->
