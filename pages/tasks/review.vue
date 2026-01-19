@@ -133,7 +133,7 @@
                       <span class="font-medium">精度:</span> ±{{ Math.round(submission.gpsLocation.accuracy) }}米
                     </div>
                   <div v-if="submission.gpsLocation.timestamp" class="text-black/60 mt-2">
-                      <span class="font-medium">获取时间:</span> {{ formatDate(new Date(submission.gpsLocation.timestamp).toISOString()) }}
+                      <span class="font-medium">获取时间:</span> {{ formatDate(submission.gpsLocation.timestamp ? (typeof submission.gpsLocation.timestamp === 'number' ? new Date(submission.gpsLocation.timestamp).toISOString() : String(submission.gpsLocation.timestamp)) : undefined) }}
                   </div>
                 </div>
               </div>
@@ -494,14 +494,37 @@ const canSubmit = computed(() => {
 })
 
 // 格式化日期
-const formatDate = (dateString: string): string => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('zh-CN', {
+// 方案A：统一使用 ISO 8601 格式，前端使用 toLocaleString 显示本地时间
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return '未设置'
+  
+  // 统一解析为 Date 对象（支持 ISO 8601 格式和 YYYY-MM-DDTHH:mm 格式）
+  let date: Date
+  
+  // 如果是 YYYY-MM-DDTHH:mm 格式（向后兼容），解析为本地时间
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dateString)) {
+    const [datePart, timePart] = dateString.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hour, minute] = timePart.split(':').map(Number)
+    date = new Date(year, month - 1, day, hour, minute)
+  } else {
+    // ISO 8601 格式（带时区信息），浏览器会自动处理时区转换
+    date = new Date(dateString)
+  }
+  
+  // 检查日期是否有效
+  if (isNaN(date.getTime())) {
+    return '未设置'
+  }
+  
+  // 使用 toLocaleString 显示本地时间（浏览器自动处理时区）
+  return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    hour12: false
   })
 }
 
