@@ -57,11 +57,10 @@
           </div>
         </div>
 
-        <!-- 姓名与头衔 -->
+        <!-- 姓名与简介 -->
         <div class="text-center w-full max-w-xs">
           <div v-if="!isEditing">
             <h1 class="font-pixel text-2xl mb-1">{{ member?.name }}</h1>
-            <div class="text-sm text-gray-500 font-vt323 uppercase tracking-wider mb-2">{{ member?.title }}</div>
             <!-- 简介显示 -->
             <div v-if="member?.bio" class="text-sm text-gray-600 font-vt323 mt-2 px-4 max-w-xs mx-auto">
               {{ member.bio }}
@@ -77,15 +76,6 @@
                 placeholder="输入名字"
               />
             </div>
-            <div>
-              <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">头衔</label>
-              <input
-                v-model="editingForm.title"
-                type="text"
-                class="w-full h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-                placeholder="输入头衔"
-              />
-            </div>
             <!-- 简介编辑 -->
             <div>
               <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">简介</label>
@@ -95,67 +85,6 @@
                 class="w-full px-3 py-2 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all resize-none"
                 placeholder="输入简介"
               />
-            </div>
-          </div>
-        </div>
-
-        <!-- 技能标签 -->
-        <div class="w-full max-w-xs">
-          <div v-if="!isEditing" class="flex flex-col gap-2 items-center">
-            <!-- 第一行：技能标签 -->
-            <div class="flex flex-wrap gap-2 justify-center">
-              <span 
-                v-for="skill in member?.skills" 
-                :key="skill" 
-                class="bg-gray-100 border border-gray-300 px-3 py-1 text-xs font-pixel rounded-full"
-              >
-                {{ skill }}
-              </span>
-            </div>
-            <!-- 第二行：社区标签 -->
-            <div class="flex flex-wrap gap-2 justify-center">
-              <span 
-                v-for="comm in communities" 
-                :key="`comm-${comm.id}`" 
-                @click.stop="navigateTo(`/community/${comm.id}`)"
-                class="bg-blue-100 border border-blue-300 px-3 py-1 text-xs font-pixel rounded-full cursor-pointer hover:bg-blue-200 transition-colors"
-              >
-                {{ comm.name }}
-              </span>
-            </div>
-          </div>
-          <div v-else class="space-y-2">
-            <label class="block font-pixel text-xs uppercase mb-1 text-black text-left">技能标签</label>
-            <div class="flex flex-wrap gap-2 mb-2">
-              <span
-                v-for="(skill, index) in editingForm.skills"
-                :key="index"
-                class="bg-mario-green text-white border-2 border-black px-3 py-1 text-xs font-pixel flex items-center gap-1"
-              >
-                {{ skill }}
-                <button
-                  @click="removeSkill(index)"
-                  class="hover:text-red-300"
-                >
-                  ×
-                </button>
-              </span>
-            </div>
-            <div class="flex gap-2">
-              <input
-                v-model="newSkill"
-                type="text"
-                @keyup.enter="addSkill"
-                class="flex-1 h-10 px-3 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-base focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
-                placeholder="输入新标签"
-              />
-              <PixelButton
-                @click="addSkill"
-                variant="secondary"
-                size="sm"
-              >
-                添加
-              </PixelButton>
             </div>
           </div>
         </div>
@@ -535,6 +464,7 @@ import PixelCard from '~/components/pixel/PixelCard.vue'
 import { getMemberById, getCommunities, getMyTasks, getWalletAddressByMemberId, getUserCommunityPoints, addTransaction, getApiBaseUrl, type Task, type Community } from '~/utils/api'
 import { getTaskRewardSymbol } from '~/utils/display'
 import { useToast } from '~/composables/useToast'
+import { useApi } from '~/composables/useApi'
 
 definePageMeta({
   layout: 'default'
@@ -848,44 +778,93 @@ const startEdit = () => {
   if (member.value) {
     editingForm.value = {
       name: member.value.name || '',
-      title: member.value.title || '',
       bio: member.value.bio || '',
       avatar: member.value.avatar || '',
-      skills: [...(member.value.skills || [])],
       avatarSeed: member.value.name || 'user'
     }
   }
   isEditing.value = true
+  // 确保进入编辑模式时不翻转卡片
+  isFlipped.value = false
 }
 
 // 取消编辑
 const cancelEdit = () => {
   isEditing.value = false
-  newSkill.value = ''
+  isFlipped.value = false  // 确保不翻转卡片
 }
 
 // 保存编辑
-const saveProfile = () => {
+const saveProfile = async () => {
   if (!member.value) return
   
-  // 更新成员信息
-  member.value.name = editingForm.value.name
-  member.value.title = editingForm.value.title
-  member.value.skills = [...editingForm.value.skills]
+  try {
+    // 获取 API 工具
+    const { updateUserProfile, getMe } = useApi()
+    
+    // 获取当前用户信息
+    const user = userStore.user
+    if (!user?.id) {
+      toast.add({
+        title: '错误',
+        description: '用户信息获取失败',
+        color: 'red'
+      })
+      return
+    }
+    
+    // 调用 API 保存到服务器
+    const result = await updateUserProfile(user.id, {
+      name: editingForm.value.name.trim(),
+      bio: editingForm.value.bio.trim() || undefined,
+      avatar: editingForm.value.avatar || undefined
+    })
+    
+    if (result.success) {
+      // 更新本地成员信息
+      member.value.name = editingForm.value.name
+      member.value.bio = editingForm.value.bio
+      member.value.avatar = editingForm.value.avatar
   
-  // 显示成功提示
-  const toast = useToast()
-  toast.add({
-    title: '保存成功',
-    description: '个人信息已更新',
-    color: 'green'
-  })
-  
-  isEditing.value = false
-  newSkill.value = ''
-  
-  // TODO: 这里应该调用 API 保存到服务器
-  // await updateMemberProfile(memberId, editingForm.value)
+      
+      // 确保不翻转卡片
+      isFlipped.value = false
+      
+      // 显示成功提示
+      toast.add({
+        title: '保存成功',
+        description: '个人信息已更新',
+        color: 'green'
+      })
+      
+      // 退出编辑模式
+      isEditing.value = false
+      
+      // 重新获取用户信息以同步最新数据
+      const updatedUser = await getMe()
+      if (updatedUser) {
+        const userWithMetadata = {
+          ...updatedUser,
+          isProfileSetup: !!updatedUser.name,
+          userType: updatedUser.userType || 'member'
+        }
+        userStore.setUser(userWithMetadata)
+      }
+    } else {
+      toast.add({
+        title: '保存失败',
+        description: result.message || '请重试',
+        color: 'red'
+      })
+    }
+  } catch (error: any) {
+    console.error('Save profile error:', error)
+    toast.add({
+      title: '保存失败',
+      description: error.message || '请重试',
+      color: 'red'
+    })
+  }
 }
 
 // 添加技能标签
