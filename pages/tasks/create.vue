@@ -397,6 +397,7 @@ import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import { createTask, getApiBaseUrl, getCookie, AUTH_TOKEN_KEY } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
+import { getCurrentBeijingTime } from '~/utils/time'
 
 definePageMeta({
   layout: 'default'
@@ -603,15 +604,10 @@ const validateDates = () => {
   return true
 }
 
-// 获取当前时间的 datetime-local 格式字符串
+// 获取当前时间的 datetime-local 格式字符串（北京时间 UTC+8）
+// 统一使用 UTC+8 北京时间，不受机器时区影响
 const getCurrentDateTimeString = () => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const hours = String(now.getHours()).padStart(2, '0')
-  const minutes = String(now.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}`
+  return getCurrentBeijingTime()
 }
 
 // 监听字段变化做实时校验

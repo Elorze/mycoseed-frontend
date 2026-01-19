@@ -471,6 +471,7 @@ import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import { getTaskRewardSymbol } from '~/utils/display'
+import { parseBeijingTime, getCurrentBeijingDate, formatBeijingTime } from '~/utils/time'
 
 // 获取路由参数
 const route = useRoute()
@@ -724,83 +725,35 @@ const shouldShowAssignedToOthersMessage = computed(() => {
 })
 
 // 检查任务是否已开始
-// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
+// 统一使用 UTC+8 北京时间进行比较，不受机器时区影响
 const isTaskStarted = computed(() => {
   if (!task.value.startDate) return true // 如果没有开始时间，默认认为已开始（向后兼容）
-  const now = new Date()
   
-  // 统一解析时间字符串为本地时间
-  let startDate: Date | null = null
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.value.startDate)) {
-    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
-    const [datePart, timePart] = task.value.startDate.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hour, minute] = timePart.split(':').map(Number)
-    startDate = new Date(year, month - 1, day, hour, minute)
-  } else {
-    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
-    const cleanDateString = task.value.startDate.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
-    if (match) {
-      const [_, year, month, day, hour, minute] = match.map(Number)
-      startDate = new Date(year, month - 1, day, hour, minute)
-    } else {
-      const tempDate = new Date(task.value.startDate)
-      if (isNaN(tempDate.getTime())) {
-        return true  // 无效时间，默认认为已开始
-      }
-      const year = tempDate.getFullYear()
-      const month = tempDate.getMonth()
-      const day = tempDate.getDate()
-      const hour = tempDate.getHours()
-      const minute = tempDate.getMinutes()
-      startDate = new Date(year, month, day, hour, minute)
-    }
-  }
-  
+  // 使用统一的时间解析函数，将 YYYY-MM-DDTHH:mm 当作北京时间（UTC+8）处理
+  const startDate = parseBeijingTime(task.value.startDate)
   if (!startDate) return true // 如果无法解析，默认认为已开始
+  
+  // 获取当前北京时间（UTC+8）
+  const now = getCurrentBeijingDate()
   return now.getTime() >= startDate.getTime()
 })
 
 // 检查任务是否已过期（过了领取截止日期）
 // 对于多人任务：过了领取截止日期就不能再领取
 // 对于单人任务：过了领取截止日期且未领取才算过期
-// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
+// 统一使用 UTC+8 北京时间进行比较，不受机器时区影响
 const isTaskExpired = computed(() => {
   if (!task.value.deadline) return false // 如果没有领取截止时间，认为未过期
-  const now = new Date()
   
-  // 统一解析时间字符串为本地时间
-  let deadline: Date
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.value.deadline)) {
-    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
-    const [datePart, timePart] = task.value.deadline.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hour, minute] = timePart.split(':').map(Number)
-    deadline = new Date(year, month - 1, day, hour, minute)
-  } else {
-    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
-    const cleanDateString = task.value.deadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
-    if (match) {
-      const [_, year, month, day, hour, minute] = match.map(Number)
-      deadline = new Date(year, month - 1, day, hour, minute)
-    } else {
-      const tempDate = new Date(task.value.deadline)
-      if (isNaN(tempDate.getTime())) {
-        return false  // 无效时间，认为未过期
-      }
-      const year = tempDate.getFullYear()
-      const month = tempDate.getMonth()
-      const day = tempDate.getDate()
-      const hour = tempDate.getHours()
-      const minute = tempDate.getMinutes()
-      deadline = new Date(year, month, day, hour, minute)
-    }
-  }
+  // 使用统一的时间解析函数，将 YYYY-MM-DDTHH:mm 当作北京时间（UTC+8）处理
+  const deadline = parseBeijingTime(task.value.deadline)
+  if (!deadline) return false // 无效时间，认为未过期
+  
+  // 获取当前北京时间（UTC+8）
+  const now = getCurrentBeijingDate()
   
   // 如果过了领取截止日期
-  if (now > deadline) {
+  if (now.getTime() > deadline.getTime()) {
     // 多人任务：过了领取截止日期就不能再领取
     if (task.value.participantLimit && task.value.participantLimit > 1) {
       return true
@@ -814,85 +767,38 @@ const isTaskExpired = computed(() => {
 
 // 检查任务是否已截止（过了提交截止日期）
 // 如果过了提交截止日期，不能再领取新任务
-// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
+// 统一使用 UTC+8 北京时间进行比较，不受机器时区影响
 const isTaskOverdue = computed(() => {
   // 优先使用提交截止日期
   const submitDeadline = task.value.submitDeadline || task.value.deadline
   if (!submitDeadline) return false // 如果没有提交截止时间，认为未截止
   
-  const now = new Date()
+  // 使用统一的时间解析函数，将 YYYY-MM-DDTHH:mm 当作北京时间（UTC+8）处理
+  const deadline = parseBeijingTime(submitDeadline)
+  if (!deadline) return false // 无效时间，认为未截止
   
-  // 统一解析时间字符串为本地时间
-  let deadline: Date
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(submitDeadline)) {
-    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
-    const [datePart, timePart] = submitDeadline.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hour, minute] = timePart.split(':').map(Number)
-    deadline = new Date(year, month - 1, day, hour, minute)
-  } else {
-    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
-    const cleanDateString = submitDeadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
-    if (match) {
-      const [_, year, month, day, hour, minute] = match.map(Number)
-      deadline = new Date(year, month - 1, day, hour, minute)
-    } else {
-      const tempDate = new Date(submitDeadline)
-      if (isNaN(tempDate.getTime())) {
-        return false  // 无效时间，认为未截止
-      }
-      const year = tempDate.getFullYear()
-      const month = tempDate.getMonth()
-      const day = tempDate.getDate()
-      const hour = tempDate.getHours()
-      const minute = tempDate.getMinutes()
-      deadline = new Date(year, month, day, hour, minute)
-    }
-  }
+  // 获取当前北京时间（UTC+8）
+  const now = getCurrentBeijingDate()
   
   // 如果过了提交截止日期，不能再领取
-  return now > deadline
+  return now.getTime() > deadline.getTime()
 })
 
 // 检查任务是否已截止（用于已领取任务的提交按钮）
 // 过了提交截止日期且已领取但未提交的任务才算已截止
-// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
+// 统一使用 UTC+8 北京时间进行比较，不受机器时区影响
 const isTaskSubmissionOverdue = computed(() => {
   if (!task.value.submitDeadline) return false // 如果没有提交截止时间，认为未截止
-  const now = new Date()
   
-  // 统一解析时间字符串为本地时间
-  let submitDeadline: Date
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.value.submitDeadline)) {
-    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
-    const [datePart, timePart] = task.value.submitDeadline.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hour, minute] = timePart.split(':').map(Number)
-    submitDeadline = new Date(year, month - 1, day, hour, minute)
-  } else {
-    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
-    const cleanDateString = task.value.submitDeadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
-    if (match) {
-      const [_, year, month, day, hour, minute] = match.map(Number)
-      submitDeadline = new Date(year, month - 1, day, hour, minute)
-    } else {
-      const tempDate = new Date(task.value.submitDeadline)
-      if (isNaN(tempDate.getTime())) {
-        return false  // 无效时间，认为未截止
-      }
-      const year = tempDate.getFullYear()
-      const month = tempDate.getMonth()
-      const day = tempDate.getDate()
-      const hour = tempDate.getHours()
-      const minute = tempDate.getMinutes()
-      submitDeadline = new Date(year, month, day, hour, minute)
-    }
-  }
+  // 使用统一的时间解析函数，将 YYYY-MM-DDTHH:mm 当作北京时间（UTC+8）处理
+  const submitDeadline = parseBeijingTime(task.value.submitDeadline)
+  if (!submitDeadline) return false // 无效时间，认为未截止
+  
+  // 获取当前北京时间（UTC+8）
+  const now = getCurrentBeijingDate()
   
   // 过了提交截止日期且已领取但未提交的任务才算已截止
-  return now > submitDeadline && !!task.value.claimerId && task.value.status !== 'completed' && task.value.status !== 'submitted' && task.value.status !== 'under_review'
+  return now.getTime() > submitDeadline.getTime() && !!task.value.claimerId && task.value.status !== 'completed' && task.value.status !== 'submitted' && task.value.status !== 'under_review'
 })
 
 // 状态类型
@@ -939,49 +845,33 @@ const getStatusBadgeClass = (status: string): string => {
 }
 
 // 格式化日期
-// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm，不进行时区转换
+// 统一使用 UTC+8 北京时间显示，不受机器时区影响
 const formatDate = (dateString: string | undefined) => {
   if (!dateString) return '未设置'
   
-  // 统一处理 YYYY-MM-DDTHH:mm 格式（本地时间字符串）
-  let date: Date
+  // 使用统一的时间格式化函数
+  const beijingTimeStr = formatBeijingTime(dateString)
+  if (!beijingTimeStr) return '未设置'
   
-  // 如果是 YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dateString)) {
-    const [datePart, timePart] = dateString.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hour, minute] = timePart.split(':').map(Number)
-    date = new Date(year, month - 1, day, hour, minute)
-  } else {
-    // 如果是 ISO 格式（向后兼容），转换为本地时间显示
-    const tempDate = new Date(dateString)
-    if (!isNaN(tempDate.getTime())) {
-      // 使用本地时区获取年月日时分
-      const year = tempDate.getFullYear()
-      const month = tempDate.getMonth()
-      const day = tempDate.getDate()
-      const hour = tempDate.getHours()
-      const minute = tempDate.getMinutes()
-      date = new Date(year, month, day, hour, minute)
-    } else {
-      return '未设置'
-    }
-  }
-  
-  // 检查日期是否有效
-  if (isNaN(date.getTime())) {
+  // 解析为 Date 对象用于格式化显示
+  const date = parseBeijingTime(beijingTimeStr)
+  if (!date || isNaN(date.getTime())) {
     return '未设置'
   }
   
-  // 直接显示本地时间，不进行时区转换
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  })
+  // 加上 8 小时得到北京时间用于显示
+  const beijingDate = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+  
+  // 使用 UTC 方法读取（因为已经手动偏移了 8 小时）
+  const year = beijingDate.getUTCFullYear()
+  const month = beijingDate.getUTCMonth()
+  const day = beijingDate.getUTCDate()
+  const hour = beijingDate.getUTCHours()
+  const minute = beijingDate.getUTCMinutes()
+  
+  // 格式化显示
+  const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+  return `${year}年${monthNames[month]}${day}日 ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
 // 检查是否有任何证明配置

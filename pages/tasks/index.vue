@@ -102,6 +102,7 @@ import PixelButton from '~/components/pixel/PixelButton.vue'
 import PixelAvatar from '~/components/pixel/PixelAvatar.vue'
 import { useUserStore } from '~/stores/user'
 import { getAllTasks, getApiBaseUrl, type Task } from '~/utils/api'
+import { parseBeijingTime, getCurrentBeijingDate } from '~/utils/time'
 
 definePageMeta({
   layout: 'default'
@@ -172,101 +173,30 @@ const isTaskClaimed = (task: Task): boolean => {
 // 检查任务是否已过期（过了领取截止日期）
 // 对于多人任务：过了领取截止日期就不能再领取
 // 对于单人任务：过了领取截止日期且未领取才算过期
-// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
+// 统一使用 UTC+8 北京时间进行比较，不受机器时区影响
 const isTaskExpired = (task: Task): boolean => {
   if (!task.deadline) {
-    console.log('[isTaskExpired] task.deadline 为空，task:', task)
     return false // 如果没有领取截止时间，认为未过期
   }
   
-  const now = new Date()
-  
-  // 添加调试日志
-  const formatMatch = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.deadline)
-  console.log('[isTaskExpired] 调试信息:', {
-    taskId: task.id,
-    deadline: task.deadline,
-    formatMatch: formatMatch,
-    now: now.toISOString(),
-    nowLocal: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-  })
-  
-  // 统一解析时间字符串为本地时间
-  let deadline: Date | null = null
-  
-  if (formatMatch) {
-    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
-    const [datePart, timePart] = task.deadline.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hour, minute] = timePart.split(':').map(Number)
-    deadline = new Date(year, month - 1, day, hour, minute)
-    console.log('[isTaskExpired] 解析结果 (YYYY-MM-DDTHH:mm):', {
-      parsed: deadline.toISOString(),
-      parsedLocal: `${deadline.getFullYear()}-${String(deadline.getMonth() + 1).padStart(2, '0')}-${String(deadline.getDate()).padStart(2, '0')}T${String(deadline.getHours()).padStart(2, '0')}:${String(deadline.getMinutes()).padStart(2, '0')}`
-    })
-  } else {
-    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
-    const cleanDateString = task.deadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/)
-    if (match) {
-      const [_, year, month, day, hour, minute] = match.map(Number)
-      deadline = new Date(year, month - 1, day, hour, minute)
-      console.log('[isTaskExpired] 解析结果 (ISO格式):', {
-        cleanDateString,
-        parsed: deadline.toISOString(),
-        parsedLocal: `${deadline.getFullYear()}-${String(deadline.getMonth() + 1).padStart(2, '0')}-${String(deadline.getDate()).padStart(2, '0')}T${String(deadline.getHours()).padStart(2, '0')}:${String(deadline.getMinutes()).padStart(2, '0')}`
-      })
-    } else {
-      console.warn('[isTaskExpired] 无法解析 deadline 格式:', {
-        original: task.deadline,
-        cleanDateString: cleanDateString
-      })
-      // 兜底逻辑：尝试直接解析（可能有时区问题，但至少不会崩溃）
-      const tempDate = new Date(task.deadline)
-      if (isNaN(tempDate.getTime())) {
-        return false  // 无效时间，认为未过期
-      }
-      const year = tempDate.getFullYear()
-      const month = tempDate.getMonth()
-      const day = tempDate.getDate()
-      const hour = tempDate.getHours()
-      const minute = tempDate.getMinutes()
-      deadline = new Date(year, month, day, hour, minute)
-      console.log('[isTaskExpired] 兜底解析结果:', {
-        parsed: deadline.toISOString(),
-        parsedLocal: `${deadline.getFullYear()}-${String(deadline.getMonth() + 1).padStart(2, '0')}-${String(deadline.getDate()).padStart(2, '0')}T${String(deadline.getHours()).padStart(2, '0')}:${String(deadline.getMinutes()).padStart(2, '0')}`
-      })
-    }
-  }
-  
+  // 使用统一的时间解析函数，将 YYYY-MM-DDTHH:mm 当作北京时间（UTC+8）处理
+  const deadline = parseBeijingTime(task.deadline)
   if (!deadline) {
     console.warn('[isTaskExpired] deadline 解析失败，返回 false')
     return false
   }
   
-  // 如果过了领取截止日期
-  const isExpired = now.getTime() > deadline.getTime()
-  console.log('[isTaskExpired] 时间比较结果:', {
-    now: now.getTime(),
-    deadline: deadline.getTime(),
-    diff: now.getTime() - deadline.getTime(),
-    diffMinutes: Math.floor((now.getTime() - deadline.getTime()) / 60000),
-    isExpired: isExpired
-  })
+  // 获取当前北京时间（UTC+8）
+  const now = getCurrentBeijingDate()
   
-  if (isExpired) {
+  // 如果过了领取截止日期
+  if (now.getTime() > deadline.getTime()) {
     // 多人任务：过了领取截止日期就不能再领取
     if (task.participantLimit && task.participantLimit > 1) {
-      console.log('[isTaskExpired] 多人任务已过期')
       return true
     }
     // 单人任务：过了领取截止日期且未领取才算过期
-    const isClaimed = isTaskClaimed(task)
-    console.log('[isTaskExpired] 单人任务检查:', {
-      isClaimed: isClaimed,
-      result: !isClaimed
-    })
-    return !isClaimed
+    return !isTaskClaimed(task)
   }
   
   return false
@@ -274,42 +204,20 @@ const isTaskExpired = (task: Task): boolean => {
 
 // 检查任务是否已截止（过了提交截止日期且已领取但未提交）
 // 逻辑与任务详情页保持一致
-// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
+// 统一使用 UTC+8 北京时间进行比较，不受机器时区影响
 const isTaskOverdue = (task: Task): boolean => {
   // 优先使用提交截止日期
   const submitDeadline = task.submitDeadline
   if (!submitDeadline) {
     // 如果没有提交截止时间，使用领取截止时间作为后备（向后兼容）
     if (!task.deadline) return false
-    const now = new Date()
     
-    // 统一解析时间字符串为本地时间
-    let deadline: Date
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.deadline)) {
-      const [datePart, timePart] = task.deadline.split('T')
-      const [year, month, day] = datePart.split('-').map(Number)
-      const [hour, minute] = timePart.split(':').map(Number)
-      deadline = new Date(year, month - 1, day, hour, minute)
-    } else {
-      // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
-      const cleanDateString = task.deadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-      const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
-      if (match) {
-        const [_, year, month, day, hour, minute] = match.map(Number)
-        deadline = new Date(year, month - 1, day, hour, minute)
-      } else {
-        const tempDate = new Date(task.deadline)
-        if (isNaN(tempDate.getTime())) {
-          return false  // 无效时间，认为未截止
-        }
-        const year = tempDate.getFullYear()
-        const month = tempDate.getMonth()
-        const day = tempDate.getDate()
-        const hour = tempDate.getHours()
-        const minute = tempDate.getMinutes()
-        deadline = new Date(year, month, day, hour, minute)
-      }
+    const deadline = parseBeijingTime(task.deadline)
+    if (!deadline) {
+      return false // 无效时间，认为未截止
     }
+    
+    const now = getCurrentBeijingDate()
     
     // 如果过了领取截止时间且已领取但未提交，也算已截止
     const isClaimed = !!task.claimerId
@@ -317,36 +225,12 @@ const isTaskOverdue = (task: Task): boolean => {
     return now.getTime() > deadline.getTime() && isClaimed && isNotSubmitted
   }
   
-  const now = new Date()
-  
-  // 统一解析时间字符串为本地时间
-  let deadline: Date
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(submitDeadline)) {
-    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
-    const [datePart, timePart] = submitDeadline.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hour, minute] = timePart.split(':').map(Number)
-    deadline = new Date(year, month - 1, day, hour, minute)
-  } else {
-    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
-    const cleanDateString = submitDeadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
-    if (match) {
-      const [_, year, month, day, hour, minute] = match.map(Number)
-      deadline = new Date(year, month - 1, day, hour, minute)
-    } else {
-      const tempDate = new Date(submitDeadline)
-      if (isNaN(tempDate.getTime())) {
-        return false  // 无效时间，认为未截止
-      }
-      const year = tempDate.getFullYear()
-      const month = tempDate.getMonth()
-      const day = tempDate.getDate()
-      const hour = tempDate.getHours()
-      const minute = tempDate.getMinutes()
-      deadline = new Date(year, month, day, hour, minute)
-    }
+  const deadline = parseBeijingTime(submitDeadline)
+  if (!deadline) {
+    return false // 无效时间，认为未截止
   }
+  
+  const now = getCurrentBeijingDate()
   
   // 过了提交截止日期且已领取但未提交的任务才算已截止
   // 检查条件：已领取 && 状态不是已完成和审核中 && 过了提交截止日期
@@ -534,39 +418,32 @@ const getTaskStatusText = (status: string, task?: Task) => {
   return statusMap[status] || '未知'
 }
 
-// 格式化时间差（统一使用本地时间字符串，去除时区信息）
+// 格式化时间差（统一使用 UTC+8 北京时间，不受机器时区影响）
 const formatTimeAgo = (dateString: string): string => {
   if (!dateString) return ''
-  const now = new Date()
   
-  // 去除时区后缀（Z, +08:00 等），强制作为本地时间处理
-  const cleanDateString = dateString.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-  
-  // 匹配 YYYY-MM-DDTHH:mm 格式（严格匹配，带 $ 结尾）
-  const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/)
-  
-  if (match) {
-    const [_, year, month, day, hour, minute] = match.map(Number)
-    // Month 需要 -1（因为 Date 构造函数中月份从 0 开始）
-    const date = new Date(year, month - 1, day, hour, minute)
-    
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
-    
-    if (diffMins < 60) {
-      return `${Math.max(0, diffMins)}分钟前`
-    } else if (diffHours < 24) {
-      return `${diffHours}小时前`
-    } else {
-      return `${diffDays}天前`
-    }
+  // 使用统一的时间解析函数，将 YYYY-MM-DDTHH:mm 当作北京时间（UTC+8）处理
+  const date = parseBeijingTime(dateString)
+  if (!date) {
+    console.warn(`[formatTimeAgo] 无法解析时间格式: ${dateString}`)
+    return ''
   }
   
-  // 如果格式不匹配，返回空字符串（不应该发生，因为后端总是返回 YYYY-MM-DDTHH:mm）
-  console.warn(`[formatTimeAgo] 无法解析时间格式: ${dateString}, cleanDateString: ${cleanDateString}`)
-  return ''
+  // 获取当前北京时间（UTC+8）
+  const now = getCurrentBeijingDate()
+  
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  
+  if (diffMins < 60) {
+    return `${Math.max(0, diffMins)}分钟前`
+  } else if (diffHours < 24) {
+    return `${diffHours}小时前`
+  } else {
+    return `${diffDays}天前`
+  }
 }
 
 

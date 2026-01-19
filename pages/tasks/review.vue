@@ -352,6 +352,7 @@ import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 import { getTaskRewardSymbol } from '~/utils/display'
 import type { Task } from '~/utils/api'
+import { formatBeijingTime, parseBeijingTime } from '~/utils/time'
 
 // 获取路由参数
 const route = useRoute()
@@ -494,49 +495,33 @@ const canSubmit = computed(() => {
 })
 
 // 格式化日期
-// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm，不进行时区转换
+// 统一使用 UTC+8 北京时间显示，不受机器时区影响
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return '未设置'
   
-  // 统一处理 YYYY-MM-DDTHH:mm 格式（本地时间字符串）
-  let date: Date
+  // 使用统一的时间格式化函数
+  const beijingTimeStr = formatBeijingTime(dateString)
+  if (!beijingTimeStr) return '未设置'
   
-  // 如果是 YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dateString)) {
-    const [datePart, timePart] = dateString.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hour, minute] = timePart.split(':').map(Number)
-    date = new Date(year, month - 1, day, hour, minute)
-  } else {
-    // 如果是 ISO 格式（向后兼容），转换为本地时间显示
-    const tempDate = new Date(dateString)
-    if (!isNaN(tempDate.getTime())) {
-      // 使用本地时区获取年月日时分
-      const year = tempDate.getFullYear()
-      const month = tempDate.getMonth()
-      const day = tempDate.getDate()
-      const hour = tempDate.getHours()
-      const minute = tempDate.getMinutes()
-      date = new Date(year, month, day, hour, minute)
-    } else {
-      return '未设置'
-    }
-  }
-  
-  // 检查日期是否有效
-  if (isNaN(date.getTime())) {
+  // 解析为 Date 对象用于格式化显示
+  const date = parseBeijingTime(beijingTimeStr)
+  if (!date || isNaN(date.getTime())) {
     return '未设置'
   }
   
-  // 直接显示本地时间，不进行时区转换
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  })
+  // 加上 8 小时得到北京时间用于显示
+  const beijingDate = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+  
+  // 使用 UTC 方法读取（因为已经手动偏移了 8 小时）
+  const year = beijingDate.getUTCFullYear()
+  const month = beijingDate.getUTCMonth()
+  const day = beijingDate.getUTCDate()
+  const hour = beijingDate.getUTCHours()
+  const minute = beijingDate.getUTCMinutes()
+  
+  // 格式化显示
+  const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+  return `${year}年${monthNames[month]}${day}日 ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
 // 格式化文件大小
