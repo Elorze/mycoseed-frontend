@@ -186,14 +186,24 @@ const isTaskExpired = (task: Task): boolean => {
     const [hour, minute] = timePart.split(':').map(Number)
     deadline = new Date(year, month - 1, day, hour, minute)
   } else {
-    // ISO 格式（向后兼容），转换为本地时间
-    const tempDate = new Date(task.deadline)
-    const year = tempDate.getFullYear()
-    const month = tempDate.getMonth()
-    const day = tempDate.getDate()
-    const hour = tempDate.getHours()
-    const minute = tempDate.getMinutes()
-    deadline = new Date(year, month, day, hour, minute)
+    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
+    const cleanDateString = task.deadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
+    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+    if (match) {
+      const [_, year, month, day, hour, minute] = match.map(Number)
+      deadline = new Date(year, month - 1, day, hour, minute)
+    } else {
+      const tempDate = new Date(task.deadline)
+      if (isNaN(tempDate.getTime())) {
+        return false  // 无效时间，认为未过期
+      }
+      const year = tempDate.getFullYear()
+      const month = tempDate.getMonth()
+      const day = tempDate.getDate()
+      const hour = tempDate.getHours()
+      const minute = tempDate.getMinutes()
+      deadline = new Date(year, month, day, hour, minute)
+    }
   }
   
   // 如果过了领取截止日期
@@ -228,13 +238,24 @@ const isTaskOverdue = (task: Task): boolean => {
       const [hour, minute] = timePart.split(':').map(Number)
       deadline = new Date(year, month - 1, day, hour, minute)
     } else {
-      const tempDate = new Date(task.deadline)
-      const year = tempDate.getFullYear()
-      const month = tempDate.getMonth()
-      const day = tempDate.getDate()
-      const hour = tempDate.getHours()
-      const minute = tempDate.getMinutes()
-      deadline = new Date(year, month, day, hour, minute)
+      // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
+      const cleanDateString = task.deadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
+      const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+      if (match) {
+        const [_, year, month, day, hour, minute] = match.map(Number)
+        deadline = new Date(year, month - 1, day, hour, minute)
+      } else {
+        const tempDate = new Date(task.deadline)
+        if (isNaN(tempDate.getTime())) {
+          return false  // 无效时间，认为未截止
+        }
+        const year = tempDate.getFullYear()
+        const month = tempDate.getMonth()
+        const day = tempDate.getDate()
+        const hour = tempDate.getHours()
+        const minute = tempDate.getMinutes()
+        deadline = new Date(year, month, day, hour, minute)
+      }
     }
     
     // 如果过了领取截止时间且已领取但未提交，也算已截止
@@ -254,14 +275,24 @@ const isTaskOverdue = (task: Task): boolean => {
     const [hour, minute] = timePart.split(':').map(Number)
     deadline = new Date(year, month - 1, day, hour, minute)
   } else {
-    // ISO 格式（向后兼容），转换为本地时间
-    const tempDate = new Date(submitDeadline)
-    const year = tempDate.getFullYear()
-    const month = tempDate.getMonth()
-    const day = tempDate.getDate()
-    const hour = tempDate.getHours()
-    const minute = tempDate.getMinutes()
-    deadline = new Date(year, month, day, hour, minute)
+    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
+    const cleanDateString = submitDeadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
+    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+    if (match) {
+      const [_, year, month, day, hour, minute] = match.map(Number)
+      deadline = new Date(year, month - 1, day, hour, minute)
+    } else {
+      const tempDate = new Date(submitDeadline)
+      if (isNaN(tempDate.getTime())) {
+        return false  // 无效时间，认为未截止
+      }
+      const year = tempDate.getFullYear()
+      const month = tempDate.getMonth()
+      const day = tempDate.getDate()
+      const hour = tempDate.getHours()
+      const minute = tempDate.getMinutes()
+      deadline = new Date(year, month, day, hour, minute)
+    }
   }
   
   // 过了提交截止日期且已领取但未提交的任务才算已截止
@@ -450,18 +481,34 @@ const getTaskStatusText = (status: string, task?: Task) => {
   return statusMap[status] || '未知'
 }
 
-// 格式化时间差（与首页一致）
+// 格式化时间差（统一使用本地时间字符串，去除时区信息）
 const formatTimeAgo = (dateString: string): string => {
   if (!dateString) return ''
   const now = new Date()
-  const date = new Date(dateString)
+  
+  let date: Date
+  const cleanDateString = dateString.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
+  
+  // 手动解析时间字符串并剔除时区后缀，强制将时间视为本地时间处理
+  const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (match) {
+    const [_, year, month, day, hour, minute] = match.map(Number)
+    // Month 需要 -1（因为 Date 构造函数中月份从 0 开始）
+    date = new Date(year, month - 1, day, hour, minute)
+  } else {
+    // 兜底逻辑：如果格式不匹配，尝试直接解析
+    const tempDate = new Date(dateString)
+    if (isNaN(tempDate.getTime())) return ''
+    date = tempDate
+  }
+
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
   
   if (diffMins < 60) {
-    return `${diffMins}分钟前`
+    return `${Math.max(0, diffMins)}分钟前`
   } else if (diffHours < 24) {
     return `${diffHours}小时前`
   } else {

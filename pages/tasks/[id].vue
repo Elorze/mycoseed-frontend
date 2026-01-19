@@ -739,7 +739,16 @@ const isTaskStarted = computed(() => {
     startDate = new Date(year, month - 1, day, hour, minute)
   } else {
     // ISO 格式（向后兼容），转换为本地时间
+  const cleanDateString = task.value.startDate.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
+  const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (match) {
+    const [_, year, month, day, hour, minute] = match.map(Number)
+    startDate = new Date(year, month - 1, day, hour, minute)
+  } else {
     const tempDate = new Date(task.value.startDate)
+    if (isNaN(tempDate.getTime())) {
+      return true  // 无效时间，默认认为已开始
+    }
     const year = tempDate.getFullYear()
     const month = tempDate.getMonth()
     const day = tempDate.getDate()
@@ -768,14 +777,24 @@ const isTaskExpired = computed(() => {
     const [hour, minute] = timePart.split(':').map(Number)
     deadline = new Date(year, month - 1, day, hour, minute)
   } else {
-    // ISO 格式（向后兼容），转换为本地时间
-    const tempDate = new Date(task.value.deadline)
-    const year = tempDate.getFullYear()
-    const month = tempDate.getMonth()
-    const day = tempDate.getDate()
-    const hour = tempDate.getHours()
-    const minute = tempDate.getMinutes()
-    deadline = new Date(year, month, day, hour, minute)
+    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
+    const cleanDateString = task.value.deadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
+    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+    if (match) {
+      const [_, year, month, day, hour, minute] = match.map(Number)
+      deadline = new Date(year, month - 1, day, hour, minute)
+    } else {
+      const tempDate = new Date(task.value.deadline)
+      if (isNaN(tempDate.getTime())) {
+        return false  // 无效时间，认为未过期
+      }
+      const year = tempDate.getFullYear()
+      const month = tempDate.getMonth()
+      const day = tempDate.getDate()
+      const hour = tempDate.getHours()
+      const minute = tempDate.getMinutes()
+      deadline = new Date(year, month, day, hour, minute)
+    }
   }
   
   // 如果过了领取截止日期
@@ -810,14 +829,24 @@ const isTaskOverdue = computed(() => {
     const [hour, minute] = timePart.split(':').map(Number)
     deadline = new Date(year, month - 1, day, hour, minute)
   } else {
-    // ISO 格式（向后兼容），转换为本地时间
-    const tempDate = new Date(submitDeadline)
-    const year = tempDate.getFullYear()
-    const month = tempDate.getMonth()
-    const day = tempDate.getDate()
-    const hour = tempDate.getHours()
-    const minute = tempDate.getMinutes()
-    deadline = new Date(year, month, day, hour, minute)
+    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
+    const cleanDateString = submitDeadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
+    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+    if (match) {
+      const [_, year, month, day, hour, minute] = match.map(Number)
+      deadline = new Date(year, month - 1, day, hour, minute)
+    } else {
+      const tempDate = new Date(submitDeadline)
+      if (isNaN(tempDate.getTime())) {
+        return false  // 无效时间，认为未截止
+      }
+      const year = tempDate.getFullYear()
+      const month = tempDate.getMonth()
+      const day = tempDate.getDate()
+      const hour = tempDate.getHours()
+      const minute = tempDate.getMinutes()
+      deadline = new Date(year, month, day, hour, minute)
+    }
   }
   
   // 如果过了提交截止日期，不能再领取
@@ -840,14 +869,24 @@ const isTaskSubmissionOverdue = computed(() => {
     const [hour, minute] = timePart.split(':').map(Number)
     submitDeadline = new Date(year, month - 1, day, hour, minute)
   } else {
-    // ISO 格式（向后兼容），转换为本地时间
-    const tempDate = new Date(task.value.submitDeadline)
-    const year = tempDate.getFullYear()
-    const month = tempDate.getMonth()
-    const day = tempDate.getDate()
-    const hour = tempDate.getHours()
-    const minute = tempDate.getMinutes()
-    submitDeadline = new Date(year, month, day, hour, minute)
+    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
+    const cleanDateString = task.value.submitDeadline.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
+    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+    if (match) {
+      const [_, year, month, day, hour, minute] = match.map(Number)
+      submitDeadline = new Date(year, month - 1, day, hour, minute)
+    } else {
+      const tempDate = new Date(task.value.submitDeadline)
+      if (isNaN(tempDate.getTime())) {
+        return false  // 无效时间，认为未截止
+      }
+      const year = tempDate.getFullYear()
+      const month = tempDate.getMonth()
+      const day = tempDate.getDate()
+      const hour = tempDate.getHours()
+      const minute = tempDate.getMinutes()
+      submitDeadline = new Date(year, month, day, hour, minute)
+    }
   }
   
   // 过了提交截止日期且已领取但未提交的任务才算已截止
