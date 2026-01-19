@@ -40,9 +40,8 @@ const userStore = useUserStore()
 const getMyProfilePath = () => {
   const user = userStore.user
   if (user?.id) {
-    // 将 UUID 转换为数字 ID（与 getMemberById 中的逻辑一致）
-    const numericId = parseInt(user.id.slice(0, 8), 16) || 1
-    return `/member/${numericId}`
+    // 直接使用UUID，不要转换为数字
+    return `/member/${user.id}`
   }
   return '/member/1' // 默认值（未登录时）
 }

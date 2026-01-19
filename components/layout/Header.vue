@@ -277,9 +277,8 @@ const navigateTo = (page: string) => {
     // 使用当前登录用户的 ID
     const user = userStore.user
     if (user?.id) {
-      // 将 UUID 转换为数字 ID（与 getMemberById 中的逻辑一致）
-      const numericId = parseInt(user.id.slice(0, 8), 16) || 1
-      emit('navigate', `member/${numericId}`)
+      // 直接使用UUID，不要转换为数字
+      emit('navigate', `member/${user.id}`)
     } else {
       // 未登录时跳转到登录页
       router.push('/auth/login')
