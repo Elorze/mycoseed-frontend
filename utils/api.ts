@@ -1278,6 +1278,8 @@ export interface Member {
   id: number
   name: string                   // 成员名称
   title?: string                 // 头衔
+  bio?: string                   // 个人简介
+  avatar?: string                 // 头像URL
   reputation: number             // 声誉值
   totalContributions: number     // 总贡献数
   completedTasks: number         // 完成任务数
@@ -1443,8 +1445,10 @@ export const getMemberById = async (id: number | string, baseUrl?: string): Prom
     if (!response.ok) {
       if (response.status === 404) {
         // 用户不存在，返回 null
-  return null
+        console.error(`User not found.`,response.statusText);
+        return null;
       }
+      console.error(`Failed to get member: ${response.statusText}`)
       throw new Error(`Failed to get member: ${response.statusText}`)
     }
 
@@ -1462,6 +1466,8 @@ export const getMemberById = async (id: number | string, baseUrl?: string): Prom
     const member: Member = {
       id: typeof id === 'number' ? id : parseInt(user.id.slice(0, 8), 16) || 0, // 将 UUID 转换为数字 ID（临时方案，用于兼容前端）
       name: user.name || '未知用户',
+      bio: user.bio || undefined,
+      avatar: user.avatar || undefined,
       title: undefined, // 暂时没有头衔字段
       reputation: 0, // 暂时使用默认值，后续可以从任务完成数等计算
       totalContributions: 0, // 暂时使用默认值
