@@ -730,7 +730,7 @@ const isTaskStarted = computed(() => {
   const now = new Date()
   
   // 统一解析时间字符串为本地时间
-  let startDate: Date
+  let startDate: Date | null = null
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.value.startDate)) {
     // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
     const [datePart, timePart] = task.value.startDate.split('T')
@@ -738,26 +738,28 @@ const isTaskStarted = computed(() => {
     const [hour, minute] = timePart.split(':').map(Number)
     startDate = new Date(year, month - 1, day, hour, minute)
   } else {
-    // ISO 格式（向后兼容），转换为本地时间
-  const cleanDateString = task.value.startDate.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
-  const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
-  if (match) {
-    const [_, year, month, day, hour, minute] = match.map(Number)
-    startDate = new Date(year, month - 1, day, hour, minute)
-  } else {
-    const tempDate = new Date(task.value.startDate)
-    if (isNaN(tempDate.getTime())) {
-      return true  // 无效时间，默认认为已开始
+    // ISO 格式（向后兼容），去除时区后缀，强制作为本地时间处理
+    const cleanDateString = task.value.startDate.replace(/Z$|[+-]\d{2}:?\d{2}$/, '')
+    const match = cleanDateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+    if (match) {
+      const [_, year, month, day, hour, minute] = match.map(Number)
+      startDate = new Date(year, month - 1, day, hour, minute)
+    } else {
+      const tempDate = new Date(task.value.startDate)
+      if (isNaN(tempDate.getTime())) {
+        return true  // 无效时间，默认认为已开始
+      }
+      const year = tempDate.getFullYear()
+      const month = tempDate.getMonth()
+      const day = tempDate.getDate()
+      const hour = tempDate.getHours()
+      const minute = tempDate.getMinutes()
+      startDate = new Date(year, month, day, hour, minute)
     }
-    const year = tempDate.getFullYear()
-    const month = tempDate.getMonth()
-    const day = tempDate.getDate()
-    const hour = tempDate.getHours()
-    const minute = tempDate.getMinutes()
-    startDate = new Date(year, month, day, hour, minute)
   }
   
-  return now >= startDate
+  if (!startDate) return true // 如果无法解析，默认认为已开始
+  return now.getTime() >= startDate.getTime()
 })
 
 // 检查任务是否已过期（过了领取截止日期）
