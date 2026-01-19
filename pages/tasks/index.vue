@@ -172,10 +172,29 @@ const isTaskClaimed = (task: Task): boolean => {
 // 检查任务是否已过期（过了领取截止日期）
 // 对于多人任务：过了领取截止日期就不能再领取
 // 对于单人任务：过了领取截止日期且未领取才算过期
+// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
 const isTaskExpired = (task: Task): boolean => {
   if (!task.deadline) return false // 如果没有领取截止时间，认为未过期
   const now = new Date()
-  const deadline = new Date(task.deadline)
+  
+  // 统一解析时间字符串为本地时间
+  let deadline: Date
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.deadline)) {
+    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
+    const [datePart, timePart] = task.deadline.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hour, minute] = timePart.split(':').map(Number)
+    deadline = new Date(year, month - 1, day, hour, minute)
+  } else {
+    // ISO 格式（向后兼容），转换为本地时间
+    const tempDate = new Date(task.deadline)
+    const year = tempDate.getFullYear()
+    const month = tempDate.getMonth()
+    const day = tempDate.getDate()
+    const hour = tempDate.getHours()
+    const minute = tempDate.getMinutes()
+    deadline = new Date(year, month, day, hour, minute)
+  }
   
   // 如果过了领取截止日期
   if (now.getTime() > deadline.getTime()) {
@@ -192,6 +211,7 @@ const isTaskExpired = (task: Task): boolean => {
 
 // 检查任务是否已截止（过了提交截止日期且已领取但未提交）
 // 逻辑与任务详情页保持一致
+// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
 const isTaskOverdue = (task: Task): boolean => {
   // 优先使用提交截止日期
   const submitDeadline = task.submitDeadline
@@ -199,7 +219,24 @@ const isTaskOverdue = (task: Task): boolean => {
     // 如果没有提交截止时间，使用领取截止时间作为后备（向后兼容）
     if (!task.deadline) return false
     const now = new Date()
-    const deadline = new Date(task.deadline)
+    
+    // 统一解析时间字符串为本地时间
+    let deadline: Date
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.deadline)) {
+      const [datePart, timePart] = task.deadline.split('T')
+      const [year, month, day] = datePart.split('-').map(Number)
+      const [hour, minute] = timePart.split(':').map(Number)
+      deadline = new Date(year, month - 1, day, hour, minute)
+    } else {
+      const tempDate = new Date(task.deadline)
+      const year = tempDate.getFullYear()
+      const month = tempDate.getMonth()
+      const day = tempDate.getDate()
+      const hour = tempDate.getHours()
+      const minute = tempDate.getMinutes()
+      deadline = new Date(year, month, day, hour, minute)
+    }
+    
     // 如果过了领取截止时间且已领取但未提交，也算已截止
     const isClaimed = !!task.claimerId
     const isNotSubmitted = task.status !== 'completed' && task.status !== 'submitted' && task.status !== 'under_review'
@@ -207,7 +244,25 @@ const isTaskOverdue = (task: Task): boolean => {
   }
   
   const now = new Date()
-  const deadline = new Date(submitDeadline)
+  
+  // 统一解析时间字符串为本地时间
+  let deadline: Date
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(submitDeadline)) {
+    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
+    const [datePart, timePart] = submitDeadline.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hour, minute] = timePart.split(':').map(Number)
+    deadline = new Date(year, month - 1, day, hour, minute)
+  } else {
+    // ISO 格式（向后兼容），转换为本地时间
+    const tempDate = new Date(submitDeadline)
+    const year = tempDate.getFullYear()
+    const month = tempDate.getMonth()
+    const day = tempDate.getDate()
+    const hour = tempDate.getHours()
+    const minute = tempDate.getMinutes()
+    deadline = new Date(year, month, day, hour, minute)
+  }
   
   // 过了提交截止日期且已领取但未提交的任务才算已截止
   // 检查条件：已领取 && 状态不是已完成和审核中 && 过了提交截止日期

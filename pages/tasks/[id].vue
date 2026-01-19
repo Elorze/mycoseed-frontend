@@ -724,20 +724,59 @@ const shouldShowAssignedToOthersMessage = computed(() => {
 })
 
 // 检查任务是否已开始
+// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
 const isTaskStarted = computed(() => {
   if (!task.value.startDate) return true // 如果没有开始时间，默认认为已开始（向后兼容）
   const now = new Date()
-  const startDate = new Date(task.value.startDate)
+  
+  // 统一解析时间字符串为本地时间
+  let startDate: Date
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.value.startDate)) {
+    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
+    const [datePart, timePart] = task.value.startDate.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hour, minute] = timePart.split(':').map(Number)
+    startDate = new Date(year, month - 1, day, hour, minute)
+  } else {
+    // ISO 格式（向后兼容），转换为本地时间
+    const tempDate = new Date(task.value.startDate)
+    const year = tempDate.getFullYear()
+    const month = tempDate.getMonth()
+    const day = tempDate.getDate()
+    const hour = tempDate.getHours()
+    const minute = tempDate.getMinutes()
+    startDate = new Date(year, month, day, hour, minute)
+  }
+  
   return now >= startDate
 })
 
 // 检查任务是否已过期（过了领取截止日期）
 // 对于多人任务：过了领取截止日期就不能再领取
 // 对于单人任务：过了领取截止日期且未领取才算过期
+// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
 const isTaskExpired = computed(() => {
   if (!task.value.deadline) return false // 如果没有领取截止时间，认为未过期
   const now = new Date()
-  const deadline = new Date(task.value.deadline)
+  
+  // 统一解析时间字符串为本地时间
+  let deadline: Date
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.value.deadline)) {
+    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
+    const [datePart, timePart] = task.value.deadline.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hour, minute] = timePart.split(':').map(Number)
+    deadline = new Date(year, month - 1, day, hour, minute)
+  } else {
+    // ISO 格式（向后兼容），转换为本地时间
+    const tempDate = new Date(task.value.deadline)
+    const year = tempDate.getFullYear()
+    const month = tempDate.getMonth()
+    const day = tempDate.getDate()
+    const hour = tempDate.getHours()
+    const minute = tempDate.getMinutes()
+    deadline = new Date(year, month, day, hour, minute)
+  }
   
   // 如果过了领取截止日期
   if (now > deadline) {
@@ -754,13 +793,32 @@ const isTaskExpired = computed(() => {
 
 // 检查任务是否已截止（过了提交截止日期）
 // 如果过了提交截止日期，不能再领取新任务
+// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
 const isTaskOverdue = computed(() => {
   // 优先使用提交截止日期
   const submitDeadline = task.value.submitDeadline || task.value.deadline
   if (!submitDeadline) return false // 如果没有提交截止时间，认为未截止
   
   const now = new Date()
-  const deadline = new Date(submitDeadline)
+  
+  // 统一解析时间字符串为本地时间
+  let deadline: Date
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(submitDeadline)) {
+    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
+    const [datePart, timePart] = submitDeadline.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hour, minute] = timePart.split(':').map(Number)
+    deadline = new Date(year, month - 1, day, hour, minute)
+  } else {
+    // ISO 格式（向后兼容），转换为本地时间
+    const tempDate = new Date(submitDeadline)
+    const year = tempDate.getFullYear()
+    const month = tempDate.getMonth()
+    const day = tempDate.getDate()
+    const hour = tempDate.getHours()
+    const minute = tempDate.getMinutes()
+    deadline = new Date(year, month, day, hour, minute)
+  }
   
   // 如果过了提交截止日期，不能再领取
   return now > deadline
@@ -768,10 +826,30 @@ const isTaskOverdue = computed(() => {
 
 // 检查任务是否已截止（用于已领取任务的提交按钮）
 // 过了提交截止日期且已领取但未提交的任务才算已截止
+// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm 进行比较
 const isTaskSubmissionOverdue = computed(() => {
   if (!task.value.submitDeadline) return false // 如果没有提交截止时间，认为未截止
   const now = new Date()
-  const submitDeadline = new Date(task.value.submitDeadline)
+  
+  // 统一解析时间字符串为本地时间
+  let submitDeadline: Date
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(task.value.submitDeadline)) {
+    // YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
+    const [datePart, timePart] = task.value.submitDeadline.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hour, minute] = timePart.split(':').map(Number)
+    submitDeadline = new Date(year, month - 1, day, hour, minute)
+  } else {
+    // ISO 格式（向后兼容），转换为本地时间
+    const tempDate = new Date(task.value.submitDeadline)
+    const year = tempDate.getFullYear()
+    const month = tempDate.getMonth()
+    const day = tempDate.getDate()
+    const hour = tempDate.getHours()
+    const minute = tempDate.getMinutes()
+    submitDeadline = new Date(year, month, day, hour, minute)
+  }
+  
   // 过了提交截止日期且已领取但未提交的任务才算已截止
   return now > submitDeadline && !!task.value.claimerId && task.value.status !== 'completed' && task.value.status !== 'submitted' && task.value.status !== 'under_review'
 })
