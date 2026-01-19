@@ -820,22 +820,33 @@ const getStatusBadgeClass = (status: string): string => {
 }
 
 // 格式化日期
-// 方案A：统一使用 ISO 8601 格式，前端使用 toLocaleString 显示本地时间
+// 统一使用本地时间字符串 YYYY-MM-DDTHH:mm，不进行时区转换
 const formatDate = (dateString: string | undefined) => {
   if (!dateString) return '未设置'
   
-  // 统一解析为 Date 对象（支持 ISO 8601 格式和 YYYY-MM-DDTHH:mm 格式）
+  // 统一处理 YYYY-MM-DDTHH:mm 格式（本地时间字符串）
   let date: Date
   
-  // 如果是 YYYY-MM-DDTHH:mm 格式（向后兼容），解析为本地时间
+  // 如果是 YYYY-MM-DDTHH:mm 格式，直接解析为本地时间
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dateString)) {
     const [datePart, timePart] = dateString.split('T')
     const [year, month, day] = datePart.split('-').map(Number)
     const [hour, minute] = timePart.split(':').map(Number)
     date = new Date(year, month - 1, day, hour, minute)
   } else {
-    // ISO 8601 格式（带时区信息），浏览器会自动处理时区转换
-    date = new Date(dateString)
+    // 如果是 ISO 格式（向后兼容），转换为本地时间显示
+    const tempDate = new Date(dateString)
+    if (!isNaN(tempDate.getTime())) {
+      // 使用本地时区获取年月日时分
+      const year = tempDate.getFullYear()
+      const month = tempDate.getMonth()
+      const day = tempDate.getDate()
+      const hour = tempDate.getHours()
+      const minute = tempDate.getMinutes()
+      date = new Date(year, month, day, hour, minute)
+    } else {
+      return '未设置'
+    }
   }
   
   // 检查日期是否有效
@@ -843,7 +854,7 @@ const formatDate = (dateString: string | undefined) => {
     return '未设置'
   }
   
-  // 使用 toLocaleString 显示本地时间（浏览器自动处理时区）
+  // 直接显示本地时间，不进行时区转换
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'short',
