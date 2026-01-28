@@ -1,20 +1,20 @@
 <template>
-  <div class="w-full max-w-md">
-    <PixelCard>
-      <template #header>
-        <div class="text-center font-pixel text-xl text-mario-red">登录中...</div>
-      </template>
+    <div class="w-full max-w-md">
+        <PixelCard>
+            <template #header>
+                <div class="text-center font-pixel text-xl text-mario-red">登录中...</div>
+            </template>
 
-      <div class="flex flex-col gap-6 py-4 items-center">
-        <div v-if="loading" class="text-center font-vt323 text-lg">
-          正在处理登录...
-        </div>
-        <div v-if="error" class="text-center font-vt323 text-lg text-mario-red">
-          {{ error }}
-        </div>
-      </div>
-    </PixelCard>
-  </div>
+            <div class="flex flex-col gap-6 py-4 items-center">
+                <div v-if="loading" class="text-center font-vt323 text-lg">
+                    正在处理登录...
+                </div>
+                <div v-if="error" class="text-center font-vt323 text-lg text-mario-red">
+                    {{ error }}
+                </div>
+            </div>
+        </PixelCard>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -24,6 +24,24 @@ import { useToast } from '~/composables/useToast'
 import { useUserStore } from '~/stores/user'
 import { parseFragment, getSemiUserInfo, syncFromSemi } from '~/utils/api'
 import PixelCard from '~/components/pixel/PixelCard.vue'
+
+// #region agent log
+if (typeof window !== 'undefined') {
+  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      location: 'pages/auth/callback.vue:script-setup',
+      message: 'Callback page script setup executed',
+      data: { path: window.location.pathname, hash: window.location.hash },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'A'
+    })
+  }).catch(() => {})
+}
+// #endregion
 
 definePageMeta({
   layout: 'unauth',
@@ -37,11 +55,27 @@ const loading = ref(true)
 const error = ref('')
 
 onMounted(async () => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      location: 'pages/auth/callback.vue:onMounted',
+      message: 'onMounted hook executed',
+      data: { pathname: window.location.pathname, hash: window.location.hash },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'A'
+    })
+  }).catch(() => {})
+  // #endregion
+
   try {
     // 1. 从 URL fragment 中提取参数
     const hash = window.location.hash
     const params = parseFragment(hash)
-    
+
     // 2. 提取 access_token
     const accessToken = params.access_token
     if (!accessToken) {
@@ -58,16 +92,16 @@ onMounted(async () => {
     }
     
     // 4. 验证 state（防止 CSRF 攻击）
-    const savedState = sessionStorage.getItem('oauth_state')
+        const savedState = sessionStorage.getItem('oauth_state')
     const receivedState = params.state
-    
+
     if (!savedState || savedState !== receivedState) {
-      throw new Error('Invalid state parameter')
-    }
-    
-    // 清除 state
-    sessionStorage.removeItem('oauth_state')
-    
+            throw new Error('Invalid state parameter')
+        }
+
+        // 清除 state
+        sessionStorage.removeItem('oauth_state')
+
     // 5. 保存 Semi 的 access_token（存储为 semi_token）
     if (typeof window !== 'undefined') {
       localStorage.setItem('semi_token', accessToken)
@@ -91,7 +125,7 @@ onMounted(async () => {
     
     if (syncResult.result === 'ok' && syncResult.auth_token) {
       // 9. 保存 mycoseed 的 auth_token
-      if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined') {
         localStorage.setItem('auth_token', syncResult.auth_token)
       }
       
@@ -140,6 +174,6 @@ onMounted(async () => {
     setTimeout(() => {
       router.push('/auth/login')
     }, 3000)
-  }
+    }
 })
 </script>

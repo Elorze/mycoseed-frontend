@@ -1,9 +1,46 @@
 import {AUTH_TOKEN_KEY, getCookie} from '~/utils/api'
 
 export default defineNuxtRouteMiddleware((to, from) => {
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'middleware/auth.ts:middleware',
+          message: 'Auth middleware executed',
+          data: { toPath: to.path, fromPath: from.path },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'C'
+        })
+      }).catch(() => {})
+    }
+    // #endregion
+
     // 允许访问的公开页面（不需要登录）
     // 注意：旧的 /verify 和 /verifyphone 路径已废弃，现在使用 OAuth2
     const publicPages = ['/auth/login', '/auth/callback']
+
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      const isPublic = publicPages.some(path => to.path.startsWith(path))
+      fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'middleware/auth.ts:public-check',
+          message: 'Public page check',
+          data: { toPath: to.path, isPublic, publicPages },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'C'
+        })
+      }).catch(() => {})
+    }
+    // #endregion
 
     // 如果访问的是公开页面，直接放行
     if (publicPages.some(path => to.path.startsWith(path))) {

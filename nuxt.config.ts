@@ -6,6 +6,9 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxt/icon'
   ],
+  // #region agent log
+  // Logging config load (server-side only)
+  // #endregion
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
