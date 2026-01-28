@@ -10,6 +10,18 @@
           使用 Semi 账号登录/注册
         </div>
 
+        <!-- #region agent log -->
+        <div class="px-3 py-2 text-xs border-2 border-black bg-white/80 font-mono">
+          <div>debug.vercelEnv: {{ debugBuild?.vercelEnv }}</div>
+          <div>debug.vercelSha: {{ debugBuild?.vercelSha }}</div>
+          <div>debug.vercelBranch: {{ debugBuild?.vercelBranch }}</div>
+          <div>debug.buildTime: {{ debugBuild?.buildTime }}</div>
+          <div>semiOAuthUrl: {{ semiOAuthUrl }}</div>
+          <div>semiRedirectUri: {{ semiRedirectUri }}</div>
+          <div>semiClientIdPresent: {{ !!semiClientId }}</div>
+        </div>
+        <!-- #endregion -->
+
         <PixelButton 
           variant="primary" 
           block 
@@ -49,9 +61,13 @@ definePageMeta({
 
 const router = useRouter()
 const toast = useToast()
+const config = useRuntimeConfig()
+const debugBuild = config.public.debugBuild as any
+const semiOAuthUrl = config.public.semiOAuthUrl
+const semiRedirectUri = config.public.semiRedirectUri
+const semiClientId = config.public.semiClientId
 
 const handleOAuth2Login = () => {
-  const config = useRuntimeConfig()
   const clientId = config.public.semiClientId
   const redirectUri = config.public.semiRedirectUri
   const oauthUrl = config.public.semiOAuthUrl

@@ -6,6 +6,14 @@
             </template>
 
             <div class="flex flex-col gap-6 py-4 items-center">
+                <!-- #region agent log -->
+                <div class="w-full px-3 py-2 text-xs border-2 border-black bg-white/80 font-mono">
+                    <div>debug.vercelEnv: {{ debugBuild?.vercelEnv }}</div>
+                    <div>debug.vercelSha: {{ debugBuild?.vercelSha }}</div>
+                    <div>debug.vercelBranch: {{ debugBuild?.vercelBranch }}</div>
+                    <div>debug.buildTime: {{ debugBuild?.buildTime }}</div>
+                </div>
+                <!-- #endregion -->
                 <div v-if="loading" class="text-center font-vt323 text-lg">
                     正在处理登录...
                 </div>
@@ -44,7 +52,7 @@ if (typeof window !== 'undefined') {
 // #endregion
 
 definePageMeta({
-  layout: 'unauth'
+  layout: 'unauth',
   // 移除 ssr: false，确保路由在构建时被正确注册
   // 客户端逻辑在 onMounted 中处理，通过 typeof window 检查确保只在客户端执行
 })
@@ -52,6 +60,8 @@ definePageMeta({
 const router = useRouter()
 const toast = useToast()
 const userStore = useUserStore()
+const config = useRuntimeConfig()
+const debugBuild = config.public.debugBuild as any
 const loading = ref(true)
 const error = ref('')
 
@@ -135,8 +145,6 @@ onMounted(async () => {
     // 5. 保存 Semi 的 access_token（存储为 semi_token）
     localStorage.setItem('semi_token', accessToken)
     
-    // 6. 获取运行时配置
-    const config = useRuntimeConfig()
     const semiApiUrl = config.public.semiApiUrl
     const apiBaseUrl = config.public.apiUrl
     
@@ -200,6 +208,6 @@ onMounted(async () => {
     setTimeout(() => {
       router.push('/auth/login')
     }, 3000)
-    }
+  }
 })
 </script>
