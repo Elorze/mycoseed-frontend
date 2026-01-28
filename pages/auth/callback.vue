@@ -44,8 +44,9 @@ if (typeof window !== 'undefined') {
 // #endregion
 
 definePageMeta({
-  layout: 'unauth',
-  ssr: false  // 必须客户端渲染，因为需要访问 window.location.hash
+  layout: 'unauth'
+  // 移除 ssr: false，确保路由在构建时被正确注册
+  // 客户端逻辑在 onMounted 中处理，通过 typeof window 检查确保只在客户端执行
 })
 
 const router = useRouter()
@@ -71,6 +72,11 @@ onMounted(async () => {
   }).catch(() => {})
   // #endregion
 
+  // 确保在客户端执行
+  if (typeof window === 'undefined') {
+    return
+  }
+
   try {
     // 1. 从 URL fragment 中提取参数
     const hash = window.location.hash
@@ -79,33 +85,55 @@ onMounted(async () => {
     // 2. 提取 access_token
     const accessToken = params.access_token
     if (!accessToken) {
-      throw new Error('Access token not found')
+      // 如果没有 access_token，显示错误但不要抛出异常（这样页面可以正常显示）
+      error.value = '未找到访问令牌，请重新登录'
+      loading.value = false
+      
+      toast.add({
+        title: '登录失败',
+        description: '未找到访问令牌，请重新登录',
+        color: 'red'
+      })
+      
+      // 3秒后跳转回登录页
+      setTimeout(() => {
+        router.push('/auth/login')
+      }, 3000)
+      return
     }
     
     // 3. 立即清理地址栏（移除 fragment，不刷新页面）
-    if (accessToken) {
-      window.history.replaceState(
-        {}, 
-        document.title, 
-        window.location.pathname + window.location.search
-      )
-    }
+    window.history.replaceState(
+      {}, 
+      document.title, 
+      window.location.pathname + window.location.search
+    )
     
     // 4. 验证 state（防止 CSRF 攻击）
-        const savedState = sessionStorage.getItem('oauth_state')
+    const savedState = sessionStorage.getItem('oauth_state')
     const receivedState = params.state
 
     if (!savedState || savedState !== receivedState) {
-            throw new Error('Invalid state parameter')
-        }
+      error.value = '无效的状态参数，请重新登录'
+      loading.value = false
+      
+      toast.add({
+        title: '登录失败',
+        description: '无效的状态参数，请重新登录',
+        color: 'red'
+      })
+      
+      setTimeout(() => {
+        router.push('/auth/login')
+      }, 3000)
+      return
+    }
 
-        // 清除 state
-        sessionStorage.removeItem('oauth_state')
+    // 清除 state
+    sessionStorage.removeItem('oauth_state')
 
     // 5. 保存 Semi 的 access_token（存储为 semi_token）
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('semi_token', accessToken)
-    }
+    localStorage.setItem('semi_token', accessToken)
     
     // 6. 获取运行时配置
     const config = useRuntimeConfig()
@@ -125,9 +153,7 @@ onMounted(async () => {
     
     if (syncResult.result === 'ok' && syncResult.auth_token) {
       // 9. 保存 mycoseed 的 auth_token
-        if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', syncResult.auth_token)
-      }
+      localStorage.setItem('auth_token', syncResult.auth_token)
       
       // 10. 获取用户信息并设置到 store
       const user = syncResult.user || semiUserData
