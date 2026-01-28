@@ -134,13 +134,15 @@ onMounted(async () => {
       const user = syncResult.user || semiUserData
       const userWithMetadata = {
         ...user,
-        isProfileSetup: !!user.name,
+        // 使用 name 或 handle 判断是否完成资料设置
+        isProfileSetup: !!(user.name || user.handle),
         userType: user.userType || 'member'
       }
       userStore.setUser(userWithMetadata)
       
       // 11. 根据用户状态跳转
-      if (!user.name) {
+      // 判断逻辑：如果既没有 name 也没有 handle，说明是新用户
+      if (!user.name && !user.handle) {
         // 新用户，跳转到设置页面
         toast.add({
           title: '注册成功',

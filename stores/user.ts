@@ -28,8 +28,8 @@ export const useUserStore = defineStore('user', {
         isCommunity: (state) => state.user?.userType === 'community',
         needsProfileSetup: (state) => {
             if (!state.user) return false
-            // 根据 name 是否存在判断是否完成资料设置
-            return !state.user.isProfileSetup && !state.user.name
+            // 根据 name 或 handle 是否存在判断是否完成资料设置
+            return !state.user.isProfileSetup && !state.user.name && !state.user.handle
         },
         // 计算属性：从 phone 或 email
         identifier: (state) => {
