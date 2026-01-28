@@ -26,7 +26,8 @@ import { parseFragment, getSemiUserInfo, syncFromSemi } from '~/utils/api'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 
 definePageMeta({
-  layout: 'unauth'
+  layout: 'unauth',
+  ssr: false  // 必须客户端渲染，因为需要访问 window.location.hash
 })
 
 const router = useRouter()
