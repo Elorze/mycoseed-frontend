@@ -1714,3 +1714,91 @@ export const getCommunityTransactions = async (communityId: number): Promise<Com
     return []
   }
 }
+
+// ==================== Semi OAuth2 相关 API ====================
+
+/**
+ * 从 Semi 获取用户信息
+ * @param accessToken Semi 的 access_token
+ * @param semiApiUrl Semi API 基础 URL
+ */
+export const getSemiUserInfo = async (accessToken: string, semiApiUrl: string): Promise<any> => {
+  const response = await fetch(`${semiApiUrl}/get_me`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    }
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || error.message || 'Failed to get user info from Semi')
+  }
+
+  return response.json()
+}
+
+/**
+ * 同步 Semi 用户信息到 Mycoseed
+ * @param semiUserData Semi 用户数据
+ * @param baseUrl Mycoseed API 基础 URL
+ */
+export const syncFromSemi = async (semiUserData: any, baseUrl: string): Promise<{ result: string; auth_token?: string; user?: any}> => {
+  const response = await fetch(`${baseUrl}/api/auth/sync-from-semi`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(semiUserData)
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || 'Failed to sync user from Semi')
+  }
+
+  return response.json()
+}
+
+/**
+ * 生成随机 state（用于 OAuth2 CSRF 防护）
+ */
+export const generateRandomState = (): string => {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+}
+
+/**
+ * 构建 OAuth2 授权 URL
+ * @param clientId 客户端 ID
+ * @param redirectUri 回调地址
+ * @param state 状态参数（用于 CSRF 防护）
+ * @param oauthUrl OAuth 服务器地址
+ */
+export const buildOAuthUrl = (clientId: string, redirectUri: string, state: string, oauthUrl: string): string => {
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'token',
+    redirect_uri: redirectUri,
+    state: state,
+    scope: 'read:user'
+  })
+  return `${oauthUrl}/api/oauth/authorize?${params.toString()}`
+}
+
+/**
+ * 解析 URL fragment（用于提取 OAuth2 返回的 token）
+ * @param fragment URL fragment（例如：#access_token=xxx&token_type=Bearer）
+ */
+export const parseFragment = (fragment: string): Record<string, string> => {
+  const params: Record<string, string> = {}
+  if (fragment && fragment.startsWith('#')) {
+    fragment.substring(1).split('&').forEach(param => {
+      const [key, value] = param.split('=')
+      if (key && value) {
+        params[key] = decodeURIComponent(value)
+      }
+    })
+  }
+  return params
+}
