@@ -10,18 +10,6 @@
           使用 Semi 账号登录/注册
         </div>
 
-        <!-- #region agent log -->
-        <div class="px-3 py-2 text-xs border-2 border-black bg-white/80 font-mono">
-          <div>debug.vercelEnv: {{ debugBuild?.vercelEnv }}</div>
-          <div>debug.vercelSha: {{ debugBuild?.vercelSha }}</div>
-          <div>debug.vercelBranch: {{ debugBuild?.vercelBranch }}</div>
-          <div>debug.buildTime: {{ debugBuild?.buildTime }}</div>
-          <div>semiOAuthUrl: {{ semiOAuthUrl }}</div>
-          <div>semiRedirectUri: {{ semiRedirectUri }}</div>
-          <div>semiClientIdPresent: {{ !!semiClientId }}</div>
-        </div>
-        <!-- #endregion -->
-
         <PixelButton 
           variant="primary" 
           block 
@@ -62,10 +50,6 @@ definePageMeta({
 const router = useRouter()
 const toast = useToast()
 const config = useRuntimeConfig()
-const debugBuild = config.public.debugBuild as any
-const semiOAuthUrl = config.public.semiOAuthUrl
-const semiRedirectUri = config.public.semiRedirectUri
-const semiClientId = config.public.semiClientId
 
 const handleOAuth2Login = () => {
   const clientId = config.public.semiClientId
@@ -91,23 +75,6 @@ const handleOAuth2Login = () => {
 
   // 构建授权 URL 并跳转
   const authUrl = buildOAuthUrl(clientId, redirectUri, state, oauthUrl)
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'pages/auth/login.vue:handleOAuth2Login',
-      message: 'Redirecting to OAuth2',
-      data: { authUrl, redirectUri, state },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId: 'D'
-    })
-  }).catch(() => {})
-  // #endregion
-  
   window.location.href = authUrl
 }
 

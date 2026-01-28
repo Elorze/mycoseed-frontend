@@ -6,14 +6,6 @@
             </template>
 
             <div class="flex flex-col gap-6 py-4 items-center">
-                <!-- #region agent log -->
-                <div class="w-full px-3 py-2 text-xs border-2 border-black bg-white/80 font-mono">
-                    <div>debug.vercelEnv: {{ debugBuild?.vercelEnv }}</div>
-                    <div>debug.vercelSha: {{ debugBuild?.vercelSha }}</div>
-                    <div>debug.vercelBranch: {{ debugBuild?.vercelBranch }}</div>
-                    <div>debug.buildTime: {{ debugBuild?.buildTime }}</div>
-                </div>
-                <!-- #endregion -->
                 <div v-if="loading" class="text-center font-vt323 text-lg">
                     正在处理登录...
                 </div>
@@ -33,24 +25,6 @@ import { useUserStore } from '~/stores/user'
 import { parseFragment, getSemiUserInfo, syncFromSemi } from '~/utils/api'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 
-// #region agent log
-if (typeof window !== 'undefined') {
-  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'pages/auth/callback.vue:script-setup',
-      message: 'Callback page script setup executed',
-      data: { path: window.location.pathname, hash: window.location.hash },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId: 'A'
-    })
-  }).catch(() => {})
-}
-// #endregion
-
 definePageMeta({
   layout: 'unauth',
   // 移除 ssr: false，确保路由在构建时被正确注册
@@ -61,27 +35,10 @@ const router = useRouter()
 const toast = useToast()
 const userStore = useUserStore()
 const config = useRuntimeConfig()
-const debugBuild = config.public.debugBuild as any
 const loading = ref(true)
 const error = ref('')
 
 onMounted(async () => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'pages/auth/callback.vue:onMounted',
-      message: 'onMounted hook executed',
-      data: { pathname: window.location.pathname, hash: window.location.hash },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId: 'A'
-    })
-  }).catch(() => {})
-  // #endregion
-
   // 确保在客户端执行
   if (typeof window === 'undefined') {
     return

@@ -1754,8 +1754,13 @@ export const syncFromSemi = async (semiUserData: any, baseUrl: string): Promise<
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || 'Failed to sync user from Semi')
+    const raw = await response.text()
+    try {
+      const parsed = JSON.parse(raw)
+      throw new Error(parsed.message || 'Failed to sync user from Semi')
+    } catch {
+      throw new Error(`Failed to sync user from Semi (HTTP ${response.status}): ${raw.slice(0, 120)}`)
+    }
   }
 
   return response.json()

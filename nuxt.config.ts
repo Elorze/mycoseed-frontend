@@ -27,14 +27,6 @@ export default defineNuxtConfig({
         (env.NODE_ENV === 'development' 
           ? 'http://localhost:3000/auth/callback'
           : ''),
-
-      // ===== DEBUG（不包含敏感信息）=====
-      debugBuild: {
-        vercelEnv: env.VERCEL_ENV || '',
-        vercelSha: env.VERCEL_GIT_COMMIT_SHA || '',
-        vercelBranch: env.VERCEL_GIT_COMMIT_REF || '',
-        buildTime: new Date().toISOString()
-      }
     }
   },
   // 配置UI主题
