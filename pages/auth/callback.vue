@@ -1,5 +1,5 @@
 <template>
-    <div class="w-full max-w-md">
+    <div class="w-full max-w-md mx-auto">
         <PixelCard>
             <template #header>
                 <div class="text-center font-pixel text-xl text-mario-red">登录中...</div>
@@ -112,6 +112,16 @@ onMounted(async () => {
     
     // 7. 调用 Semi API 获取用户信息
     const semiUserData = await getSemiUserInfo(accessToken, semiApiUrl)
+    
+    // ===== DEBUG: 打印 Semi 返回的用户数据 =====
+    console.log('=== Semi API 返回的用户数据 ===')
+    console.log('Semi User Data:', JSON.stringify(semiUserData, null, 2))
+    console.log('Semi User ID:', semiUserData?.id)
+    console.log('Semi User Phone:', semiUserData?.phone)
+    console.log('Semi User Email:', semiUserData?.email)
+    console.log('Semi User Handle:', semiUserData?.handle)
+    console.log('Semi User EVM Address:', semiUserData?.evm_chain_address)
+    console.log('================================')
     
     // 8. 同步用户信息到 Mycoseed
     const syncResult = await syncFromSemi(semiUserData, apiBaseUrl)

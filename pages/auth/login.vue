@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full max-w-md">
+  <div class="w-full max-w-md mx-auto">
     <PixelCard>
       <template #header>
         <div class="text-center font-pixel text-xl text-mario-red">登录</div>
