@@ -39,6 +39,7 @@
 
 <script setup lang="ts">
 import { buildOAuthUrl, generateRandomState } from '~/utils/api'
+import { useToast } from '~/composables/useToast'
 import PixelCard from '~/components/pixel/PixelCard.vue'
 import PixelButton from '~/components/pixel/PixelButton.vue'
 

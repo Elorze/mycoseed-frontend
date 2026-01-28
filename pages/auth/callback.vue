@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useToast } from '#app'
+import { useToast } from '~/composables/useToast'
 import { useUserStore } from '~/stores/user'
 import { parseFragment, getSemiUserInfo, syncFromSemi } from '~/utils/api'
 import PixelCard from '~/components/pixel/PixelCard.vue'
