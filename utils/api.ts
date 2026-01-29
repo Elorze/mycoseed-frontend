@@ -807,7 +807,15 @@ export const getReviewTasks = async (baseUrl: string): Promise<Task[]> => {
  * @param baseUrl API 基础 URL
  * @param comments 可选的审核评语
  */
-export const approveTask = async (taskId: string, baseUrl: string, comments?: string): Promise<{ success: boolean; message: string }> =>
+export const approveTask = async (taskId: string, baseUrl: string, comments?: string): Promise<{ 
+  success: boolean; 
+  message: string;
+  data?: {
+    claimerId: string;
+    reward: number;
+    creatorId: string;
+  }
+}> =>
 {
   try
   {
@@ -1806,4 +1814,52 @@ export const parseFragment = (fragment: string): Record<string, string> => {
     })
   }
   return params
+}
+
+// ==================== Semi转账跳转相关 ====================
+
+/**
+ * 构造跳转到Semi-app转账页面的链接
+ * @param receiverAddress 接收方钱包地址（参与者的钱包地址）
+ * @param amount 转账金额（字符串格式，如 "100"）
+ * @param tokenAddress 代币合约地址（可选，默认NT代币）
+ * @param chainId 链ID（可选，默认10-Optimism）
+ * @returns Semi-app转账页面URL
+ */
+export function buildSemiTransferUrl(
+  receiverAddress: string,
+  amount: string,
+  tokenAddress: string = '0x7563cb33148cD2b929ed85e69F697be13b515Bd0', // NT代币
+  chainId: number = 10 //Optimism
+): string {
+  const semiAppBaseUrl = 'https://www.semi.im'
+  const params = new URLSearchParams({
+    chain_id: chainId.toString(),
+    token_address: tokenAddress,
+    to: receiverAddress,
+    amount: amount,
+  })
+
+  return `${semiAppBaseUrl}/transfer?${params.toString()}`
+}
+
+/**
+ * 根据用户ID获取钱包地址
+ * @param userId 用户ID
+ * @param baseUrl API基础URL
+ * @returns 钱包地址或null
+ */
+export async function getWalletAddressByUserId(
+  userId: string,
+  baseUrl: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(`${baseUrl}/api/auth/users/${userId}`)
+    if (!response.ok) return null
+    const data = await response.json()
+    return data.user?.evm_chain_address || null
+  } catch (error) {
+    console.error('Get wallet address error:', error)
+    return null
+  }
 }

@@ -345,7 +345,7 @@
 </template>
 
 <script setup lang="ts">
-import { getTaskById, approveTask, rejectTask, getApiBaseUrl } from '~/utils/api'
+import { getTaskById, approveTask, rejectTask, getApiBaseUrl, buildSemiTransferUrl, getWalletAddressByUserId } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
@@ -353,6 +353,8 @@ import PixelButton from '~/components/pixel/PixelButton.vue'
 import { getTaskRewardSymbol } from '~/utils/display'
 import type { Task } from '~/utils/api'
 import { formatBeijingTime, parseBeijingTime } from '~/utils/time'
+
+
 
 // 获取路由参数
 const route = useRoute()
@@ -902,6 +904,50 @@ const submitReview = async () => {
         color: 'green'
       })
       
+      // 审核通过后，自动跳转到semi转账页面
+      if (result.data) {
+        const { claimerId, reward, creatorId } = result.data
+
+        try {
+          // 获取创建者的钱包地址（发送方）
+          const creatorAddress = await getWalletAddressByUserId(creatorId, baseUrl)
+
+          // 获取参与者的钱包地址（接受方）
+          const claimerAddress = await getWalletAddressByUserId(claimerId, baseUrl)
+
+          // 检查钱包地址
+          if (!creatorAddress) {
+            toast.add({
+              title:'无法转账',
+              description: '创建者未绑定钱包，无法转账',
+              color: 'orange'
+            })
+          } else if (!claimerAddress) {
+            toast.add({
+              title: '无法转账',
+              description: '参与者未绑定钱包，无法转账',
+              color: 'orange'
+            })
+          } else {
+            // 构造并跳转到semi转账页面
+            const transferUrl = buildSemiTransferUrl(
+              claimerAddress, // 接收方：参与者的钱包地址
+              reward.toString(), // 转账金额
+            )
+
+            // 在新窗口打开semi转账页面
+            window.open(transferUrl, '_blank')
+          }
+        } catch (error) {
+          console.error('获取钱包地址失败：', error)
+          toast.add({
+            title:'无法转账',
+            description: '获取钱包地址失败，请稍后重试',
+            color: 'orange'
+          })
+        }
+      }
+
       // 审核通过后直接跳转到任务详情页（多人任务中每个任务都是独立的）
       // 使用当前审核的任务ID（对于多人任务，这是当前参与者的任务ID）
       const redirectTaskId = currentSubmission.value?.taskId || taskId
