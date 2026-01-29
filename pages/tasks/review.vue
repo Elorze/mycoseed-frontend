@@ -202,7 +202,7 @@
             </div>
 
             <!-- 提交按钮 -->
-            <div v-if="canReview" class="flex gap-4 pt-6 border-t-2 border-black/20">
+            <div v-if="canReview && !showTransferButton" class="flex gap-4 pt-6 border-t-2 border-black/20">
               <PixelButton
                 @click="navigateTo(`/tasks/${taskId}`)"
                 variant="secondary"
@@ -220,6 +220,37 @@
               >
                 {{ isSubmitting ? '提交中...' : '提交审核' }}
               </PixelButton>
+            </div>
+            
+            <!-- 审核成功后的转账按钮 -->
+            <div v-if="canReview && showTransferButton" class="pt-6 border-t-2 border-black/20">
+              <div class="bg-mario-green/20 border-2 border-mario-green shadow-pixel-sm p-4 mb-4">
+                <p class="font-vt323 text-base text-black mb-2">
+                  <span class="font-pixel text-xs">✅</span> 审核已通过！现在可以跳转到 Semi 进行积分转账。
+                </p>
+                <p class="font-vt323 text-sm text-black/70">
+                  奖励金额：{{ transferData?.reward || 0 }} {{ taskRewardSymbol }}
+                </p>
+              </div>
+              <div class="flex gap-4">
+                <PixelButton
+                  @click="navigateTo(`/tasks/${taskId}`)"
+                  variant="secondary"
+                  size="lg"
+                  :block="false"
+                >
+                  稍后转账
+                </PixelButton>
+                <PixelButton
+                  @click="handleTransferToSemi"
+                  variant="primary"
+                  size="lg"
+                  :block="false"
+                  :disabled="isTransferring"
+                >
+                  {{ isTransferring ? '处理中...' : '跳转到Semi转账' }}
+                </PixelButton>
+              </div>
             </div>
             
             <!-- 只读模式返回按钮 -->
@@ -378,6 +409,15 @@ const taskRewardSymbol = ref('积分') // 任务奖励的积分符号
 // 拒绝选项弹窗相关状态
 const showRejectModal = ref(false)
 const rejectOption = ref<'resubmit' | 'reclaim' | 'end' | ''>('')
+
+// 转账相关状态
+const showTransferButton = ref(false)
+const transferData = ref<{
+  claimerId: string
+  reward: number
+  creatorId: string
+} | null>(null)
+const isTransferring = ref(false)
 
 // 任务数据
 const task = ref<{
@@ -892,6 +932,12 @@ const submitReview = async () => {
     const targetTaskId = currentSubmission.value?.taskId || taskId
     const result = await approveTask(targetTaskId, baseUrl, reviewResult.value.comments)
     
+    // 添加调试日志
+    console.log('=== 审核结果 ===')
+    console.log('result:', JSON.stringify(result, null, 2))
+    console.log('result.data:', result.data)
+    console.log('result.success:', result.success)
+    
     if (result.success) {
       // 更新当前提交的状态
       if (currentSubmission.value) {
@@ -904,54 +950,28 @@ const submitReview = async () => {
         color: 'green'
       })
       
-      // 审核通过后，自动跳转到semi转账页面
+      // 审核通过后，保存转账信息并显示转账按钮
       if (result.data) {
+        console.log('=== 审核通过，保存转账信息 ===')
         const { claimerId, reward, creatorId } = result.data
-
-        try {
-          // 获取创建者的钱包地址（发送方）
-          const creatorAddress = await getWalletAddressByUserId(creatorId, baseUrl)
-
-          // 获取参与者的钱包地址（接受方）
-          const claimerAddress = await getWalletAddressByUserId(claimerId, baseUrl)
-
-          // 检查钱包地址
-          if (!creatorAddress) {
-            toast.add({
-              title:'无法转账',
-              description: '创建者未绑定钱包，无法转账',
-              color: 'orange'
-            })
-          } else if (!claimerAddress) {
-            toast.add({
-              title: '无法转账',
-              description: '参与者未绑定钱包，无法转账',
-              color: 'orange'
-            })
-          } else {
-            // 构造并跳转到semi转账页面
-            const transferUrl = buildSemiTransferUrl(
-              claimerAddress, // 接收方：参与者的钱包地址
-              reward.toString(), // 转账金额
-            )
-
-            // 在新窗口打开semi转账页面
-            window.open(transferUrl, '_blank')
-          }
-        } catch (error) {
-          console.error('获取钱包地址失败：', error)
-          toast.add({
-            title:'无法转账',
-            description: '获取钱包地址失败，请稍后重试',
-            color: 'orange'
-          })
+        console.log('claimerId:', claimerId, 'reward:', reward, 'creatorId:', creatorId)
+        
+        // 保存转账信息
+        transferData.value = {
+          claimerId,
+          reward,
+          creatorId
         }
+        showTransferButton.value = true
+        console.log('✅ 转账按钮已显示')
+      } else {
+        console.warn('⚠️ result.data 不存在，无法显示转账按钮')
+        console.warn('result 完整内容:', result)
+        
+        // 如果没有 data，直接跳转到任务详情页
+        const redirectTaskId = currentSubmission.value?.taskId || taskId
+        await router.push(`/tasks/${redirectTaskId}?reviewed=true`)
       }
-
-      // 审核通过后直接跳转到任务详情页（多人任务中每个任务都是独立的）
-      // 使用当前审核的任务ID（对于多人任务，这是当前参与者的任务ID）
-      const redirectTaskId = currentSubmission.value?.taskId || taskId
-      await router.push(`/tasks/${redirectTaskId}?reviewed=true`)
     } else {
       toast.add({
         title: '审核失败',
@@ -1044,6 +1064,96 @@ const confirmReject = async () => {
     })
   } finally {
     isSubmitting.value = false
+  }
+}
+
+// 跳转到Semi转账页面
+const handleTransferToSemi = async () => {
+  if (!transferData.value) {
+    console.error('转账数据不存在')
+    toast.add({
+      title: '无法转账',
+      description: '转账数据不存在，请重新审核',
+      color: 'red'
+    })
+    return
+  }
+
+  isTransferring.value = true
+  
+  try {
+    const baseUrl = getApiBaseUrl()
+    const { claimerId, reward, creatorId } = transferData.value
+    
+    console.log('=== 开始处理转账跳转 ===')
+    console.log('claimerId:', claimerId, 'reward:', reward, 'creatorId:', creatorId)
+
+    // 获取创建者的钱包地址（发送方）
+    const creatorAddress = await getWalletAddressByUserId(creatorId, baseUrl)
+    console.log('创建者钱包地址:', creatorAddress)
+
+    // 获取参与者的钱包地址（接受方）
+    const claimerAddress = await getWalletAddressByUserId(claimerId, baseUrl)
+    console.log('参与者钱包地址:', claimerAddress)
+
+    // 检查钱包地址
+    if (!creatorAddress) {
+      console.warn('创建者未绑定钱包')
+      toast.add({
+        title:'无法转账',
+        description: '创建者未绑定钱包，无法转账',
+        color: 'orange'
+      })
+      return
+    }
+    
+    if (!claimerAddress) {
+      console.warn('参与者未绑定钱包')
+      toast.add({
+        title: '无法转账',
+        description: '参与者未绑定钱包，无法转账',
+        color: 'orange'
+      })
+      return
+    }
+
+    // 构造并跳转到semi转账页面
+    const transferUrl = buildSemiTransferUrl(
+      claimerAddress, // 接收方：参与者的钱包地址
+      reward.toString(), // 转账金额
+    )
+    console.log('转账URL:', transferUrl)
+    
+    // 在新窗口打开semi转账页面
+    const newWindow = window.open(transferUrl, '_blank')
+    if (!newWindow) {
+      console.error('浏览器阻止了弹窗')
+      toast.add({
+        title: '无法打开转账页面',
+        description: '浏览器阻止了弹窗，请允许弹窗后重试',
+        color: 'orange'
+      })
+    } else {
+      console.log('✅ 已打开转账页面')
+      toast.add({
+        title: '已打开转账页面',
+        description: '请在 Semi 页面完成转账',
+        color: 'green'
+      })
+      
+      // 跳转到任务详情页
+      const redirectTaskId = currentSubmission.value?.taskId || taskId
+      await router.push(`/tasks/${redirectTaskId}?reviewed=true`)
+    }
+  } catch (error) {
+    console.error('获取钱包地址失败：', error)
+    toast.add({
+      title:'无法转账',
+      description: '获取钱包地址失败，请稍后重试',
+      color: 'orange'
+    })
+  } finally {
+    isTransferring.value = false
   }
 }
 
