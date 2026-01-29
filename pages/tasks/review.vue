@@ -384,6 +384,7 @@ import PixelButton from '~/components/pixel/PixelButton.vue'
 import { getTaskRewardSymbol } from '~/utils/display'
 import type { Task } from '~/utils/api'
 import { formatBeijingTime, parseBeijingTime } from '~/utils/time'
+import { watch } from 'vue'
 
 
 
@@ -453,7 +454,11 @@ const task = ref<{
 
 // 权限检查：判断当前用户是否是任务创建者
 const canReview = computed(() => {
-  return userStore.user?.id === task.value.creatorId
+  const result = userStore.user?.id === task.value.creatorId
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:455',message:'canReview computed',data:{userId:userStore.user?.id,creatorId:task.value.creatorId,result,showTransferButton:showTransferButton.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  return result
 })
 
 // 所有参与者的提交数据（多人任务）
@@ -915,6 +920,10 @@ const loadTask = async () => {
 
 // 提交审核
 const submitReview = async () => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:917',message:'submitReview called',data:{canSubmit:canSubmit.value,decision:reviewResult.value.decision,canReview:canReview.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
   if (!canSubmit.value) return
   
   // 如果选择拒绝，显示拒绝选项弹窗
@@ -930,7 +939,16 @@ const submitReview = async () => {
     const baseUrl = getApiBaseUrl()
     // 使用当前选中提交的任务ID
     const targetTaskId = currentSubmission.value?.taskId || taskId
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:933',message:'Before approveTask call',data:{targetTaskId,baseUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     const result = await approveTask(targetTaskId, baseUrl, reviewResult.value.comments)
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:936',message:'After approveTask call',data:{success:result.success,hasData:!!result.data,data:result.data,message:result.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     
     // 添加调试日志
     console.log('=== 审核结果 ===')
@@ -952,6 +970,10 @@ const submitReview = async () => {
       
       // 审核通过后，保存转账信息并显示转账按钮
       if (result.data) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:954',message:'result.data exists, setting transfer button',data:{claimerId:result.data.claimerId,reward:result.data.reward,creatorId:result.data.creatorId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        
         console.log('=== 审核通过，保存转账信息 ===')
         const { claimerId, reward, creatorId } = result.data
         console.log('claimerId:', claimerId, 'reward:', reward, 'creatorId:', creatorId)
@@ -963,8 +985,17 @@ const submitReview = async () => {
           creatorId
         }
         showTransferButton.value = true
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:965',message:'showTransferButton set to true',data:{showTransferButton:showTransferButton.value,transferData:transferData.value,canReview:canReview.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        
         console.log('✅ 转账按钮已显示')
       } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:967',message:'result.data does not exist, redirecting',data:{result},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
         console.warn('⚠️ result.data 不存在，无法显示转账按钮')
         console.warn('result 完整内容:', result)
         
@@ -1162,11 +1193,26 @@ const navigateTo = (path: string) => {
   router.push(path)
 }
 
+// 监控 showTransferButton 状态变化
+watch(showTransferButton, (newVal) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:watch',message:'showTransferButton changed',data:{newVal,canReview:canReview.value,transferData:transferData.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+}, { immediate: true })
+
 // 组件挂载时加载任务数据
 onMounted(async () => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:1197',message:'Component mounted',data:{showTransferButton:showTransferButton.value,transferData:transferData.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+  
   // 确保用户信息已加载
   await userStore.getUser()
   await loadTask()
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/12fcd2f2-6fd8-4340-8068-b1f6eb08d647',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'review.vue:1205',message:'After loadTask',data:{showTransferButton:showTransferButton.value,transferData:transferData.value,taskCreatorId:task.value.creatorId,userId:userStore.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
 })
 </script>
 
