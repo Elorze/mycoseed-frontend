@@ -125,7 +125,7 @@
             <!-- 移动端单列，桌面端双列 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block font-pixel text-xs uppercase mb-2 text-black">奖励积分 *</label>
+                <label class="block font-pixel text-xs uppercase mb-2 text-black">每人积分 *</label>
                 <input 
                   v-model="taskForm.reward" 
                   type="number"
@@ -134,36 +134,6 @@
                   placeholder="100"
                   class="w-full h-12 px-4 bg-white border-2 border-black shadow-pixel-sm font-vt323 text-lg focus:outline-none focus:shadow-pixel focus:-translate-y-1 transition-all"
                 />
-                
-                <!-- 奖励分配方式选择器 -->
-                <div v-if="taskForm.participantLimit" class="mt-3 space-y-2">
-                  <label class="block font-pixel text-[10px] uppercase text-black">奖励分配方式</label>
-                  <div class="flex gap-3">
-                    <!-- 隐藏"每人积分"选项，因为现在没有实现这个功能 -->
-                    <!-- <label class="flex items-center cursor-pointer">
-                      <input 
-                        type="radio" 
-                        v-model="rewardDistributionMode"
-                        value="per_person"
-                        class="sr-only peer"
-                      />
-                      <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
-                        每人积分
-                      </div>
-                    </label> -->
-                    <label class="flex items-center cursor-pointer">
-                      <input 
-                        type="radio" 
-                        v-model="rewardDistributionMode"
-                        value="total"
-                        class="sr-only peer"
-                      />
-                      <div class="px-4 py-2 border-2 border-black bg-white shadow-pixel-sm font-vt323 text-sm transition-all peer-checked:bg-mario-green peer-checked:text-white peer-checked:shadow-pixel">
-                        总积分
-                      </div>
-                    </label>
-                  </div>
-                </div>
                 
                 <p v-if="rewardExplanation" class="mt-2 font-vt323 text-sm text-black/70">
                   {{ rewardExplanation }}
@@ -493,7 +463,7 @@ const userSearchQuery = ref('')
 const showUserDropdown = ref(false)
 
 // 奖励积分分配模式：'per_person' 每人积分，'total' 总积分
-const rewardDistributionMode = ref<'per_person' | 'total'>('total')
+const rewardDistributionMode = ref<'per_person' | 'total'>('per_person')
 
 // 日期校验相关
 const minStart = ref('')
@@ -533,17 +503,9 @@ const rewardExplanation = computed(() => {
   }
   
   const limit = taskForm.value.participantLimit || 1
+  const totalReward = reward * limit
   
-  // 根据分配模式显示不同的说明
-  if (rewardDistributionMode.value === 'per_person') {
-    // 每人积分模式
-    const totalReward = reward * limit
-    return `每个完成任务的参与者将获得 ${reward} 积分（共 ${limit} 人，总奖励 ${totalReward} 积分）`
-  } else {
-    // 总积分模式
-    const perPersonReward = Math.floor(reward / limit)
-    return `总奖励 ${reward} 积分，将根据实际参与人数平均分配（最多 ${limit} 人，每人最多可获得 ${perPersonReward} 积分）`
-  }
+  return `如果都完成任务，则最多支付 ${totalReward} 积分`
 })
 
 // 校验参与人数
