@@ -776,7 +776,7 @@ const loadTask = async () => {
           return {
             taskId: p.id || taskData.id,
             submitter: {
-              id: p.id || '',
+              id: p.claimerId || '',
               name: p.name || '未领取',
               role: '参与者'
             },
@@ -812,15 +812,35 @@ const loadTask = async () => {
         return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
       })
       
-      // 如果有多个提交，默认显示第一个未审核的
-      const firstUnreviewedIndex = allSubmissions.value.findIndex(
-        s => s.status === 'submitted' || s.status === 'under_review'
+      // 如果有多个提交，首先根据URL参数中的taskId找到对应的参与者
+      const targetSubmissionIndex = allSubmissions.value.findIndex(
+        s => s.taskId === taskId // taskId 是 URL 参数中的任务行ID
       )
-      if (firstUnreviewedIndex !== -1) {
-        currentSubmissionIndex.value = firstUnreviewedIndex
-      } else if (allSubmissions.value.length > 0) {
-        currentSubmissionIndex.value = 0
+
+      if (targetSubmissionIndex !== -1) {
+        // 找到了 URL 参数指定的参与者，直接显示它
+        currentSubmissionIndex.value = targetSubmissionIndex
+      } else {
+        // 如果找不到（可能是旧链接或者数据不一致），使用优先级逻辑
+        const firstUnreviewedIndex = allSubmissions.value.findIndex(
+          s => s.status === 'submitted' || s.status === 'under_review'
+        )
+        if (firstUnreviewedIndex !== -1) {
+          currentSubmissionIndex.value = firstUnreviewedIndex
+        } else {
+          // 如果没有未审核的，优先显示第一个已完成的（用于转账）
+          const firstCompletedIndex = allSubmissions.value.findIndex(
+            s => s.status === 'completed'
+          )
+          if (firstCompletedIndex !== -1) {
+            currentSubmissionIndex.value = firstCompletedIndex
+          } else if (allSubmissions.value.length > 0) {
+            // 如果也没有已完成的，显示第一个
+            currentSubmissionIndex.value = 0
+          }
+        }
       }
+      
     } else if (taskData.claimerName && taskData.submittedAt) {
       // 单人任务：向后兼容
       // 解析提交内容（JSON格式：{description, files, gps, submittedAt}）
