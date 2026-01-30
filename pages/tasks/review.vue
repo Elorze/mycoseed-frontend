@@ -554,6 +554,7 @@ const allSubmissions = ref<Array<{
   } | null
   status: string
   reward?: number
+  transferredAt?: string
 }>>([])
 
 // 当前选中的提交（用于审核）
@@ -866,7 +867,8 @@ const loadTask = async () => {
             files: files,
             gpsLocation: gpsLocation,
             status: p.status || (p.claimedAt ? (p.submittedAt ? 'submitted' : 'claimed') : 'unclaimed'),
-            reward: taskData.reward // 使用任务的基础奖励，实际奖励可能根据权重系数计算
+            reward: taskData.reward, // 使用任务的基础奖励，实际奖励可能根据权重系数计算
+            transferredAt: p.transferredAt // ✅ 新增：从后端数据中读取转账状态
           }
         })
       
@@ -999,7 +1001,8 @@ const loadTask = async () => {
         files: files,
         gpsLocation: gpsLocation,
         status: taskData.status || 'submitted',
-        reward: taskData.reward
+        reward: taskData.reward,
+        transferredAt: taskData.transferredAt // ✅ 新增：从后端数据中读取转账状态
       }]
       currentSubmissionIndex.value = 0
     }
