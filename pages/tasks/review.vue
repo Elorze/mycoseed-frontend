@@ -239,27 +239,38 @@
                   <span class="font-pixel text-xs">⚠</span> 待转账
                 </p>
               </div>
-              <!-- 如果未转账，显示转账按钮 -->
-              <PixelButton
-                v-if="!(currentSubmission as any).transferredAt"
-                @click="handleTransferToSemi"
-                variant="primary"
-                size="lg"
-                :block="true"
-                :disabled="isTransferring"
-              >
-                {{ isTransferring ? '处理中...' : '跳转到Semi转账' }}
-              </PixelButton>
-              <!-- 如果已转账，显示标记按钮（用于补标记） -->
+              <!-- 如果未转账，显示转账按钮和标记按钮 -->
+              <template v-if="!(currentSubmission as any).transferredAt">
+                <PixelButton
+                  @click="handleTransferToSemi"
+                  variant="primary"
+                  size="lg"
+                  :block="true"
+                  :disabled="isTransferring"
+                  class="mb-3"
+                >
+                  {{ isTransferring ? '处理中...' : '跳转到Semi转账' }}
+                </PixelButton>
+                <PixelButton
+                  @click="handleMarkTransferCompleted"
+                  variant="secondary"
+                  size="lg"
+                  :block="true"
+                  :disabled="isMarkingTransfer"
+                >
+                  {{ isMarkingTransfer ? '标记中...' : '标记为已转账' }}
+                </PixelButton>
+              </template>
+              <!-- 如果已转账，显示已完成转账按钮（可点击取消标记） -->
               <PixelButton
                 v-else
-                @click="handleMarkTransferCompleted"
-                variant="secondary"
+                @click="handleUnmarkTransfer"
+                variant="success"
                 size="lg"
                 :block="true"
                 :disabled="isMarkingTransfer"
               >
-                {{ isMarkingTransfer ? '标记中...' : '重新标记转账' }}
+                {{ isMarkingTransfer ? '处理中...' : '已完成转账' }}
               </PixelButton>
             </div>
             
@@ -1274,16 +1285,16 @@ const handleMarkTransferCompleted = async () => {
         color: 'green'
       })
       
-      // 更新本地状态
-      if (currentSubmission.value && result.data?.transferredAt) {
-        (currentSubmission.value as any).transferredAt = result.data.transferredAt
+      // 更新本地状态 - 直接修改源数组
+      const currentIndex = currentSubmissionIndex.value
+      if (currentIndex >= 0 && currentIndex < allSubmissions.value.length && result.data?.transferredAt) {
+        (allSubmissions.value[currentIndex] as any).transferredAt = result.data.transferredAt
       }
       
       // 关闭弹窗
       showTransferModal.value = false
       
-      // 跳转到任务详情页
-      await router.push(`/tasks/${targetTaskId}?reviewed=true`)
+      // 不跳转，留在当前页面让用户看到按钮变化
     } else {
       toast.add({
         title: '标记失败',
@@ -1295,6 +1306,39 @@ const handleMarkTransferCompleted = async () => {
     console.error('标记转账完成失败：', error)
     toast.add({
       title: '标记失败',
+      description: '网络错误，请稍后重试',
+      color: 'red'
+    })
+  } finally {
+    isMarkingTransfer.value = false
+  }
+}
+
+// 取消标记转账（将transferredAt设为null）
+const handleUnmarkTransfer = async () => {
+  if (!currentSubmission.value) {
+    console.error('当前参与者不存在')
+    return
+  }
+
+  isMarkingTransfer.value = true
+  
+  try {
+    // 直接更新本地状态，取消标记
+    const currentIndex = currentSubmissionIndex.value
+    if (currentIndex >= 0 && currentIndex < allSubmissions.value.length) {
+      (allSubmissions.value[currentIndex] as any).transferredAt = undefined
+    }
+    
+    toast.add({
+      title: '已取消标记',
+      description: '转账标记已取消',
+      color: 'green'
+    })
+  } catch (error) {
+    console.error('取消标记转账失败：', error)
+    toast.add({
+      title: '取消标记失败',
       description: '网络错误，请稍后重试',
       color: 'red'
     })
