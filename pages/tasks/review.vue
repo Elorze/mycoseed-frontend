@@ -226,13 +226,22 @@
             <div v-if="canReview && currentSubmission && currentSubmission.status === 'completed'" class="pt-6 border-t-2 border-black/20">
               <div class="bg-mario-green/20 border-2 border-mario-green shadow-pixel-sm p-4 mb-4">
                 <p class="font-vt323 text-base text-black mb-2">
-                  <span class="font-pixel text-xs">✅</span> 审核已通过！现在可以跳转到 Semi 进行积分转账。
+                  <span class="font-pixel text-xs">✅</span> 审核已通过！
                 </p>
-                <p class="font-vt323 text-sm text-black/70">
+                <p class="font-vt323 text-sm text-black/70 mb-2">
                   奖励金额：{{ transferData?.reward || 0 }} {{ taskRewardSymbol }}
                 </p>
+                <!-- 转账状态显示 -->
+                <p v-if="(currentSubmission as any).transferredAt" class="font-vt323 text-sm text-mario-green">
+                  <span class="font-pixel text-xs">✓</span> 已转账（{{ formatBeijingTime((currentSubmission as any).transferredAt) }}）
+                </p>
+                <p v-else class="font-vt323 text-sm text-mario-yellow">
+                  <span class="font-pixel text-xs">⚠</span> 待转账
+                </p>
               </div>
+              <!-- 如果未转账，显示转账按钮 -->
               <PixelButton
+                v-if="!(currentSubmission as any).transferredAt"
                 @click="handleTransferToSemi"
                 variant="primary"
                 size="lg"
@@ -240,7 +249,18 @@
                 :disabled="isTransferring"
               >
                 {{ isTransferring ? '处理中...' : '跳转到Semi转账' }}
-            </PixelButton>
+              </PixelButton>
+              <!-- 如果已转账，显示标记按钮（用于补标记） -->
+              <PixelButton
+                v-else
+                @click="handleMarkTransferCompleted"
+                variant="secondary"
+                size="lg"
+                :block="true"
+                :disabled="isMarkingTransfer"
+              >
+                {{ isMarkingTransfer ? '标记中...' : '重新标记转账' }}
+              </PixelButton>
             </div>
             
             <!-- 只读模式返回按钮 -->
@@ -362,11 +382,57 @@
         </div>
       </div>
     </div>
+
+    <!-- 转账标记弹窗 -->
+    <div
+      v-if="showTransferModal"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      @click="showTransferModal = false"
+    >
+      <div
+        class="bg-white border-2 border-black shadow-pixel-lg max-w-lg w-full"
+        @click.stop
+      >
+        <div class="p-6">
+          <h3 class="font-pixel text-sm uppercase text-black mb-4">转账确认</h3>
+          
+          <div class="bg-mario-green/20 border-2 border-mario-green shadow-pixel-sm p-4 mb-6">
+            <p class="font-vt323 text-base text-black mb-2">
+              <span class="font-pixel text-xs">💸</span> 是否已完成转账？
+            </p>
+            <div class="font-vt323 text-sm text-black/70 space-y-1">
+              <p>接收方：{{ currentSubmission?.submitter.name }}</p>
+              <p>转账金额：{{ transferData?.reward || 0 }} {{ taskRewardSymbol }}</p>
+            </div>
+          </div>
+          
+          <div class="flex gap-4">
+            <PixelButton
+              @click="showTransferModal = false"
+              variant="secondary"
+              size="lg"
+              :block="false"
+            >
+              稍后标记
+            </PixelButton>
+            <PixelButton
+              @click="handleMarkTransferCompleted"
+              variant="primary"
+              size="lg"
+              :block="false"
+              :disabled="isMarkingTransfer"
+            >
+              {{ isMarkingTransfer ? '标记中...' : '已完成转账' }}
+            </PixelButton>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { getTaskById, approveTask, rejectTask, getApiBaseUrl, buildSemiTransferUrl, getWalletAddressByUserId } from '~/utils/api'
+import { getTaskById, approveTask, rejectTask, getApiBaseUrl, buildSemiTransferUrl, getWalletAddressByUserId, markTransferCompleted } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
@@ -407,6 +473,10 @@ const transferData = ref<{
   creatorId: string
 } | null>(null)
 const isTransferring = ref(false)
+
+// 转账标记弹窗相关状态
+const showTransferModal = ref(false)
+const isMarkingTransfer = ref(false)
 
 // 任务数据
 const task = ref<{
@@ -1165,9 +1235,8 @@ const handleTransferToSemi = async () => {
         color: 'green'
       })
       
-      // 跳转到任务详情页
-      const redirectTaskId = currentSubmission.value?.taskId || taskId
-      await router.push(`/tasks/${redirectTaskId}?reviewed=true`)
+      // 显示转账标记弹窗
+      showTransferModal.value = true
     }
   } catch (error) {
     console.error('获取钱包地址失败：', error)
@@ -1178,6 +1247,57 @@ const handleTransferToSemi = async () => {
     })
   } finally {
     isTransferring.value = false
+  }
+}
+
+// 标记转账完成
+const handleMarkTransferCompleted = async () => {
+  if (!currentSubmission.value) {
+    console.error('当前参与者不存在')
+    return
+  }
+
+  isMarkingTransfer.value = true
+  
+  try {
+    const baseUrl = getApiBaseUrl()
+    const targetTaskId = currentSubmission.value.taskId || taskId
+    
+    const result = await markTransferCompleted(targetTaskId, baseUrl)
+    
+    if (result.success) {
+      toast.add({
+        title: '标记成功',
+        description: result.message,
+        color: 'green'
+      })
+      
+      // 更新本地状态
+      if (currentSubmission.value && result.data?.transferredAt) {
+        (currentSubmission.value as any).transferredAt = result.data.transferredAt
+      }
+      
+      // 关闭弹窗
+      showTransferModal.value = false
+      
+      // 跳转到任务详情页
+      await router.push(`/tasks/${targetTaskId}?reviewed=true`)
+    } else {
+      toast.add({
+        title: '标记失败',
+        description: result.message,
+        color: 'red'
+      })
+    }
+  } catch (error) {
+    console.error('标记转账完成失败：', error)
+    toast.add({
+      title: '标记失败',
+      description: '网络错误，请稍后重试',
+      color: 'red'
+    })
+  } finally {
+    isMarkingTransfer.value = false
   }
 }
 

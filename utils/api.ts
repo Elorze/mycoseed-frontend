@@ -100,6 +100,8 @@ export interface Task {
     claimedAt: string
     submittedAt?: string
     proof?: string
+    status?: string
+    transferredAt?: string     // 转账完成时间
   }>
   timeline?: TimelineStatus[]     // 任务时间线（状态数组，仅追加写入，通过最后一个元素获取最新状态）
   createdAt?: string             // 创建时间
@@ -110,6 +112,7 @@ export interface Task {
   claimedAt?: string             // 领取时间（单人任务）
   submittedAt?: string           // 提交时间（单人任务）
   completedAt?: string           // 完成时间
+  transferredAt?: string        // 转账完成时间
 }
 
 // ==================== Mock 数据 ====================
@@ -846,6 +849,45 @@ export const approveTask = async (taskId: string, baseUrl: string, comments?: st
   {
     console.error('Approve task error:', error)
     return { success: false, message: error.message || '审核失败'}
+  }
+}
+
+/**
+ * 标记转账完成
+ * @param taskId 任务 ID (UUID string)
+ * @param baseUrl API 基础 URL
+ */
+export const markTransferCompleted = async (taskId: string, baseUrl: string): Promise<{ 
+  success: boolean; 
+  message: string;
+  data?: {
+    transferredAt: string;
+  }
+}> => {
+  try {
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/mark-transfer-completed`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json()
+      return {
+        success: false,
+        message: error.message || '标记转账失败'
+      }
+    }
+
+    const result = await response.json()
+    return result
+  } catch (error: any) {
+    console.error('Mark transfer completed error:', error)
+    return { success: false, message: error.message || '标记转账失败' }
   }
 }
 

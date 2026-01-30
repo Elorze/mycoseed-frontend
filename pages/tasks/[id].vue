@@ -435,9 +435,54 @@
               审核中
             </PixelButton>
             
-            <!-- 已完成状态 -->
+            <!-- 已完成状态 - 审核者可以看到转账按钮 -->
+            <template v-if="task.status === 'completed' && canReview">
+              <!-- 未转账：显示转账按钮和标记按钮 -->
+              <template v-if="!task.transferredAt">
             <PixelButton
-              v-if="task.status === 'completed'"
+                  @click="handleTransferToSemi"
+                  variant="primary"
+                  size="lg"
+                  :block="true"
+                  :disabled="isTransferring"
+                  class="mb-3"
+                >
+                  {{ isTransferring ? '处理中...' : '跳转到Semi转账' }}
+                </PixelButton>
+                <PixelButton
+                  @click="handleMarkTransferCompleted"
+                  variant="secondary"
+                  size="lg"
+                  :block="true"
+                  :disabled="isMarkingTransfer"
+                >
+                  {{ isMarkingTransfer ? '标记中...' : '标记为已转账' }}
+                </PixelButton>
+              </template>
+              <!-- 已转账：显示状态标记 -->
+              <div v-else class="text-center py-4">
+                <div class="bg-mario-green/20 border-2 border-mario-green shadow-pixel-sm p-4 mb-3">
+                  <p class="font-vt323 text-base text-black mb-1">
+                    <span class="font-pixel text-xs">✓</span> 已转账
+                  </p>
+                  <p class="font-vt323 text-sm text-black/70">
+                    转账时间：{{ formatDate(task.transferredAt) }}
+                  </p>
+                </div>
+                <PixelButton
+                  @click="handleMarkTransferCompleted"
+                  variant="secondary"
+                  size="lg"
+                  :block="true"
+                  :disabled="isMarkingTransfer"
+                >
+                  {{ isMarkingTransfer ? '标记中...' : '重新标记转账' }}
+                </PixelButton>
+              </div>
+            </template>
+            <!-- 已完成状态 - 非审核者 -->
+            <PixelButton
+              v-else-if="task.status === 'completed'"
               variant="secondary"
               size="lg"
               :block="true"
@@ -465,7 +510,7 @@
 </template>
 
 <script setup lang="ts">
-import { getTaskById, claimTask, getApiBaseUrl } from '~/utils/api'
+import { getTaskById, claimTask, getApiBaseUrl, markTransferCompleted, buildSemiTransferUrl, getWalletAddressByUserId } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
@@ -482,6 +527,8 @@ const loading = ref(false)
 const claimError = ref<string | null>(null)
 const userStore = useUserStore()
 const taskRewardSymbol = ref('积分') // 任务奖励的积分符号
+const isTransferring = ref(false)
+const isMarkingTransfer = ref(false)
 
 // 当前查看的参与者ID（用于多人任务导航）
 
@@ -1344,6 +1391,7 @@ const switchParticipant = async (participantTaskId: string) => {
       task.value.claimedAt = participantTaskData.claimedAt
       task.value.submittedAt = participantTaskData.submittedAt
       task.value.completedAt = participantTaskData.completedAt
+      task.value.transferredAt = participantTaskData.transferredAt
       
       // 更新任务奖励的积分符号
       taskRewardSymbol.value = await getTaskRewardSymbol(participantTaskData)
@@ -1360,6 +1408,122 @@ const switchParticipant = async (participantTaskId: string) => {
     })
   } finally {
     loading.value = false
+  }
+}
+
+// 跳转到Semi转账页面
+const handleTransferToSemi = async () => {
+  if (!task.value.claimerId) {
+    toast.add({
+      title: '无法转账',
+      description: '参与者信息不存在',
+      color: 'red'
+    })
+    return
+  }
+
+  isTransferring.value = true
+  
+  try {
+    const baseUrl = getApiBaseUrl()
+    const creatorId = task.value.creatorId
+    const claimerId = task.value.claimerId
+    const reward = task.value.reward
+    
+    // 获取创建者的钱包地址（发送方）
+    const creatorAddress = await getWalletAddressByUserId(creatorId, baseUrl)
+    
+    // 获取参与者的钱包地址（接受方）
+    const claimerAddress = await getWalletAddressByUserId(claimerId, baseUrl)
+    
+    // 检查钱包地址
+    if (!creatorAddress) {
+      toast.add({
+        title: '无法转账',
+        description: '创建者未绑定钱包，无法转账',
+        color: 'orange'
+      })
+      return
+    }
+    
+    if (!claimerAddress) {
+      toast.add({
+        title: '无法转账',
+        description: '参与者未绑定钱包，无法转账',
+        color: 'orange'
+      })
+      return
+    }
+
+    // 构造并跳转到semi转账页面
+    const transferUrl = buildSemiTransferUrl(
+      claimerAddress,
+      reward.toString(),
+    )
+    
+    // 在新窗口打开semi转账页面
+    const newWindow = window.open(transferUrl, '_blank')
+    if (!newWindow) {
+      toast.add({
+        title: '无法打开转账页面',
+        description: '浏览器阻止了弹窗，请允许弹窗后重试',
+        color: 'orange'
+      })
+    } else {
+      toast.add({
+        title: '已打开转账页面',
+        description: '请在 Semi 页面完成转账后，点击"标记为已转账"',
+        color: 'green'
+      })
+    }
+  } catch (error) {
+    console.error('获取钱包地址失败：', error)
+    toast.add({
+      title: '无法转账',
+      description: '获取钱包地址失败，请稍后重试',
+      color: 'orange'
+    })
+  } finally {
+    isTransferring.value = false
+  }
+}
+
+// 标记转账完成
+const handleMarkTransferCompleted = async () => {
+  isMarkingTransfer.value = true
+  
+  try {
+    const baseUrl = getApiBaseUrl()
+    const result = await markTransferCompleted(task.value.id, baseUrl)
+    
+    if (result.success) {
+      toast.add({
+        title: '标记成功',
+        description: result.message,
+        color: 'green'
+      })
+      
+      // 更新本地状态
+      task.value.transferredAt = result.data?.transferredAt
+      
+      // 重新加载任务数据
+      await loadTask()
+    } else {
+      toast.add({
+        title: '标记失败',
+        description: result.message,
+        color: 'red'
+      })
+    }
+  } catch (error) {
+    console.error('标记转账完成失败：', error)
+    toast.add({
+      title: '标记失败',
+      description: '网络错误，请稍后重试',
+      color: 'red'
+    })
+  } finally {
+    isMarkingTransfer.value = false
   }
 }
 
