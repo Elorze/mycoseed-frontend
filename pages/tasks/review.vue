@@ -1053,11 +1053,13 @@ const submitReview = async () => {
     
     if (result.success) {
       // 更新当前提交的状态，watch会自动更新转账数据
-      if (currentSubmission.value) {
-        currentSubmission.value.status = reviewResult.value.decision === 'approved' ? 'completed' : 'rejected'
+      // 注意：需要直接修改源数组，而不是computed属性
+      const currentIndex = currentSubmissionIndex.value
+      if (currentIndex >= 0 && currentIndex < allSubmissions.value.length) {
+        allSubmissions.value[currentIndex].status = reviewResult.value.decision === 'approved' ? 'completed' : 'rejected'
         // 如果后端返回了奖励金额，更新它
         if (result.data?.reward) {
-          currentSubmission.value.reward = result.data.reward
+          allSubmissions.value[currentIndex].reward = result.data.reward
         }
       }
       
