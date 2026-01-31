@@ -1313,7 +1313,7 @@ const handleMarkTransferCompleted = async () => {
           console.log('14. 更新后的 transferredAt:', (currentSubmission.value as any).transferredAt)
         } else {
           console.warn('⚠️ result.data?.transferredAt 不存在，使用当前时间')
-          const transferredAtValue = new Date().toISOString()
+          const transferredAtValue: string = new Date().toISOString()
           (allSubmissions.value[currentIndex] as any).transferredAt = transferredAtValue
           console.log('15. 使用备用值:', transferredAtValue)
         }
@@ -1352,13 +1352,24 @@ const handleUnmarkTransfer = async () => {
     return
   }
 
+  console.log('=== 取消标记转账调试 ===')
+  console.log('1. 取消前 currentSubmission:', currentSubmission.value)
+  console.log('2. 取消前 transferredAt:', (currentSubmission.value as any).transferredAt)
+  console.log('3. currentIndex:', currentSubmissionIndex.value)
+
   isMarkingTransfer.value = true
   
   try {
     // 直接更新本地状态，取消标记
     const currentIndex = currentSubmissionIndex.value
     if (currentIndex >= 0 && currentIndex < allSubmissions.value.length) {
+      console.log('4. 准备取消标记，currentIndex:', currentIndex)
       (allSubmissions.value[currentIndex] as any).transferredAt = undefined
+      console.log('5. 取消后的 submission:', allSubmissions.value[currentIndex])
+      console.log('6. 取消后的 currentSubmission:', currentSubmission.value)
+      console.log('7. 取消后的 transferredAt:', (currentSubmission.value as any).transferredAt)
+    } else {
+      console.error('❌ 索引无效:', currentIndex, '长度:', allSubmissions.value.length)
     }
     
     toast.add({
@@ -1367,7 +1378,7 @@ const handleUnmarkTransfer = async () => {
       color: 'green'
     })
   } catch (error) {
-    console.error('取消标记转账失败：', error)
+    console.error('❌ 取消标记转账失败：', error)
     toast.add({
       title: '取消标记失败',
       description: '网络错误，请稍后重试',
