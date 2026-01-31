@@ -1276,7 +1276,8 @@ const loadTask = async () => {
       updatedAt: currentTaskData.updatedAt || taskData.updatedAt,
       claimedAt: currentTaskData.claimedAt,
       submittedAt: currentTaskData.submittedAt,
-      completedAt: currentTaskData.completedAt
+      completedAt: currentTaskData.completedAt,
+      transferredAt: currentTaskData.transferredAt || undefined // ✅ 新增：从后端数据中读取转账状态
     }
     
     // 调试：打印 assignedUserId
