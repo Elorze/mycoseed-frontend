@@ -891,6 +891,44 @@ export const markTransferCompleted = async (taskId: string, baseUrl: string): Pr
   }
 }
 
+export const unmarkTransferCompleted = async (taskId: string, baseUrl: string): Promise<{ 
+  success: boolean; 
+  message: string;
+  data?: {
+    transferredAt: null;
+  }
+}> => {
+  try {
+    const response = await fetch(`${baseUrl}/api/tasks/${taskId}/unmark-transfer-completed`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json()
+      return {
+        success: false,
+        message: error.message || '取消转账标记失败'
+      }
+    }
+
+    const result = await response.json()
+    return {
+      success: result.success,
+      message: result.message,
+      data: result.data
+    }
+  } catch (error: any) {
+    console.error('Unmark transfer completed error:', error)
+    return { success: false, message: error.message || '取消转账标记失败' }
+  }
+}
+
 /**
  * 驳回任务
  * @param taskId 任务 ID (UUID string)

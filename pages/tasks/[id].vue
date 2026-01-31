@@ -470,13 +470,13 @@
                   </p>
                 </div>
                 <PixelButton
-                  @click="handleMarkTransferCompleted"
+                  @click="handleUnmarkTransfer"
                   variant="secondary"
                   size="lg"
                   :block="true"
                   :disabled="isMarkingTransfer"
                 >
-                  {{ isMarkingTransfer ? '标记中...' : '重新标记转账' }}
+                  {{ isMarkingTransfer ? '处理中...' : '取消转账标记' }}
                 </PixelButton>
               </div>
             </template>
@@ -510,7 +510,7 @@
 </template>
 
 <script setup lang="ts">
-import { getTaskById, claimTask, getApiBaseUrl, markTransferCompleted, buildSemiTransferUrl, getWalletAddressByUserId } from '~/utils/api'
+import { getTaskById, claimTask, getApiBaseUrl, markTransferCompleted, unmarkTransferCompleted, buildSemiTransferUrl, getWalletAddressByUserId } from '~/utils/api'
 import { useToast } from '~/composables/useToast'
 import { useUserStore } from '~/stores/user'
 import PixelCard from '~/components/pixel/PixelCard.vue'
@@ -1517,12 +1517,6 @@ const handleMarkTransferCompleted = async () => {
         }
       }
       
-      // ❌ 删除：await loadTask()
-      // 原因：
-      // 1. API 返回成功说明后端已更新，本地状态应该与后端一致
-      // 2. 重新加载会导致页面"刷新"，影响用户体验
-      // 3. 与 review.vue 的逻辑保持一致
-      // 4. 减少不必要的网络请求和页面重新渲染
     } else {
       toast.add({
         title: '标记失败',
@@ -1534,6 +1528,52 @@ const handleMarkTransferCompleted = async () => {
     console.error('标记转账完成失败：', error)
     toast.add({
       title: '标记失败',
+      description: '网络错误，请稍后重试',
+      color: 'red'
+    })
+  } finally {
+    isMarkingTransfer.value = false
+  }
+}
+
+// 取消转账标记（清除 transferredAt）
+const handleUnmarkTransfer = async () => {
+  isMarkingTransfer.value = true
+  
+  try {
+    const baseUrl = getApiBaseUrl()
+    const result = await unmarkTransferCompleted(task.value.id, baseUrl)
+    
+    if (result.success) {
+      toast.add({
+        title: '取消标记成功',
+        description: result.message,
+        color: 'green'
+      })
+      
+      // 清除当前任务行的转账状态
+      task.value.transferredAt = null
+      
+      // 如果是多人任务，同时清除 participantsList 中对应参与者的 transferredAt
+      if (task.value.participantsList && Array.isArray(task.value.participantsList)) {
+        const currentParticipant = task.value.participantsList.find(
+          (p: any) => p.id === task.value.id
+        )
+        if (currentParticipant) {
+          currentParticipant.transferredAt = undefined
+        }
+      }
+    } else {
+      toast.add({
+        title: '取消标记失败',
+        description: result.message,
+        color: 'red'
+      })
+    }
+  } catch (error) {
+    console.error('取消转账标记失败：', error)
+    toast.add({
+      title: '取消标记失败',
       description: '网络错误，请稍后重试',
       color: 'red'
     })
