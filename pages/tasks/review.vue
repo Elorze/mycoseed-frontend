@@ -1273,13 +1273,25 @@ const handleMarkTransferCompleted = async () => {
     return
   }
 
+  console.log('=== 标记转账调试 ===')
+  console.log('1. 更新前 currentSubmission:', currentSubmission.value)
+  console.log('2. 更新前 transferredAt:', (currentSubmission.value as any).transferredAt)
+  console.log('3. currentIndex:', currentSubmissionIndex.value)
+  console.log('4. allSubmissions.length:', allSubmissions.value.length)
+
   isMarkingTransfer.value = true
   
   try {
     const baseUrl = getApiBaseUrl()
     const targetTaskId = currentSubmission.value.taskId || taskId
     
+    console.log('5. 调用API，taskId:', targetTaskId, 'baseUrl:', baseUrl)
     const result = await markTransferCompleted(targetTaskId, baseUrl)
+    
+    console.log('6. API返回结果:', result)
+    console.log('7. result.success:', result.success)
+    console.log('8. result.data:', result.data)
+    console.log('9. result.data?.transferredAt:', result.data?.transferredAt)
     
     if (result.success) {
       toast.add({
@@ -1290,8 +1302,23 @@ const handleMarkTransferCompleted = async () => {
       
       // 更新本地状态 - 直接修改源数组
       const currentIndex = currentSubmissionIndex.value
-      if (currentIndex >= 0 && currentIndex < allSubmissions.value.length && result.data?.transferredAt) {
-        (allSubmissions.value[currentIndex] as any).transferredAt = result.data.transferredAt
+      console.log('10. 准备更新，currentIndex:', currentIndex, 'allSubmissions.length:', allSubmissions.value.length)
+      
+      if (currentIndex >= 0 && currentIndex < allSubmissions.value.length) {
+        if (result.data?.transferredAt) {
+          console.log('11. 设置 transferredAt:', result.data.transferredAt)
+          (allSubmissions.value[currentIndex] as any).transferredAt = result.data.transferredAt
+          console.log('12. 更新后的 submission:', allSubmissions.value[currentIndex])
+          console.log('13. 更新后的 currentSubmission:', currentSubmission.value)
+          console.log('14. 更新后的 transferredAt:', (currentSubmission.value as any).transferredAt)
+        } else {
+          console.warn('⚠️ result.data?.transferredAt 不存在，使用当前时间')
+          const transferredAtValue = new Date().toISOString()
+          (allSubmissions.value[currentIndex] as any).transferredAt = transferredAtValue
+          console.log('15. 使用备用值:', transferredAtValue)
+        }
+      } else {
+        console.error('❌ 索引无效:', currentIndex, '长度:', allSubmissions.value.length)
       }
       
       // 关闭弹窗
@@ -1299,6 +1326,7 @@ const handleMarkTransferCompleted = async () => {
       
       // 不跳转，留在当前页面让用户看到按钮变化
     } else {
+      console.error('❌ 标记失败:', result.message)
       toast.add({
         title: '标记失败',
         description: result.message,
@@ -1306,7 +1334,7 @@ const handleMarkTransferCompleted = async () => {
       })
     }
   } catch (error) {
-    console.error('标记转账完成失败：', error)
+    console.error('❌ 标记转账完成失败：', error)
     toast.add({
       title: '标记失败',
       description: '网络错误，请稍后重试',
