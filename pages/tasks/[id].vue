@@ -1503,11 +1503,26 @@ const handleMarkTransferCompleted = async () => {
         color: 'green'
       })
       
-      // 更新本地状态
-      task.value.transferredAt = result.data?.transferredAt
+      // 更新当前任务行的转账状态
+      const transferredAtValue = result.data?.transferredAt
+      task.value.transferredAt = transferredAtValue
       
-      // 重新加载任务数据
-      await loadTask()
+      // 如果是多人任务，同时更新 participantsList 中对应参与者的 transferredAt
+      if (task.value.participantsList && Array.isArray(task.value.participantsList)) {
+        const currentParticipant = task.value.participantsList.find(
+          (p: any) => p.id === task.value.id
+        )
+        if (currentParticipant) {
+          currentParticipant.transferredAt = transferredAtValue
+        }
+      }
+      
+      // ❌ 删除：await loadTask()
+      // 原因：
+      // 1. API 返回成功说明后端已更新，本地状态应该与后端一致
+      // 2. 重新加载会导致页面"刷新"，影响用户体验
+      // 3. 与 review.vue 的逻辑保持一致
+      // 4. 减少不必要的网络请求和页面重新渲染
     } else {
       toast.add({
         title: '标记失败',
